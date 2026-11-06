@@ -1,0 +1,6 @@
+{
+  "name": "flow",
+  "version": "0.2.0",
+  "description": "jflow: AI-native SDLC flow with human gates - next, intent, spec, tdr, plan, build, verify, quick. Stage in Linear, artifacts in Jitera.",
+  "author": { "name": "Jitera" }
+}

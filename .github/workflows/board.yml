@@ -1,0 +1,58 @@
+name: Board
+
+on:
+  pull_request:
+    paths: ["board/**", ".github/workflows/board.yml"]
+  push:
+    branches: [main]
+    paths: ["board/**", ".github/workflows/board.yml"]
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: board
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: board/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  deploy:
+    needs: check
+    if: github.event_name != 'pull_request' && vars.BOARD_DEPLOY == 'true'
+    # Deploy secrets live only in this environment: main branch, approval required.
+    environment: production
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: board/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          workingDirectory: board
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
+          secrets: |
+            LINEAR_API_KEY
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}

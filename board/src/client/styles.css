@@ -1,0 +1,94 @@
+:root {
+  --bg: #f7f7f5;
+  --panel: #ffffff;
+  --fg: #1f2328;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --own: #3b82f6;
+  --out: #f59e0b;
+  --ok: #15803d;
+  --warn: #b45309;
+  --bad: #b91c1c;
+  --radius: 10px;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+a { color: inherit; }
+
+.wb { max-width: 1400px; margin: 0 auto; padding: 32px 16px 64px; display: flex; flex-direction: column; gap: 28px; }
+.wb-head { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; justify-content: space-between; }
+.wb-title { margin: 0; font: 400 32px/1.2 Georgia, 'Times New Roman', serif; }
+.wb-lede { margin: 6px 0 0; color: var(--muted); font-size: 16px; max-width: 70ch; }
+.wb-lede b { color: var(--fg); font-variant-numeric: tabular-nums; }
+.wb-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-size: 12px; color: var(--muted); }
+.wb-controls label { display: flex; gap: 6px; align-items: center; }
+select, .wb-btn { font: inherit; font-size: 12px; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; }
+.wb-btn { cursor: pointer; }
+.wb-btn:hover { border-color: var(--muted); }
+.wb-btn:disabled { opacity: .6; cursor: default; }
+.wb-error { margin: 0; color: var(--bad); }
+.wb-multi { position: relative; }
+.wb-multi summary { list-style: none; cursor: pointer; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; }
+.wb-multi summary::-webkit-details-marker { display: none; }
+.wb-multi[open] summary { border-color: var(--muted); }
+.wb-multi-list { position: absolute; z-index: 10; top: calc(100% + 4px); left: 0; min-width: 14rem; max-height: 20rem; overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 4px; box-shadow: 0 6px 20px rgba(0, 0, 0, .08); color: var(--fg); }
+.wb-multi-list label { display: flex; gap: 6px; align-items: center; white-space: nowrap; }
+
+.wb-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: 12px; }
+.wb-kpi { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 18px; display: flex; flex-direction: column; gap: 4px; }
+.wb-kpi-label { font-size: 12px; color: var(--muted); }
+.wb-kpi-value { font: 400 30px/1.2 Georgia, serif; font-variant-numeric: tabular-nums; }
+
+.wb-section-title { margin: 0; font-size: 18px; font-weight: 500; }
+.wb-note { margin: 4px 0 12px; font-size: 12px; color: var(--muted); max-width: 90ch; }
+.wb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); gap: 12px; align-items: start; }
+.wb-panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; overflow-x: auto; }
+
+.wb-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.wb-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.wb-card-name { margin: 0; font-size: 16px; font-weight: 500; overflow-wrap: anywhere; }
+.wb-count { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.wb-count.has { color: var(--warn); }
+.wb-bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--line); }
+.wb-bar span { display: block; height: 100%; }
+.wb-bar .own { background: var(--own); }
+.wb-bar .out { background: var(--out); }
+.wb-bar .ready { background: repeating-linear-gradient(45deg, var(--out) 0 3px, var(--panel) 3px 5px); }
+.wb-muted { font-size: 12px; color: var(--muted); }
+.wb-forecast { font-size: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; display: flex; flex-direction: column; gap: 2px; }
+.wb-forecast b { font: 400 16px Georgia, serif; }
+.wb-sub { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-top: 4px; }
+.wb-empty { margin: 0; font-size: 12px; color: var(--muted); }
+
+.wb-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.wb-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; text-decoration: none; max-width: 100%; }
+a.wb-chip:hover { border-color: var(--muted); }
+.wb-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.wb-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--line); }
+.wb-dot.started { background: var(--ok); }
+.wb-dot.planned { background: var(--out); }
+
+.wb-tag { padding: 0 6px; border-radius: 4px; border: 1px solid currentColor; font-size: 11px; line-height: 16px; white-space: nowrap; flex: none; }
+.wb-tag.off_board_project { color: var(--warn); }
+.wb-tag.other_board_project { color: var(--muted); }
+.wb-tag.ready, .wb-tag.review { color: var(--ok); }
+.wb-tag.working { color: var(--warn); }
+.wb-tag.stuck { color: var(--bad); }
+
+.wb-list { list-style: none; margin: 0; padding: 0; }
+.wb-item { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 12px; }
+.wb-item:first-child { border-top: 0; }
+.wb-item a { text-decoration: none; }
+.wb-item a:hover { text-decoration: underline; }
+.wb-id { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wb-item-title { min-width: 0; overflow-wrap: anywhere; }
+.wb-item-meta { grid-column: 2; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+.wb-cmd { grid-column: 2; display: flex; gap: 6px; align-items: center; }
+.wb-cmd code { user-select: all; font-size: 11px; padding: 1px 6px; border: 1px dashed var(--line); border-radius: 4px; }
+
+.wb-table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.wb-table th, .wb-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.wb-table th { color: var(--muted); font-weight: 500; }
+.wb-table .num { text-align: right; }

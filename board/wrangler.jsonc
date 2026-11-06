@@ -1,0 +1,19 @@
+{
+  "name": "jflow-board",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-02-25",
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  },
+  "observability": { "enabled": true },
+  // Keep workers.dev off: the board must only be reachable through Cloudflare Access.
+  "workers_dev": false,
+  "vars": {
+    "CACHE_MINUTES": "10"
+  }
+  // Secret: LINEAR_API_KEY (wrangler secret put LINEAR_API_KEY).
+  // Add your route here, behind a Cloudflare Access application:
+  // "routes": [{ "pattern": "board.example.com", "custom_domain": true }]
+}

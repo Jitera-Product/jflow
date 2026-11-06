@@ -1,0 +1,11 @@
+{
+  "name": "jflow",
+  "owner": { "name": "Jitera" },
+  "plugins": [
+    {
+      "name": "flow",
+      "source": "./",
+      "description": "jflow: AI-native SDLC flow with human gates - next, intent, spec, tdr, plan, build, verify, quick. Stage in Linear, artifacts in Jitera."
+    }
+  ]
+}

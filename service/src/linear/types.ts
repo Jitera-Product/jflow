@@ -1,0 +1,18 @@
+export type TrackerProject = {
+  id: string; identifier: string; name: string; url: string;
+  teams: string[];                                   // team keys
+  lead: { name: string; email: string } | null;      // email lowercased
+  flowLabel: string | null;
+};
+export interface Tracker {
+  getProject(ref: string): Promise<TrackerProject | null>;
+  setFlowLabel(projectId: string, label: string): Promise<void>;
+}
+
+export type Label = { id: string; name: string };
+export type ProjectData = {
+  id: string; name: string; url: string;
+  lead: { name: string; email: string } | null;
+  teams: { nodes: Array<{ key: string }> };
+  labels: { nodes: Label[] };
+};

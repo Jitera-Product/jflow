@@ -1,0 +1,16 @@
+{
+  "_note": "Hand-built in the Linear schema shape (not a live response). Re-check live in 1c.",
+  "data": {
+    "project": {
+      "id": "9b6a0c52-4f3e-4d57-8a41-2f0c7e1d5a10",
+      "name": "Export audit log",
+      "url": "https://linear.app/jitera/project/export-audit-log-abc123def456",
+      "lead": { "name": "Mika", "email": "Mika@Jitera.com" },
+      "teams": { "nodes": [{ "key": "ENG" }] },
+      "labels": { "nodes": [
+        { "id": "label-design", "name": "design" },
+        { "id": "label-flow-spec-review", "name": "flow:spec-review" }
+      ] }
+    }
+  }
+}

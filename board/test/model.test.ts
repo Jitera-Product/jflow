@@ -102,4 +102,9 @@ describe('buildBoard', () => {
     const b = buildBoard(input({ started: [issue({ assignee: eve }), issue({ assignee: eve, project: { id: 'p1', name: 'Alpha' } })] }), NOW);
     expect(b.notOnBoard).toEqual([{ person: eve, issues: 2, noProject: 1 }]);
   });
+
+  it('sorts people by name', () => {
+    const b = buildBoard(input({ started: [issue({ assignee: bob, project: null })] }), NOW);
+    expect(b.people.map((p) => p.person.name)).toEqual(['Ann', 'Bob']);
+  });
 });

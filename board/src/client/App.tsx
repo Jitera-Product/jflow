@@ -84,7 +84,7 @@ export function App() {
       <section>
         <h2 className="wb-section-title">By person</h2>
         <p className="wb-note">
-          Projects on the board are the ones matching Team and Status above (no choice: all open projects of all teams). Each card shows projects, not their issues: the person's own projects (lead or member) and other projects where they have active issues, each with a count. Only issues without a project are listed one by one. The forecast is open issues (started and Todo) divided by the issues the person closed per week over the last {data?.settings.paceDays ?? 21} days; issues finished by the agent do not count as their pace. Agent-ready issues carry agent:ready and one repo: label.
+          The forecast is open issues (started and Todo) divided by the issues the person closed per week over the last {data?.settings.paceDays ?? 21} days. Issues finished by the agent do not count as their pace. Agent-ready issues carry agent:ready and one repo: label.
         </p>
         <div className="wb-grid">{data?.people.map((p) => <PersonCard key={p.person.id} p={p} paceDays={data.settings.paceDays} minClosures={data.settings.minClosures} />)}</div>
       </section>

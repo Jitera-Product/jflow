@@ -11,6 +11,9 @@ Read `CONVENTIONS.md` in this skill's folder first and follow it.
 Input: a Linear project or issue, from the arguments (`$ARGUMENTS`) or the user's message.
 See "Finding the project" in the conventions.
 
+With the jflow tools (see "With the jflow service" in the conventions), use `start_feature`,
+`write_file`, `log_stage` and `set_stage` instead of the Jitera and Linear tools.
+
 ## Steps
 
 1. Read the Linear project: name, description, documents, issues, comments.

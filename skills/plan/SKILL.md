@@ -13,6 +13,9 @@ Input: a Linear project or issue, from the arguments (`$ARGUMENTS`) or the user'
 Meant to run locally with a human. The repos must be checked out side by side under the
 current folder (for example `~/Projects/acme`).
 
+With the jflow tools (see "With the jflow service" in the conventions), use `read_feature`,
+`write_file` and `log_stage` instead of the Jitera tools. Issues are still made in Linear.
+
 Precondition: project label `flow:plan`, or the human says to go ahead.
 
 1. Read the project, `1-intent.md` and `2-spec.md`. The spec is the contract.

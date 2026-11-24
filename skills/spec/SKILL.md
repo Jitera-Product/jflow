@@ -10,6 +10,9 @@ Read `CONVENTIONS.md` in this skill's folder first and follow it.
 
 Input: a Linear project or issue, from the arguments (`$ARGUMENTS`) or the user's message.
 
+With the jflow tools (see "With the jflow service" in the conventions), use `read_feature`,
+`write_file`, `log_stage` and `set_stage` instead of the Jitera and Linear tools.
+
 ## Preconditions
 
 - The project has the label `flow:spec`, or the human running this says to go ahead.

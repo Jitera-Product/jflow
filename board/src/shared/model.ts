@@ -158,7 +158,7 @@ export function buildBoard(input: BoardInput, now: number, s: Settings = DEFAULT
     };
   });
 
-  people.sort((a, b) => b.outsideCount - a.outsideCount || b.bar.own - a.bar.own || a.person.name.localeCompare(b.person.name));
+  people.sort((a, b) => a.person.name.localeCompare(b.person.name));
 
   const boardStarted = input.started.filter((i) => i.assignee && own.has(i.assignee.id));
   const offBoard = boardStarted.filter((i) => !(i.project && own.get(i.assignee?.id ?? '')?.has(i.project.id)));

@@ -24,6 +24,7 @@ folder and goes straight to build (see `skills/quick/SKILL.md`).
     0-status.md         status table of all stages + log
     1-intent.md
     2-spec.md
+    2-ui/README.md      only when the feature changes UI
     3-plan.md
     4-verification.md
   ```
@@ -66,18 +67,33 @@ the project it belongs to. With no input, take the issue ID from the git branch 
 
 | Label | Meaning | Who sets it |
 | --- | --- | --- |
-| `flow:intent` | Intent is being written | human |
+| `flow:intent` | Intent is being written | human (with jflow: agent, when the project has no flow label) |
 | `flow:spec` | Intent approved, spec can be drafted | human (gate) |
 | `flow:spec-review` | Spec draft is ready for humans | agent |
 | `flow:tdr` | Optional. Spec approved, a TDR is needed first | human (gate) |
-| `flow:plan` | Spec approved (and TDR accepted, if needed), plan can be written | human (gate) |
+| `flow:ui` | Optional. Spec approved and the spec says the feature changes UI, screens are designed first | human (gate) |
+| `flow:plan` | Spec approved (and TDR accepted, and UI handed off, if needed), plan can be written | human (gate) |
 | `flow:build` | Plan approved, issues exist, build can start | human (gate) |
-| `flow:verify` | All issues merged or deployed, ready to verify | agent or human |
-| `flow:done` | Verified | human (gate) |
+| `flow:verify` | All issues merged or deployed, ready to verify | agent or human (with jflow: human for now) |
+| `flow:done` | Verified | human (gate) (with jflow: set by hand for now) |
 
 The labels are workspace project labels in the group `Flow`. Only one `flow:*` label on a
 project at a time. Setting a new one means removing the old one.
 Project status (Backlog, Planned, In Progress, ...) and issue statuses keep working as before.
+
+## With the jflow service
+
+When the jflow MCP tools are present (`read_feature`, `start_feature`, `read_file`, `write_file`,
+`log_stage`, `set_stage`, `open_gate`, `save_ui_handoff`), use them and nothing else for flow files
+and labels:
+
+- Read and write flow files only through the tools, not through the Jitera or Linear tools.
+- Never set a gate label yourself. Call `open_gate` and show the returned line (`Approve here: <link>`)
+  to the person. Only a person can approve, on that page or on the chat card.
+- Never say a gate is approved until `read_feature` shows the label moved.
+- `0-status.md` is updated by the tools. After a stage run, call `log_stage` instead of editing it.
+  In the stage skills, "update `0-status.md`" means `log_stage` and "set the project label" means `set_stage`.
+- The project is named by its Linear project ID, like `P-CORE-396`. The tools do not take a URL.
 
 ## When a TDR is needed
 
@@ -135,10 +151,14 @@ are normal but rare, and go through the human-in-the-loop path in the `build` sk
    append one line under Log: date, stage, who or which agent, what happened. The Linear
    label stays the source of truth for the current stage. The table is the readable summary,
    so whoever moves the label updates the table in the same step.
-4. **Never pass a gate on your own.** Gates (`flow:spec`, `flow:tdr`, `flow:plan`, `flow:build`,
-   `flow:done`) are set by people. A human can pass a gate by saying yes in `next`.
+4. **Never pass a gate on your own.** Gates (`flow:spec`, `flow:tdr`, `flow:ui`, `flow:plan`, `flow:build`,
+   `flow:done`) are set by people. A human can pass a gate by saying yes in `next`, or, with the
+   jflow service, on the confirm page or the chat card.
    Without that yes, an agent may only set `flow:spec-review` or `flow:verify` (after all
    issues are merged), or leave the label as is.
+   With the jflow service, the agent may set only `flow:intent` (when the project has no flow
+   label) and `flow:spec-review` (from `flow:spec`). The other gate labels move only when a
+   person approves. `flow:verify` and `flow:done` are set by a person for now.
 5. **Git only in build and quick.** Only `build` and `quick` commit, push feature branches and
    open PRs (see "Build rules"). Every other stage never touches git. Nobody but a human
    merges.
@@ -158,6 +178,6 @@ are normal but rare, and go through the human-in-the-loop path in the `build` sk
    Next: /clear, then /flow:next <project>   (Codex: /new, then $next <project>)
    ```
 
-   `<stage>` is one of intent, spec, tdr, plan, build, verify. Build uses one subagent per
+   `<stage>` is one of intent, spec, tdr, ui, plan, build, verify. Build uses one subagent per
    issue, so the main session stays clean.
 10. **Style.** English. Plain, short words. Hyphens only, never em or en dashes.

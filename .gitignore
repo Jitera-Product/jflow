@@ -4,3 +4,7 @@ dist/
 .wrangler/
 .dev.vars
 .env
+
+# Internal design docs and roadmap, not published
+docs/internal/
+service/config.local.json

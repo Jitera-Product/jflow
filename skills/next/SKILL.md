@@ -24,11 +24,15 @@ they approve (open questions, flagged concerns, the pieces in the plan, failed c
 | `flow:intent` | intent complete | **gate**: approve intent? -> set `flow:spec`, run the `spec` skill |
 | `flow:spec` | - | run the `spec` skill |
 | `flow:spec-review` | a flagged concern has no Decision line | list every undecided concern, ask the human to decide each one (or explicitly move it out of scope), write the answers into `2-spec.md`, stay on the label |
-| `flow:spec-review` | spec says TDR not needed | **gate**: approve spec? -> set `flow:plan`, run the `plan` skill |
+| `flow:spec-review` | spec says TDR not needed, no UI change | **gate**: approve spec? -> set `flow:plan`, run the `plan` skill |
+| `flow:spec-review` | spec says TDR not needed, UI changes | **gate**: approve spec? -> set `flow:ui`, run the `ui` skill |
 | `flow:spec-review` | spec says TDR needed | **gate**: approve spec? -> set `flow:tdr`, run the `tdr` skill |
 | `flow:tdr` | TDR missing | run the `tdr` skill |
 | `flow:tdr` | TDR is Draft or In Review | show its status and open points, stop. The engineer owns it. |
-| `flow:tdr` | TDR is Accepted | **gate**: move to plan? -> set `flow:plan`, run the `plan` skill |
+| `flow:tdr` | TDR is Accepted, no UI change | **gate**: move to plan? -> set `flow:plan`, run the `plan` skill |
+| `flow:tdr` | TDR is Accepted, UI changes | **gate**: move to UI? -> set `flow:ui`, run the `ui` skill |
+| `flow:ui` | no `2-ui/README.md` yet | run the `ui` skill |
+| `flow:ui` | handoff saved | **gate**: approve the UI? -> set `flow:plan`, run the `plan` skill |
 | `flow:plan` | no `3-plan.md` or no issues yet | run the `plan` skill |
 | `flow:plan` | open technical questions in `3-plan.md` | show them, stop |
 | `flow:plan` | plan written, issues exist, no open technical questions | **gate**: approve plan? -> set `flow:build`, run the `build` skill |
@@ -38,6 +42,14 @@ they approve (open questions, flagged concerns, the pieces in the plan, failed c
 | `flow:verify` | all checks pass | **gate**: mark done? -> set `flow:done` |
 | `flow:verify` | some checks fail | show the failures, stop |
 | `flow:done` | - | say it is done, stop |
+
+## With the jflow service
+
+When the jflow MCP tools are present, a **gate** row does not set the label after a yes in chat.
+Call `open_gate` with the target label and show the line it returns. The person approves on that
+page or on the chat card. Run the next stage only after `read_feature` shows the label moved. Use
+`start_feature`, `write_file`, `log_stage` and `set_stage` for the rest, as the stage skills say.
+The jflow tools do not handle verify and done yet: tell the person what is done and ask them to set the label.
 
 ## Fresh context for spec and verify
 
@@ -57,6 +69,7 @@ they approve (open questions, flagged concerns, the pieces in the plan, failed c
 
 - If the human says no at a gate, ask what to change, apply it in the file of the current
   stage, and stay on the same label.
+- A spec "changes UI" when its Design section or requirements add or change a screen.
 - Swap labels, never stack them: remove the old `flow:*` label when setting the new one.
 - One step per call. After the next stage finishes, stop. If it ran inline, end with the
   "Stage done" lines from the conventions. If it ran in a subagent, the main session stays

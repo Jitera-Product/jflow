@@ -8,12 +8,13 @@ Linear: <project URL>
 | 2 | Spec | not started | 2-spec.md | | |
 | 3 | Spec review | not started | - | | |
 | 4 | TDR | not started | link in 2-spec.md | | |
-| 5 | Plan | not started | 3-plan.md | | |
-| 6 | Build | not started | Linear issues | | |
-| 7 | Verify | not started | 4-verification.md | | |
-| 8 | Done | not started | - | | |
+| 5 | UI | not started | 2-ui/README.md | | |
+| 6 | Plan | not started | 3-plan.md | | |
+| 7 | Build | not started | Linear issues | | |
+| 8 | Verify | not started | 4-verification.md | | |
+| 9 | Done | not started | - | | |
 
-Status values: not started, in progress, done, skipped (TDR only, when not needed).
+Status values: not started, in progress, done, skipped (TDR and UI only, when not needed).
 
 ## Build
 
@@ -22,6 +23,11 @@ Status values: not started, in progress, done, skipped (TDR only, when not neede
 
 Build status values: waiting (blocked by an issue with no PR yet), building, waiting for answer,
 in review, merged.
+
+## Gates
+
+| Gate | From | To | Roles | Opened | Status | Approved by | Decided by | Sig |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
 ## Log
 

@@ -1,0 +1,29 @@
+name: Service
+
+on:
+  pull_request:
+    paths: ["service/**", "templates/**", ".github/workflows/service.yml"]
+  push:
+    branches: [main]
+    paths: ["service/**", "templates/**", ".github/workflows/service.yml"]
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: service/package-lock.json
+      - run: npm ci
+        working-directory: service
+      - run: npm test
+        working-directory: service
+      - run: npm run build
+        working-directory: service
+      - run: docker build -f service/Dockerfile .

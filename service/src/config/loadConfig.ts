@@ -18,10 +18,18 @@ export function loadConfig(
     return v ?? '';
   };
 
-  const linearApiKey = secret('LINEAR_API_KEY');
+  const access = (envName: string, fileKey: 'aud' | 'teamDomain'): string => {
+    const v = env[envName] || file.access?.[fileKey];
+    if (!v) problems.push(`${envName} is missing (or set access.${fileKey} in the config file)`);
+    return v ?? '';
+  };
+
+  const aud = access('JFLOW_ACCESS_AUD', 'aud');
+  const teamDomain = access('JFLOW_ACCESS_TEAM_DOMAIN', 'teamDomain');
   const gateSecret = secret('JFLOW_GATE_SECRET', MIN_SECRET);
   const callbackSecret = secret('JFLOW_CALLBACK_SECRET', MIN_SECRET);
-  const docsToken = secret(file.documents.tokenEnv);
+  const databaseUrl = secret('DATABASE_URL');
+  const settingsKey = secret('JFLOW_SETTINGS_KEY', MIN_SECRET);
   const mcpClients = file.mcpClients.map((c) => ({ name: c.name, token: secret(c.tokenEnv, MIN_SECRET) }));
   const tokens = mcpClients.map((c) => c.token).filter(Boolean);
   if (new Set(tokens).size !== tokens.length) problems.push('two mcpClients have the same token');
@@ -33,11 +41,12 @@ export function loadConfig(
     publicUrl: file.publicUrl.replace(/\/+$/, ''),
     flowFolder: file.flowFolder,
     templatesDir: file.templatesDir ?? fileURLToPath(new URL('../../../templates', import.meta.url)),
-    teams: file.teams,
-    engineers: file.engineers.map((e) => e.toLowerCase()),
-    access: file.access,
-    documents: { kind: file.documents.kind, url: file.documents.url, token: docsToken, headers: file.documents.headers, verbs: file.documents.verbs },
-    linearApiKey,
+    webDir: file.webDir ?? fileURLToPath(new URL('../../../web/dist', import.meta.url)),
+    seedEngineers: file.engineers.map((e) => e.toLowerCase()),
+    access: { teamDomain, aud },
+    documents: { kind: file.documents.kind, verbs: file.documents.verbs },
+    databaseUrl,
+    settingsKey,
     gateSecret,
     callbackSecret,
     mcpClients,

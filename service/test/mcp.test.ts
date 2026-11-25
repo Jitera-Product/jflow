@@ -6,9 +6,13 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { Config } from '../src/config/types.js';
 import { memoryDocuments } from '../src/documents/memoryDocuments.js';
 import type { Documents } from '../src/documents/types.js';
+import { liveDocuments } from '../src/documents/liveDocuments.js';
 import type { Deps } from '../src/feature/types.js';
+import { liveTracker } from '../src/linear/liveTracker.js';
 import type { TrackerProject } from '../src/linear/types.js';
 import { buildMcpServer } from '../src/mcp/buildMcpServer.js';
+import { memorySettingsStore } from '../src/settings/memorySettingsStore.js';
+import { openSettings } from '../src/settings/openSettings.js';
 
 const TEMPLATES = fileURLToPath(new URL('../../templates', import.meta.url));
 const FOLDER = 'documents/Flow/P-ENG-12 Export';
@@ -17,8 +21,12 @@ const SPEC_DONE = '**Flagged concerns.**\n\n1. Format - Decide: Mika\n   Decisio
 
 const config = {
   publicUrl: 'https://flow.example.com', flowFolder: 'documents/Flow', templatesDir: TEMPLATES,
-  teams: ['ENG'], engineers: ['mika@jitera.com', 'ken@jitera.com'], gateSecret: 's'.repeat(32),
+  gateSecret: 's'.repeat(32),
 } as Config;
+const NOW = () => new Date('2026-11-23T10:00:00Z');
+const ENGINEERS = ['mika@jitera.com', 'ken@jitera.com'];
+const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), ENGINEERS, NOW);
+await settings.save({ docsUrl: '', jiteraProject: '', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
 
 const PROJECT: TrackerProject = {
   id: 'uuid-12', identifier: 'P-ENG-12', name: 'Export', url: 'https://linear.app/x/project/export-abc',
@@ -46,7 +54,9 @@ let client: Client;
 async function setup(project: TrackerProject = PROJECT) {
   docs = memoryDocuments({ [STATUS]: statusMd, [`${FOLDER}/2-spec.md`]: SPEC_DONE });
   tracker = fakeTracker(project);
-  const deps: Deps = { config, docs, tracker, now: () => new Date('2026-11-23T10:00:00Z') };
+  await connect({ config, settings, docs, tracker, now: NOW });
+}
+async function connect(deps: Deps) {
   const [a, b] = InMemoryTransport.createLinkedPair();
   await buildMcpServer(deps, 'test').connect(b);
   client = new Client({ name: 'c', version: '1' });
@@ -168,6 +178,15 @@ describe('mcp tools', () => {
     };
     await call('set_stage', { to: 'flow:spec-review' });
     expect(await docs.read(STATUS)).toContain('edited meanwhile');
+  });
+  it('a tool returns not_configured when settings are empty', async () => {
+    const blank = await openSettings(memorySettingsStore(), 'k'.repeat(32), ENGINEERS, NOW);
+    await connect({
+      config, settings: blank, docs: liveDocuments(blank, config.documents, config.publicUrl), tracker: liveTracker(blank, config.publicUrl), now: NOW,
+    });
+    const r = await call('read_feature', {});
+    expect(r.isError).toBe(true);
+    expect(r.content[0]!.text).toMatch(/^not_configured: /);
   });
   it('save_ui_handoff refuses a cell with a pipe', async () => {
     const r = await call('save_ui_handoff', { link: 'l', screens: [{ name: 'a|b', state: 's', file: 'f' }] });

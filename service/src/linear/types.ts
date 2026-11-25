@@ -1,7 +1,7 @@
 export type TrackerProject = {
   id: string; identifier: string; name: string; url: string;
-  teams: string[];                                   // team keys
-  lead: { name: string; email: string } | null;      // email lowercased
+  teams: string[];
+  lead: { name: string; email: string } | null;
   flowLabel: string | null;
 };
 export interface Tracker {

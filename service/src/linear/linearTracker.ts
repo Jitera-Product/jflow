@@ -1,4 +1,3 @@
-// Linear adapter
 import { gql } from './gql.js';
 import type { Label, ProjectData, Tracker } from './types.js';
 

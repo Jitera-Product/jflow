@@ -12,6 +12,8 @@ import { openGate } from '../src/gates/openGate.js';
 import type { Decision } from '../src/gates/types.js';
 import { signRow } from '../src/gates/signRow.js';
 import type { TrackerProject } from '../src/linear/types.js';
+import { memorySettingsStore } from '../src/settings/memorySettingsStore.js';
+import { openSettings } from '../src/settings/openSettings.js';
 import { readGates } from '../src/status/readGates.js';
 import { upsertGate } from '../src/status/upsertGate.js';
 
@@ -25,10 +27,11 @@ const config = {
   publicUrl: 'https://flow.example.com',
   flowFolder: 'documents/Flow',
   templatesDir: TEMPLATES,
-  teams: ['ENG'],
-  engineers: ['mika@jitera.com', 'ken@jitera.com'],
   gateSecret: 's'.repeat(32),
 } as Config;
+const ENGINEERS = ['mika@jitera.com', 'ken@jitera.com'];
+const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), ENGINEERS, () => new Date());
+await settings.save({ docsUrl: '', jiteraProject: '', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
 
 const PROJECT: TrackerProject = {
   id: 'uuid-12', identifier: 'P-ENG-12', name: 'Export', url: 'https://linear.app/x/project/export-abc',
@@ -56,7 +59,7 @@ let deps: Deps;
 function setup(project: TrackerProject = PROJECT, spec = SPEC_DONE) {
   docs = memoryDocuments({ [STATUS]: statusMd, [`${FOLDER}/2-spec.md`]: spec, 'documents/Flow/P-ENG-1 Other/0-status.md': 'x' });
   tracker = fakeTracker(project);
-  deps = { config, docs, tracker, now: () => new Date('2026-11-23T10:00:00Z') };
+  deps = { config, settings, docs, tracker, now: () => new Date('2026-11-23T10:00:00Z') };
 }
 beforeEach(() => setup());
 

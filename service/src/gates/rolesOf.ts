@@ -5,6 +5,6 @@ export function rolesOf(deps: Deps, f: Feature, email: string): Role[] {
   const who = email.toLowerCase();
   const roles: Role[] = [];
   if (f.lead && f.lead.email.toLowerCase() === who) roles.push('owner');
-  if (deps.config.engineers.includes(who)) roles.push('engineer');
+  if (deps.settings.get().engineers.includes(who)) roles.push('engineer');
   return roles;
 }

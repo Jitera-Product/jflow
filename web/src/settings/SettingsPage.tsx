@@ -131,7 +131,7 @@ export function SettingsPage() {
         <FormProvider {...form}>
           <form onSubmit={onSubmit} onKeyDown={onKeyDown} noValidate className="grid gap-6">
             <LinearSection keySet={s.linearApiKeySet} savedAt={s.updatedAt} footer={footer('linear')} />
-            <JiteraSection tokenSet={s.docsTokenSet} test={check} footer={footer('jitera')} />
+            <JiteraSection tokenSet={s.docsTokenSet} footer={footer('jitera')} />
             <PeopleSection footer={footer('people')} />
           </form>
         </FormProvider>

@@ -1,18 +1,10 @@
 import { bareOrigin } from './bareOrigin.js';
+import { isDocsUrl } from './isDocsUrl.js';
 import type { SettingsInput } from './types.js';
 
 export function checkSettings(input: SettingsInput, by: string): string[] {
   const problems: string[] = [];
-  if (input.docsUrl !== '') {
-    let ok = false;
-    try {
-      const u = new URL(input.docsUrl);
-      ok = u.protocol === 'https:' || (u.protocol === 'http:' && (u.hostname === 'localhost' || u.hostname === '127.0.0.1'));
-    } catch {
-      /* not a URL */
-    }
-    if (!ok) problems.push('docsUrl must be an https URL');
-  }
+  if (input.docsUrl !== '' && !isDocsUrl(input.docsUrl)) problems.push('docsUrl must be an https URL');
   if (input.publicUrl && bareOrigin(input.publicUrl) === null) {
     problems.push('publicUrl must be a bare origin like https://flow.example.com, with no path, query or hash');
   }

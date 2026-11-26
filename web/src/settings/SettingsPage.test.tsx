@@ -139,20 +139,24 @@ test('save sends every field and leaves out blank secrets', async () => {
   expect('linearApiKey' in bodyOf(f, 'POST', '/api/settings', 1)).toBe(false);
 });
 
-test('Jitera: Test re-reads /api/setup and shows the Jitera message', async () => {
-  const ok: SetupView = { ...setup, jitera: { ok: true } };
-  const f = routeFetch({ ...base, 'GET /api/setup': [reply(200, ok), reply(200, setup)] });
+test('Jitera: Test checks the URL and token typed in the form, without saving, and shows Jitera\'s reason', async () => {
+  const reason = 'Could not read the Jitera documents: Error POSTing to endpoint (HTTP 403): Unauthorized';
+  const f = routeFetch({ ...base, 'POST /api/setup/jitera': reply(200, { ok: false, message: reason }) });
   const user = userEvent.setup();
   render(<SettingsPage />);
   const jitera = await screen.findByRole('region', { name: 'Jitera' });
-  await vi.waitFor(() => expect(callsTo(f, 'GET', '/api/setup')).toHaveLength(1));
+  const url = within(jitera).getByLabelText('Jitera MCP URL');
+  await user.clear(url);
+  await user.type(url, 'https://pilot.example.com/mcp');
+  await user.type(within(jitera).getByLabelText('Jitera token'), 'typed-token');
   await user.click(within(jitera).getByRole('button', { name: 'Test' }));
-  expect(await within(jitera).findByText('Could not read the Jitera documents. Check the URL and the token.')).toBeTruthy();
-  expect(callsTo(f, 'GET', '/api/setup')).toHaveLength(2);
+  expect(await within(jitera).findByText(reason)).toBeTruthy();
+  expect(bodyOf(f, 'POST', '/api/setup/jitera')).toEqual({ docsUrl: 'https://pilot.example.com/mcp', docsToken: 'typed-token' });
+  expect(callsTo(f, 'POST', '/api/settings')).toHaveLength(0);
 });
 
 test('Jitera: a passing Test says so', async () => {
-  routeFetch({ ...base, 'GET /api/setup': reply(200, { ...setup, jitera: { ok: true } }) });
+  routeFetch({ ...base, 'POST /api/setup/jitera': reply(200, { ok: true }) });
   const user = userEvent.setup();
   render(<SettingsPage />);
   const jitera = await screen.findByRole('region', { name: 'Jitera' });

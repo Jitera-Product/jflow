@@ -62,6 +62,7 @@ For a real deployment (network, health check, Docker and Kubernetes examples) se
 | `GET /assets/<file>` | The web app's built files. |
 | `GET`, `POST /api/settings` | Settings for the web app. Engineers only. |
 | `GET /api/setup` | The checklist: Linear, Jitera, Chats. Engineers only. |
+| `POST /api/setup/jitera` | Test a Jitera MCP URL and token before saving them. A blank token uses the stored one, and only for the stored URL. Engineers only. |
 | `GET /api/agent-prompt` | The Flow agent prompt for the Jitera copy block. Engineers only. |
 | `GET /api/linear/teams` | The teams the saved Linear key can see. Engineers only. |
 | `GET /api/linear/labels` | The `flow:*` labels Linear still lacks. jflow creates them on each settings save and when it sets a stage. Engineers only. |

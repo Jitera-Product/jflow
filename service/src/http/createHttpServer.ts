@@ -10,6 +10,7 @@ export function createHttpServer(deps: Deps, opts: HttpOptions = {}): http.Serve
     deps,
     opts,
     board: boardCache(60_000, deps.now),
+    workload: boardCache(600_000, deps.now),
     origin: () => {
       const { publicUrl } = deps.settings.get();
       return publicUrl ? new URL(publicUrl).origin : ''; // normalizes case and default ports

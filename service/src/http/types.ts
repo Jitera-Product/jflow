@@ -9,5 +9,6 @@ export type HttpContext = {
   deps: Deps;
   opts: HttpOptions;
   board: BoardCache;
+  workload: BoardCache; // 10 minute cache for the workload page
   origin: () => string; // origin of the current publicUrl, '' until it is set
 };

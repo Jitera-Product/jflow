@@ -18,6 +18,7 @@ import { apiMe } from './apiMe.js';
 import { apiSettings } from './apiSettings.js';
 import { apiSetup } from './apiSetup.js';
 import { apiTestJitera } from './apiTestJitera.js';
+import { apiWorkload } from './apiWorkload.js';
 import { mcp } from './mcp.js';
 import { staticFiles } from './staticFiles.js';
 import { webhook } from './webhook.js';
@@ -38,6 +39,13 @@ export async function handle(ctx: HttpContext, req: IncomingMessage, res: Server
       return json(res, 409, { error: 'not_configured', message: 'An engineer has to finish setup on /settings first.' });
     }
     return board[2] ? apiFeaturePanel(ctx, res, email, board[2]) : apiBoard(ctx, req, res, email);
+  }
+
+  const workload = /^\/api\/workload(\/options)?$/.exec(path);
+  if (workload && req.method === 'GET') {
+    const email = await verifyAccess(header(req, 'cf-access-jwt-assertion'), { ...ctx.deps.config.access, jwks: ctx.opts.jwks });
+    if (!email) return json(res, 401, { error: 'sign_in' });
+    return apiWorkload(ctx, req, res, !!workload[1]);
   }
 
   const idea = path === '/api/ideas/owners' ? 'GET' : path === '/api/ideas' ? 'POST' : null;

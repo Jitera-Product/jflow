@@ -1,14 +1,10 @@
 {
   "publicUrl": "https://flow.example.com/",
   "flowFolder": "documents/Flow",
-  "teams": ["ENG"],
   "engineers": ["Ken@Jitera.com"],
   "access": { "teamDomain": "example.cloudflareaccess.com", "aud": "replace-with-access-aud" },
   "documents": {
     "kind": "jitera",
-    "url": "https://studio.jitera.app/mcp",
-    "tokenEnv": "DOCS_TOKEN",
-    "headers": { "x-jitera-project": "replace-with-project-id" },
     "verbs": {
       "read": { "tool": "resource_read", "args": { "path": "{path}", "line_number": "100000" } },
       "list": { "tool": "resource_read", "args": { "path": "{path}" } },

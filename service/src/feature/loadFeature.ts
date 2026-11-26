@@ -4,7 +4,8 @@ import type { Deps, Feature } from './types.js';
 export async function loadFeature(deps: Deps, ref: string): Promise<Feature> {
   const p = await deps.tracker.getProject(ref);
   if (!p) throw new FeatureError('not_found', `No Linear project "${ref}". Give the project ID, like P-CORE-396.`);
-  if (!p.teams.some((t) => deps.config.teams.includes(t))) {
+  const teams = deps.settings.get().teams;
+  if (!p.teams.some((t) => teams.includes(t))) {
     throw new FeatureError('team_not_enabled', `Project ${p.identifier} is in no team that uses jflow.`);
   }
   const found = (await deps.docs.list(deps.config.flowFolder)).filter((e) => e.startsWith(`${p.identifier} `) && e.endsWith('/'));

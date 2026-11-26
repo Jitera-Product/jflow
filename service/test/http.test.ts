@@ -15,10 +15,14 @@ import { openGate } from '../src/gates/openGate.js';
 import { verifyAccess } from '../src/http/verifyAccess.js';
 import { createHttpServer } from '../src/http/createHttpServer.js';
 import type { TrackerProject } from '../src/linear/types.js';
+import { memorySettingsStore } from '../src/settings/memorySettingsStore.js';
+import type { LiveSettings } from '../src/settings/types.js';
+import { openSettings } from '../src/settings/openSettings.js';
 import { readGates } from '../src/status/readGates.js';
 import { upsertGate } from '../src/status/upsertGate.js';
 
 const TEMPLATES = fileURLToPath(new URL('../../templates', import.meta.url));
+const WEB = fileURLToPath(new URL('./fixtures/web', import.meta.url));
 const FOLDER = 'documents/Flow/P-ENG-12 Export';
 const STATUS = `${FOLDER}/0-status.md`;
 const SPEC_DONE = '**Flagged concerns.**\n\n1. Format - Decide: Mika\n   Decision: CSV - Mika, 2026-11-20\n';
@@ -30,12 +34,13 @@ const MCP_TOKEN_B = 'b'.repeat(32);
 const CALLBACK = 'c'.repeat(32);
 
 const config = {
-  publicUrl: ORIGIN, flowFolder: 'documents/Flow', templatesDir: TEMPLATES,
-  teams: ['ENG'], engineers: ['mika@jitera.com', 'ken@jitera.com'],
+  publicUrl: ORIGIN, flowFolder: 'documents/Flow', templatesDir: TEMPLATES, webDir: WEB,
   access: { teamDomain: TEAM, aud: AUD },
   gateSecret: 's'.repeat(32), callbackSecret: CALLBACK,
   mcpClients: [{ name: 'test', token: MCP_TOKEN }, { name: 'second-agent', token: MCP_TOKEN_B }],
 } as Config;
+const ENGINEERS = ['mika@jitera.com', 'ken@jitera.com'];
+let settings: LiveSettings;
 
 const PROJECT: TrackerProject = {
   id: 'uuid-12', identifier: 'P-ENG-12', name: 'Export', url: 'https://linear.app/x/project/export-abc',
@@ -72,11 +77,14 @@ let server: Server;
 let base: string;
 let gate: string;
 let gatePath: string;
+const apiGatePath = () => `/api${gatePath}`;
 
 async function setup(project: TrackerProject = PROJECT, cfg: Config = config) {
+  settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), ENGINEERS, () => new Date());
+  await settings.save({ docsUrl: 'https://docs.example.com', jiteraProject: 'proj-1', docsToken: 'DOCS-TOKEN-AAA', linearApiKey: 'LIN-KEY-BBB', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
   docs = memoryDocuments({ [STATUS]: statusMd, [`${FOLDER}/2-spec.md`]: SPEC_DONE });
   tracker = fakeTracker(project);
-  deps = { config: cfg, docs, tracker, now: () => new Date() };
+  deps = { config: cfg, settings, docs, tracker, now: () => new Date() };
   gate = (await openGate(deps, 'P-ENG-12', 'flow:plan')).gate;
   gatePath = `/gate/P-ENG-12/${gate}`;
   server = createHttpServer(deps, { jwks });
@@ -93,8 +101,6 @@ const initBody = JSON.stringify({
   jsonrpc: '2.0', id: 1, method: 'initialize',
   params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'c', version: '1' } },
 });
-const CSRF_KEY = createHmac('sha256', config.gateSecret).update('jflow-csrf').digest();
-const csrfOf = (g: string, email: string) => createHmac('sha256', CSRF_KEY).update(`csrf|${g}|${email}`).digest('hex');
 const form = (v: Record<string, string>) => new URLSearchParams(v).toString();
 const FORM = { 'content-type': 'application/x-www-form-urlencoded' };
 
@@ -163,89 +169,122 @@ describe('verifyAccess', () => {
   });
 });
 
-describe('confirm page', () => {
-  it('the confirm page needs a valid Access JWT', async () => {
-    expect((await get(gatePath, {})).status).toBe(401);
-    const wrongAud = await sign({ email: 'mika@jitera.com' }, { aud: 'other' });
-    expect((await get(gatePath, { 'cf-access-jwt-assertion': wrongAud })).status).toBe(401);
-    const r = await get(gatePath, { 'cf-access-jwt-assertion': await sign({ email: 'Mika@Jitera.com' }) });
-    expect(r.status).toBe(200);
-    const html = await r.text();
-    expect(html).toContain('>Approve</button>');
-    expect(html).toContain('>Request changes</button>');
-    expect(html).toContain('Spec review -&gt; Plan');
-    expect(html).toContain('mika@jitera.com');
-    expect(html).toContain(`value="${csrfOf(gate, 'mika@jitera.com')}"`);
-    expect(html).toContain('name="to" value="flow:plan"');
+const as = async (email: string) => ({ 'cf-access-jwt-assertion': await sign({ email }) });
+const JSON_H = { 'content-type': 'application/json' };
+const MIKA = 'mika@jitera.com';
+const apiPost = async (path: string, body: unknown, email = MIKA, extra: Record<string, string> = {}) =>
+  post(path, JSON.stringify(body), { ...JSON_H, origin: ORIGIN, ...(await as(email)), ...extra });
+const expectApiHeaders = (r: Response) => {
+  expect(r.headers.get('content-type')).toBe('application/json');
+  expect(r.headers.get('cache-control')).toBe('no-store');
+};
+
+describe('GET /api/gate', () => {
+  it('needs a valid Access JWT', async () => {
+    const r = await get(apiGatePath(), {});
+    expect(r.status).toBe(401);
+    expectApiHeaders(r);
+    expect(await r.json()).toEqual({ error: 'sign_in' });
+    const wrongAud = await sign({ email: MIKA }, { aud: 'other' });
+    expect((await get(apiGatePath(), { 'cf-access-jwt-assertion': wrongAud })).status).toBe(401);
   });
-  it('a row with a bad signature shows the reason, not the buttons', async () => {
+  it('the owner gets the gate data and can decide', async () => {
+    const r = await get(apiGatePath(), await as('Mika@Jitera.com'));
+    expect(r.status).toBe(200);
+    expectApiHeaders(r);
+    expect(await r.json()).toEqual({
+      email: MIKA, project: 'P-ENG-12', feature: 'Export', from: 'Spec review', to: 'Plan', toLabel: 'flow:plan',
+      roles: ['owner'], approvals: [], canDecide: true, reason: null,
+    });
+  });
+  it('a row with a bad signature gives the reason and no decision', async () => {
     const md = (await docs.read(STATUS))!;
     const row = readGates(md)[0]!;
     await docs.update(STATUS, upsertGate(md, { ...row, roles: ['engineer'] }));
-    const html = await (await get(gatePath, { 'cf-access-jwt-assertion': await sign({ email: 'ken@jitera.com' }) })).text();
-    expect(html).not.toContain('<button');
-    expect(html).toContain('This gate was changed by hand.');
+    const body = await (await get(apiGatePath(), await as('ken@jitera.com'))).json();
+    expect(body).toMatchObject({ canDecide: false, reason: 'This gate was changed by hand. Open a new one.' });
   });
-  it('someone who cannot decide sees the reason, not the buttons', async () => {
-    const html = await (await get(gatePath, { 'cf-access-jwt-assertion': await sign({ email: 'ken@jitera.com' }) })).text();
-    expect(html).not.toContain('<button');
-    expect(html).toContain('ken@jitera.com cannot decide this gate');
+  it('someone who cannot decide gets the reason', async () => {
+    const body = await (await get(apiGatePath(), await as('ken@jitera.com'))).json();
+    expect(body).toMatchObject({ canDecide: false, reason: 'ken@jitera.com cannot decide this gate.' });
+  });
+  it('someone who already approved gets the reason', async () => {
+    const tdr = (await openGate(deps, 'P-ENG-12', 'flow:tdr')).gate;
+    const path = `/api/gate/P-ENG-12/${tdr}`;
+    const r = await apiPost(path, { decision: 'approve', to: 'flow:tdr' });
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ approvals: [{ role: 'owner', email: MIKA }], canDecide: false, reason: 'You already approved this gate.' });
   });
   it('an unknown project or gate is 404', async () => {
-    const h = { 'cf-access-jwt-assertion': await sign({ email: 'mika@jitera.com' }) };
-    expect((await get('/gate/P-ENG-12/gnope', h)).status).toBe(404);
-    expect((await get(`/gate/P-ENG-99/${gate}`, h)).status).toBe(404);
-  });
-  it('escapes values on the page', async () => {
-    server.close();
-    await setup({ ...PROJECT, name: '<b>x</b>' });
-    const html = await (await get(gatePath, { 'cf-access-jwt-assertion': await sign({ email: 'mika@jitera.com' }) })).text();
-    expect(html).toContain('&lt;b&gt;x&lt;/b&gt;');
-    expect(html).not.toContain('<b>x</b>');
+    const h = await as(MIKA);
+    const r = await get('/api/gate/P-ENG-12/gnope', h);
+    expect(r.status).toBe(404);
+    expectApiHeaders(r);
+    expect(await r.json()).toMatchObject({ error: 'not_found', message: expect.stringContaining('gnope') });
+    const p = await get(`/api/gate/P-ENG-99/${gate}`, h);
+    expect(p.status).toBe(404);
+    expect((await p.json()).error).toBe('not_found');
   });
 });
 
-describe('confirm POST', () => {
-  it('a POST without the right csrf or origin changes nothing', async () => {
-    const jwt = await sign({ email: 'mika@jitera.com' });
-    const csrf = csrfOf(gate, 'mika@jitera.com');
-    const h = { ...FORM, 'cf-access-jwt-assertion': jwt };
-    expect((await post(gatePath, form({ decision: 'approve', csrf }), h)).status).toBe(403); // no Origin
-    expect((await post(gatePath, form({ decision: 'approve', csrf }), { ...h, origin: 'https://evil.example.com' })).status).toBe(403);
-    expect((await post(gatePath, form({ decision: 'approve' }), { ...h, origin: ORIGIN })).status).toBe(403);
-    expect((await post(gatePath, form({ decision: 'approve', csrf: csrfOf(gate, 'ken@jitera.com') }), { ...h, origin: ORIGIN })).status).toBe(403);
-    expect((await post(gatePath, form({ decision: 'maybe', csrf }), { ...h, origin: ORIGIN })).status).toBe(403);
-    const rawKey = createHmac('sha256', config.gateSecret).update(`csrf|${gate}|mika@jitera.com`).digest('hex');
-    expect((await post(gatePath, form({ decision: 'approve', csrf: rawKey, to: 'flow:plan' }), { ...h, origin: ORIGIN })).status).toBe(403);
-    expect((await post(gatePath, form({ decision: 'approve', csrf }), { ...FORM, origin: ORIGIN })).status).toBe(401);
+describe('POST /api/gate', () => {
+  it('a POST from another site changes nothing', async () => {
+    const body = { decision: 'approve', to: 'flow:plan' };
+    const noOrigin = await post(apiGatePath(), JSON.stringify(body), { ...JSON_H, ...(await as(MIKA)) });
+    expect(noOrigin.status).toBe(403);
+    expectApiHeaders(noOrigin);
+    expect(await noOrigin.json()).toEqual({ error: 'refused' });
+    expect((await apiPost(apiGatePath(), body, MIKA, { origin: 'https://evil.example.com' })).status).toBe(403);
+    const text = await apiPost(apiGatePath(), body, MIKA, { 'content-type': 'text/plain' });
+    expect(text.status).toBe(415);
+    expect(await text.json()).toEqual({ error: 'json_only' });
+    expect((await post(apiGatePath(), 'decision=approve&to=flow%3Aplan', { ...FORM, origin: ORIGIN, ...(await as(MIKA)) })).status).toBe(415);
+    expect((await post(apiGatePath(), JSON.stringify(body), { ...JSON_H, origin: ORIGIN })).status).toBe(401);
+    const maybe = await apiPost(apiGatePath(), { decision: 'maybe', to: 'flow:plan' });
+    expect(maybe.status).toBe(400);
+    expect((await maybe.json()).error).toBe('invalid');
     expect(tracker.labels).toEqual(['flow:spec-review']);
     expect(readGates((await docs.read(STATUS))!)[0]!.status).toBe('open');
   });
-  it('the owner approves on the page', async () => {
-    const h = { ...FORM, origin: ORIGIN, 'cf-access-jwt-assertion': await sign({ email: 'Mika@jitera.com' }) };
-    const body = form({ decision: 'approve', csrf: csrfOf(gate, 'mika@jitera.com'), to: 'flow:plan' });
-    const r = await post(gatePath, body, h);
-    expect(r.status).toBe(303);
-    expect(r.headers.get('location')).toBe(ORIGIN + gatePath);
+  it('the owner approves, a second approve is 409 closed', async () => {
+    const r = await apiPost(apiGatePath(), { decision: 'approve', to: 'flow:plan' }, 'Mika@jitera.com');
+    expect(r.status).toBe(200);
+    expectApiHeaders(r);
+    expect(await r.json()).toMatchObject({ canDecide: false, reason: 'This gate is closed (approved).', approvals: [{ role: 'owner', email: MIKA }] });
     expect(tracker.labels).toEqual(['flow:plan']);
     expect(await docs.read(STATUS)).toContain('Spec review approved - mika@jitera.com via page');
-    const again = await post(gatePath, body, h);
+    const again = await apiPost(apiGatePath(), { decision: 'approve', to: 'flow:plan' });
     expect(again.status).toBe(409);
-    expect(await again.text()).toContain('closed');
+    expect(await again.json()).toMatchObject({ error: 'closed', message: expect.any(String) });
   });
-  it('a POST for another move than the gate is refused as mismatch', async () => {
-    const h = { ...FORM, origin: ORIGIN, 'cf-access-jwt-assertion': await sign({ email: 'mika@jitera.com' }) };
-    const r = await post(gatePath, form({ decision: 'approve', csrf: csrfOf(gate, 'mika@jitera.com'), to: 'flow:tdr' }), h);
-    expect(r.status).toBe(409);
-    expect(await r.text()).toContain('mismatch');
+  it('the owner requests changes', async () => {
+    const r = await apiPost(apiGatePath(), { decision: 'changes', to: 'flow:plan' });
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ canDecide: false, reason: 'This gate is closed (changes requested).' });
     expect(tracker.labels).toEqual(['flow:spec-review']);
+    expect(await docs.read(STATUS)).toContain('Spec review changes requested - mika@jitera.com via page');
+  });
+  it('a POST for another move than the gate is 409 mismatch', async () => {
+    const r = await apiPost(apiGatePath(), { decision: 'approve', to: 'flow:tdr' });
+    expect(r.status).toBe(409);
+    expect((await r.json()).error).toBe('mismatch');
+    expect(tracker.labels).toEqual(['flow:spec-review']);
+  });
+  it('someone who cannot decide is 409 not_allowed', async () => {
+    const r = await apiPost(apiGatePath(), { decision: 'approve', to: 'flow:plan' }, 'ken@jitera.com');
+    expect(r.status).toBe(409);
+    expect((await r.json()).error).toBe('not_allowed');
+    expect(tracker.labels).toEqual(['flow:spec-review']);
+  });
+  it('an unknown gate is 404', async () => {
+    const r = await apiPost('/api/gate/P-ENG-12/gnope', { decision: 'approve', to: 'flow:plan' });
+    expect(r.status).toBe(404);
+    expect((await r.json()).error).toBe('not_found');
   });
   it('the origin check normalizes case and the default port of publicUrl', async () => {
     server.close();
     await setup(PROJECT, { ...config, publicUrl: 'https://Flow.Example.COM:443' });
-    const h = { ...FORM, origin: ORIGIN, 'cf-access-jwt-assertion': await sign({ email: 'mika@jitera.com' }) };
-    const r = await post(gatePath, form({ decision: 'approve', csrf: csrfOf(gate, 'mika@jitera.com'), to: 'flow:plan' }), h);
-    expect(r.status).toBe(303);
+    expect((await apiPost(apiGatePath(), { decision: 'approve', to: 'flow:plan' })).status).toBe(200);
     expect(tracker.labels).toEqual(['flow:plan']);
   });
 });
@@ -303,5 +342,178 @@ describe('gate webhook', () => {
     expect(r.status).toBe(404);
     expect(await r.json()).toEqual({ error: 'not_found' });
     expect((await hook(bodyOf({ project: 'P-ENG-99' }))).status).toBe(404);
+  });
+});
+
+
+describe('/api/settings', () => {
+  const GOOD = { docsUrl: 'https://docs.example.com', jiteraProject: 'proj-1', teams: ['ENG'], engineers: ENGINEERS };
+  const save = (v: Record<string, unknown>, email = MIKA, extra: Record<string, string> = {}) =>
+    apiPost('/api/settings', { ...GOOD, ...v }, email, extra);
+  const unchanged = () => {
+    expect(settings.get().docsUrl).toBe('https://docs.example.com');
+    expect(settings.get().engineers).toEqual(ENGINEERS);
+  };
+
+  it('GET without Access is 401, as a non-engineer is 403', async () => {
+    const r = await get('/api/settings', {});
+    expect(r.status).toBe(401);
+    expect(await r.json()).toEqual({ error: 'sign_in' });
+    const eve = await get('/api/settings', await as('eve@jitera.com'));
+    expect(eve.status).toBe(403);
+    expectApiHeaders(eve);
+    expect(await eve.json()).toEqual({ error: 'not_allowed', message: 'Only jflow engineers can open settings. Ask an engineer to add you.' });
+  });
+  it('GET as an engineer gives the values and no secret', async () => {
+    const r = await get('/api/settings', await as(MIKA));
+    expect(r.status).toBe(200);
+    expectApiHeaders(r);
+    const text = await r.text();
+    expect(text).not.toContain('DOCS-TOKEN-AAA');
+    expect(text).not.toContain('LIN-KEY-BBB');
+    expect(JSON.parse(text)).toEqual({
+      email: MIKA,
+      settings: {
+        docsUrl: 'https://docs.example.com', jiteraProject: 'proj-1', docsTokenSet: true, linearApiKeySet: true,
+        teams: ['ENG'], engineers: ENGINEERS, updatedBy: MIKA, updatedAt: expect.any(String),
+      },
+    });
+  });
+  it('POST saves, keeps blank secrets, cleans teams and engineers', async () => {
+    const r = await save({ teams: [' core', 'eng', 'ENG', ''], engineers: ['Mika@Jitera.com ', 'ken@jitera.com', 'mika@jitera.com', ' '], docsToken: '', linearApiKey: '  ', docsUrl: ' https://docs.example.com ' });
+    expect(r.status).toBe(200);
+    expectApiHeaders(r);
+    expect((await r.json()).settings).toMatchObject({ teams: ['CORE', 'ENG'], engineers: ENGINEERS, docsTokenSet: true, linearApiKeySet: true });
+    expect(settings.get().teams).toEqual(['CORE', 'ENG']);
+    expect(settings.get().engineers).toEqual(ENGINEERS);
+    expect(settings.get().docsUrl).toBe('https://docs.example.com');
+    expect(settings.get().docsToken).toBe('DOCS-TOKEN-AAA');
+    expect(settings.get().linearApiKey).toBe('LIN-KEY-BBB');
+  });
+  it('POST upper-cases teams and keeps a missing secret', async () => {
+    expect((await save({ teams: ['core', 'eng'] })).status).toBe(200);
+    expect(settings.get().teams).toEqual(['CORE', 'ENG']);
+    expect(settings.get().docsToken).toBe('DOCS-TOKEN-AAA');
+  });
+  it('POST with a new docs token replaces it', async () => {
+    expect((await save({ docsToken: 'NEW-TOKEN' })).status).toBe(200);
+    expect(settings.get().docsToken).toBe('NEW-TOKEN');
+    expect(settings.get().linearApiKey).toBe('LIN-KEY-BBB');
+  });
+  it('POST from another site changes nothing', async () => {
+    const v = { docsUrl: 'https://x.example.com' };
+    const evil = await save(v, MIKA, { origin: 'https://evil.example.com' });
+    expect(evil.status).toBe(403);
+    expect(await evil.json()).toEqual({ error: 'refused' });
+    const text = await save(v, MIKA, { 'content-type': 'text/plain' });
+    expect(text.status).toBe(415);
+    expectApiHeaders(text);
+    expect(await text.json()).toEqual({ error: 'json_only' });
+    const formPost = await post('/api/settings', form({ ...GOOD, teams: 'ENG', engineers: ENGINEERS.join('\n'), ...v }), { ...FORM, origin: ORIGIN, ...(await as(MIKA)) });
+    expect(formPost.status).toBe(415);
+    unchanged();
+  });
+  it('POST with a bad body is 400', async () => {
+    const r = await save({ teams: 'ENG' });
+    expect(r.status).toBe(400);
+    const body = await r.json();
+    expect(body.error).toBe('invalid');
+    expect(body.problems.length).toBeGreaterThan(0);
+    const junk = await post('/api/settings', 'not json', { ...JSON_H, origin: ORIGIN, ...(await as(MIKA)) });
+    expect(junk.status).toBe(400);
+    expect((await junk.json()).error).toBe('invalid');
+    unchanged();
+  });
+  it('POST over the body limit is 413', async () => {
+    const chunk = new TextEncoder().encode(JSON.stringify({ ...GOOD, docsUrl: 'x'.repeat(64 * 1024) }));
+    let sent = 0;
+    const body = new ReadableStream<Uint8Array>({
+      pull(c) {
+        if (sent++ < 20) c.enqueue(chunk); // over 1 MB in all
+        else c.close();
+      },
+    });
+    const r = await fetch(base + '/api/settings', {
+      method: 'POST', body, duplex: 'half', headers: { ...JSON_H, origin: ORIGIN, ...(await as(MIKA)) },
+    } as RequestInit);
+    expect(r.status).toBe(413);
+    expectApiHeaders(r);
+    unchanged();
+  });
+  it('POST that removes the saver is 400 and changes nothing', async () => {
+    const r = await save({ engineers: ['ken@jitera.com'], docsUrl: 'https://typed.example.com', docsToken: 'TYPED-SECRET' });
+    expect(r.status).toBe(400);
+    expect(await r.json()).toEqual({ error: 'invalid', problems: ['you cannot remove yourself from engineers'] });
+    unchanged();
+    expect(settings.get().docsToken).toBe('DOCS-TOKEN-AAA');
+  });
+  it('POST from a non-engineer is 403 and changes nothing', async () => {
+    const r = await save({ docsUrl: 'https://x.example.com' }, 'eve@jitera.com');
+    expect(r.status).toBe(403);
+    expect((await r.json()).error).toBe('not_allowed');
+    unchanged();
+  });
+  it('POST with no engineers is 400 and changes nothing', async () => {
+    const r = await save({ engineers: [], docsUrl: 'https://x.example.com' });
+    expect(r.status).toBe(400);
+    expect((await r.json()).problems).toContain('keep at least one engineer');
+    unchanged();
+  });
+  it('no secret in responses or logs, and the save is logged', async () => {
+    const logs: string[] = [];
+    const spies = (['log', 'error'] as const).map((k) => {
+      const orig = console[k];
+      console[k] = (...a: unknown[]) => void logs.push(a.join(' '));
+      return () => { console[k] = orig; };
+    });
+    try {
+      const ok = await save({ docsToken: 'SECRET-NEW-1' });
+      const bad = await save({ docsToken: 'SECRET-NEW-2', engineers: ['ken@jitera.com'] });
+      const bodies = (await ok.text()) + (await bad.text()) + (await (await get('/api/settings', await as(MIKA))).text());
+      expect(ok.status).toBe(200);
+      expect(bad.status).toBe(400);
+      expect(logs).toContain('jflow: settings saved by mika@jitera.com');
+      for (const t of ['SECRET-NEW-1', 'SECRET-NEW-2', 'DOCS-TOKEN-AAA', 'LIN-KEY-BBB']) {
+        expect(bodies).not.toContain(t);
+        expect(logs.join('\n')).not.toContain(t);
+      }
+    } finally {
+      spies.forEach((u) => u());
+    }
+  });
+});
+
+describe('web app files', () => {
+  const INDEX = readFileSync(`${WEB}/index.html`, 'utf8');
+  it('app routes serve index.html with the page headers', async () => {
+    for (const path of ['/settings', '/gate/P-ENG-12/gX']) {
+      const r = await get(path, {});
+      expect(r.status).toBe(200);
+      expect(await r.text()).toBe(INDEX);
+      expect(r.headers.get('content-type')).toBe('text/html; charset=utf-8');
+      expect(r.headers.get('cache-control')).toBe('no-store');
+      expect(r.headers.get('x-frame-options')).toBe('DENY');
+      expect(r.headers.get('content-security-policy'))
+        .toBe("default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; frame-ancestors 'none'");
+    }
+  });
+  it('serves an asset with its type and a long cache', async () => {
+    const r = await get('/assets/app.js', {});
+    expect(r.status).toBe(200);
+    expect(r.headers.get('content-type')).toMatch(/^text\/javascript/);
+    expect(r.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
+    expect(await r.text()).toBe(readFileSync(`${WEB}/assets/app.js`, 'utf8'));
+  });
+  it('never reads outside the assets folder', async () => {
+    for (const path of ['/assets/..%2F..%2Fpackage.json', '/assets/../index.html', '/assets/%2e%2e%2findex.html', '/assets/..%5Cindex.html',
+      '/assets/', '/assets/nope.js', '/assets/%E0%A4%A', '/assets/a%00.js']) {
+      const r = await fetch(base + path);
+      expect(r.status, path).toBe(404);
+      expect(await r.text()).not.toContain('<div id="root">');
+    }
+  });
+  it('the old form posts are gone', async () => {
+    expect((await post('/settings', 'x=1', FORM)).status).toBe(404);
+    expect((await post(gatePath, 'x=1', FORM)).status).toBe(404);
   });
 });

@@ -2,10 +2,10 @@ name: Service
 
 on:
   pull_request:
-    paths: ["service/**", "templates/**", ".github/workflows/service.yml"]
+    paths: ["service/**", "web/**", "templates/**", ".github/workflows/service.yml"]
   push:
     branches: [main]
-    paths: ["service/**", "templates/**", ".github/workflows/service.yml"]
+    paths: ["service/**", "web/**", "templates/**", ".github/workflows/service.yml"]
   workflow_dispatch:
 
 jobs:
@@ -13,17 +13,83 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: jflow
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: service/package-lock.json
+          cache-dependency-path: |
+            service/package-lock.json
+            web/package-lock.json
       - run: npm ci
         working-directory: service
       - run: npm test
         working-directory: service
+        env:
+          TEST_DATABASE_URL: postgres://postgres:jflow@localhost:5432/postgres
       - run: npm run build
         working-directory: service
+      - run: npm ci
+        working-directory: web
+      - run: npm test
+        working-directory: web
+      - run: npm run build
+        working-directory: web
       - run: docker build -f service/Dockerfile .
+
+  publish:
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'Jitera-Product/jflow' && vars.SERVICE_DEPLOY == 'true'
+    environment: production
+    runs-on: ubuntu-latest
+    concurrency:
+      group: service-publish
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    env:
+      IMAGE: ${{ vars.PRODUCTION_REGISTRY_URL }}/${{ secrets.PRODUCTION_ACR_USERNAME }}/jflow
+    steps:
+      - uses: actions/checkout@v4
+      - id: meta
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          COMMIT_AUTHOR: ${{ github.event.head_commit.author.name }}
+        run: |
+          echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "payload=$(jq -cn \
+            --arg tag "${GITHUB_SHA::7}" \
+            --arg author "$COMMIT_AUTHOR" \
+            --arg commit_link "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$GITHUB_SHA" \
+            --arg message "$COMMIT_MESSAGE" \
+            '{tag: $tag, author: $author, commit_link: $commit_link, environment: "production", message: $message}')" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.PRODUCTION_REGISTRY_URL }}
+          username: ${{ secrets.PRODUCTION_ACR_USERNAME }}
+          password: ${{ secrets.PRODUCTION_ACR_PASSWORD }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: service/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
+      - uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.ARGOCD_PTA }}
+          repository: Jitera-Product/jitera_argocd
+          event-type: update-jflow
+          client-payload: ${{ steps.meta.outputs.payload }}

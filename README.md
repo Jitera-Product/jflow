@@ -169,6 +169,7 @@ hooks/                           Claude Code hooks: one stage per session, and a
 skills/<name>/CONVENTIONS.md     symlinks to the root file and templates/, so skills work in
 skills/<name>/templates          Claude Code and Codex
 scripts/install-codex.sh         links skills into ~/.agents/skills for Codex
+web/                             jflow web app (React + Vite): /settings and gate pages, served by the service
 board/                           team workload board (Cloudflare Worker + React)
 ```
 

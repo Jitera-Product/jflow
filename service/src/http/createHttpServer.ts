@@ -1,4 +1,3 @@
-import { createHmac } from 'node:crypto';
 import http from 'node:http';
 import type { Deps } from '../feature/types.js';
 import { handle } from './routes/handle.js';
@@ -10,7 +9,6 @@ export function createHttpServer(deps: Deps, opts: HttpOptions = {}): http.Serve
     deps,
     opts,
     origin: new URL(deps.config.publicUrl).origin, // normalizes case and default ports
-    csrfKey: createHmac('sha256', deps.config.gateSecret).update('jflow-csrf').digest(), // a key of its own, not the row key
   };
 
   return http.createServer((req, res) => {

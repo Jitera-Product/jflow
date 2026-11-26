@@ -6,7 +6,7 @@ export type StageStatus = 'not started' | 'in progress' | 'done' | 'skipped';
 export type GateStatus = 'open' | 'approved' | 'changes requested' | 'stale' | 'replaced';
 export type GateRow = {
   id: string; from: string; to: string; roles: Role[];
-  opened: string; // ISO date-time
+  opened: string;
   status: GateStatus;
   approvals: Array<{ role: Role; email: string }>;
   decidedBy: string; // email or ''

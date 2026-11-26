@@ -10,7 +10,7 @@ import { readBody } from '../readBody.js';
 import { same } from '../same.js';
 import { tooLarge } from '../tooLarge.js';
 
-const MAX_SKEW = 300; // seconds, either way
+const MAX_SKEW_SECONDS = 300;
 
 const hookBody = z.object({
   gate: z.string().min(1), project: z.string().min(1), decision: z.enum(['approve', 'changes']),
@@ -24,7 +24,7 @@ export async function webhook(deps: Deps, req: IncomingMessage, res: ServerRespo
   if (!raw) return tooLarge(res);
   const ts = header(req, 'x-jflow-timestamp') ?? '';
   const want = `sha256=${hmac(deps.config.callbackSecret, `${ts}.`, raw)}`;
-  const fresh = /^\d+$/.test(ts) && Math.abs(deps.now().getTime() / 1000 - Number(ts)) <= MAX_SKEW;
+  const fresh = /^\d+$/.test(ts) && Math.abs(deps.now().getTime() / 1000 - Number(ts)) <= MAX_SKEW_SECONDS;
   if (!fresh || !same(header(req, 'x-jflow-signature') ?? '', want)) return json(res, 401, { error: 'unauthorized' });
   let parsed: unknown;
   try {

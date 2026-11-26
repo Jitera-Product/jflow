@@ -23,8 +23,8 @@ export function FeaturePanel({ featureKey, onClose }: { featureKey: string; onCl
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // Escape in the New idea dialog closes only that dialog.
-      if (e.key === 'Escape' && !document.querySelector('dialog[open]')) onClose();
+      // The New idea dialog prevents its Escape, so it closes only that dialog.
+      if (e.key === 'Escape' && !e.defaultPrevented) onClose();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);

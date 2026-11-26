@@ -26,7 +26,8 @@ export function NewIdeaDialog({ teams, onClose, onCreated }: Props) {
   const close = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    dialog.current?.showModal();
+    const el = dialog.current;
+    if (el && !el.open) el.showModal();
   }, []);
 
   useEffect(() => {

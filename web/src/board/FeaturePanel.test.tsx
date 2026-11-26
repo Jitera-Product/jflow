@@ -76,6 +76,19 @@ test('Escape closes a panel opened at /f/<ID>', async () => {
   expect(router.state.location.pathname).toBe('/');
 });
 
+test('with the panel and New idea open, Escape closes only New idea', async () => {
+  routeFetch(routes({ 'GET /api/ideas/owners?team=ENG': reply(200, { owners: [], defaultOwnerId: null }) }));
+  const user = userEvent.setup();
+  const router = renderAt('/f/P-ENG-12');
+  await screen.findByRole('dialog', { name: 'P-ENG-12 Search filters' });
+  await user.click(await screen.findByRole('button', { name: 'New idea' }));
+  await screen.findByRole('dialog', { name: 'New idea' });
+  await user.keyboard('{Escape}');
+  await vi.waitFor(() => expect(screen.queryByRole('dialog', { name: 'New idea' })).toBeNull());
+  expect(screen.getByRole('dialog', { name: 'P-ENG-12 Search filters' })).toBeTruthy();
+  expect(router.state.location.pathname).toBe('/f/P-ENG-12');
+});
+
 test('/f/<ID> opens the panel with stages, log, the open gate link, files and the Linear link', async () => {
   routeFetch(routes());
   renderAt('/f/P-ENG-12');

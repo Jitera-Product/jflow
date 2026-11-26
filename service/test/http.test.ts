@@ -155,7 +155,7 @@ describe('/mcp', () => {
     await client.connect(new StreamableHTTPClientTransport(new URL(base + '/mcp'), {
       requestInit: { headers: { authorization: `Bearer ${MCP_TOKEN}` } },
     }));
-    expect((await client.listTools()).tools).toHaveLength(8);
+    expect((await client.listTools()).tools).toHaveLength(9);
     await client.close();
   });
   it('the token picks the client: token B acts as client B', async () => {

@@ -73,7 +73,7 @@ const json = (r: R) => JSON.parse(r.content[0]!.text);
 describe('mcp tools', () => {
   it('lists exactly the flow tools', async () => {
     expect((await client.listTools()).tools.map((t) => t.name).sort()).toEqual(
-      ['log_stage', 'open_gate', 'read_feature', 'read_file', 'save_ui_handoff', 'set_stage', 'start_feature', 'write_file']);
+      ['log_stage', 'open_gate', 'read_feature', 'read_file', 'read_settings', 'save_ui_handoff', 'set_stage', 'start_feature', 'write_file']);
   });
   it('read_feature hides signatures', async () => {
     await call('open_gate', { to: 'flow:plan' });
@@ -183,6 +183,14 @@ describe('mcp tools', () => {
     };
     await call('set_stage', { to: 'flow:spec-review' });
     expect(await docs.read(STATUS)).toContain('edited meanwhile');
+  });
+  it('read_settings returns the four team settings, with no Linear key set', async () => {
+    const s = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, NOW);
+    await s.save({ docsUrl: '', jiteraProject: 'Flow', tdrFolder: 'TDRs', productDocs: 'Specs', compliance: 'ISMAP', teams: [], engineers: ENGINEERS }, 'mika@jitera.com');
+    await connect({ config, settings: s, chats, docs, tracker, now: NOW });
+    const r = await call('read_settings', {});
+    expect(r.isError).toBeUndefined();
+    expect(json(r)).toEqual({ jiteraProject: 'Flow', tdrFolder: 'TDRs', productDocs: 'Specs', compliance: 'ISMAP' });
   });
   it('a tool returns not_configured when settings are empty', async () => {
     const blank = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, NOW);

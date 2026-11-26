@@ -4,7 +4,6 @@ export const settingsView = (email: string, s: Settings) => ({
   email,
   settings: {
     docsUrl: s.docsUrl,
-    jiteraProject: s.jiteraProject,
     docsTokenSet: s.docsToken !== '',
     linearApiKeySet: s.linearApiKey !== '',
     teams: s.teams,

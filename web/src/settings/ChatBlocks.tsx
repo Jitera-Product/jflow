@@ -16,15 +16,15 @@ export function ChatBlocks({ publicUrl, token }: { publicUrl: string; token: str
     <div className="grid gap-4">
       <div role="group" aria-label="Jitera" className={block}>
         <h3 className="font-semibold">Jitera</h3>
-        <p>Make an agent with this prompt, then add jflow as its MCP server.</p>
+        <p>Make an agent with this prompt. In its Connectors, add a custom connector with the fields below.</p>
         {prompt !== null ? (
           <CopyText label="Agent prompt" text={prompt} />
         ) : (
           <p className="text-muted-foreground">{failed ? 'Could not load the agent prompt. It is also at /api/agent-prompt.' : 'Loading the agent prompt...'}</p>
         )}
-        <CopyText label="URL" text={url} />
-        <p>Auth type: Bearer token</p>
-        <CopyText label="Token" text={token} />
+        <CopyText label="MCP Server URL" text={url} />
+        <p>Client ID: leave it empty, so Jitera sends the secret as a bearer token.</p>
+        <CopyText label="Client Secret" text={token} />
       </div>
       <div role="group" aria-label="Claude Code" className={block}>
         <h3 className="font-semibold">Claude Code</h3>

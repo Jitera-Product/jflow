@@ -2,8 +2,7 @@ export type SettingsView = {
   email: string;
   settings: {
     docsUrl: string;
-    jiteraProject: string;
-    docsTokenSet: boolean;
+      docsTokenSet: boolean;
     linearApiKeySet: boolean;
     teams: string[];
     engineers: string[];
@@ -18,7 +17,6 @@ export type SettingsView = {
 
 export type SettingsInput = {
   docsUrl: string;
-  jiteraProject: string;
   teams: string[];
   engineers: string[];
   tdrFolder: string;

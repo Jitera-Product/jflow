@@ -6,7 +6,7 @@ export function registerReadSettings(server: McpServer, deps: Deps) {
   server.registerTool('read_settings', {
     description: 'Read the team settings: Jitera project for flow documents, TDR folder, product docs to search, compliance to check. An empty value means not set. Call it first.',
   }, () => run(async () => {
-    const { jiteraProject, tdrFolder, productDocs, compliance } = deps.settings.get();
-    return { jiteraProject, tdrFolder, productDocs, compliance };
+    const { tdrFolder, productDocs, compliance } = deps.settings.get();
+    return { tdrFolder, productDocs, compliance };
   }));
 }

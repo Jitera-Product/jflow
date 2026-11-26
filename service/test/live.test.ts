@@ -16,7 +16,7 @@ const BASE = { kind: 'jitera' as const, verbs: VERBS };
 let s: Settings;
 const settings: LiveSettings = { get: () => s, save: async () => s, claimFirstEngineer: async () => false };
 const empty = (): Settings => ({
-  docsUrl: '', jiteraProject: '', docsToken: '', linearApiKey: '', teams: [], engineers: ['ken@example.com'],
+  docsUrl: '', docsToken: '', linearApiKey: '', teams: [], engineers: ['ken@example.com'],
   publicUrl: URL, tdrFolder: '', productDocs: '', compliance: '', gateSecret: 's'.repeat(32), updatedBy: null, updatedAt: null,
 });
 
@@ -28,26 +28,25 @@ function fakeDocs(made: DocumentsConnection[]) {
 }
 
 describe('live documents', () => {
-  it('docs refuse with not_configured until url, project and token are set', async () => {
-    s = { ...empty(), docsUrl: 'https://docs.example.com/mcp', docsToken: 'secret-token' };
+  it('docs refuse with not_configured until url and token are set', async () => {
+    s = { ...empty(), docsUrl: 'https://docs.example.com/mcp' };
     const docs = liveDocuments(settings, BASE, fakeDocs([]));
     const err = await docs.list('x').catch((e: unknown) => e);
     expect(err).toBeInstanceOf(FeatureError);
     expect(err).toMatchObject({ code: 'not_configured', message: expect.stringContaining('https://flow.example.com/settings') });
-    expect((err as Error).message).not.toContain('secret-token');
-    s = { ...s, jiteraProject: 'p1' };
+    s = { ...s, docsToken: 'secret-token' };
     expect(await docs.list('x')).toEqual(['a.md']);
   });
   it('docs reuse one client while settings stay the same', async () => {
-    s = { ...empty(), docsUrl: 'https://docs.example.com/mcp', jiteraProject: 'p1', docsToken: 't1' };
+    s = { ...empty(), docsUrl: 'https://docs.example.com/mcp', docsToken: 't1' };
     const made: DocumentsConnection[] = [];
     const docs = liveDocuments(settings, BASE, fakeDocs(made));
     await docs.list('x');
     await docs.read('y');
     expect(made).toHaveLength(1);
   });
-  it('docs rebuild the client when the token, url or project changes', async () => {
-    s = { ...empty(), docsUrl: 'https://docs.example.com/mcp', jiteraProject: 'p1', docsToken: 't1' };
+  it('docs rebuild the client when the token or url changes', async () => {
+    s = { ...empty(), docsUrl: 'https://docs.example.com/mcp', docsToken: 't1' };
     const made: DocumentsConnection[] = [];
     const docs = liveDocuments(settings, BASE, fakeDocs(made));
     await docs.list('x');
@@ -55,16 +54,12 @@ describe('live documents', () => {
     await docs.list('x');
     expect(made).toHaveLength(2);
     expect(made[1]).toEqual({
-      kind: 'jitera', url: 'https://docs.example.com/mcp', token: 't2', headers: { 'x-jitera-project': 'p1' }, verbs: VERBS,
+      kind: 'jitera', url: 'https://docs.example.com/mcp', token: 't2', headers: {}, verbs: VERBS,
     });
     s = { ...s, docsUrl: 'https://docs2.example.com/mcp' };
     await docs.list('x');
     expect(made).toHaveLength(3);
-    expect(made[2]).toMatchObject({ url: 'https://docs2.example.com/mcp', headers: { 'x-jitera-project': 'p1' } });
-    s = { ...s, jiteraProject: 'p2' };
-    await docs.list('x');
-    expect(made).toHaveLength(4);
-    expect(made[3]).toMatchObject({ url: 'https://docs2.example.com/mcp', headers: { 'x-jitera-project': 'p2' } });
+    expect(made[2]).toMatchObject({ url: 'https://docs2.example.com/mcp' });
   });
 });
 

@@ -15,7 +15,6 @@ const now = () => new Date('2026-11-25T00:00:00Z');
 const ken = 'ken@jitera.com';
 const input = (over: Partial<SettingsInput> = {}): SettingsInput => ({
   docsUrl: 'https://docs.example.com',
-  jiteraProject: 'p',
   teams: ['CORE'],
   engineers: [ken],
   tdrFolder: '',
@@ -111,7 +110,7 @@ describe('openSettings', () => {
 
   it('loads a row from before publicUrl and the gate secret, and keeps its engineers', async () => {
     const store = memorySettingsStore();
-    const old = { docsUrl: 'https://docs.example.com', jiteraProject: 'p', docsToken: sealSecret(KEY, 'tok-1'), linearApiKey: '', teams: ['CORE'], engineers: [ken] };
+    const old = { docsUrl: 'https://docs.example.com', docsToken: sealSecret(KEY, 'tok-1'), linearApiKey: '', teams: ['CORE'], engineers: [ken] };
     store.row = { value: old as unknown as StoredValue, updatedBy: ken, updatedAt: now() };
     const s = await openSettings(store, KEY, { engineers: ['mika@x.com'], publicUrl: 'https://flow.example.com', gateSecret: 'g'.repeat(32) }, now);
     expect(s.get()).toMatchObject({

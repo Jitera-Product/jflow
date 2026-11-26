@@ -83,7 +83,7 @@ const apiGatePath = () => `/api${gatePath}`;
 
 async function setup(project: TrackerProject = PROJECT, publicUrl = ORIGIN) {
   settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS, publicUrl }, () => new Date());
-  await settings.save({ docsUrl: 'https://docs.example.com', jiteraProject: 'proj-1', tdrFolder: '', productDocs: '', compliance: '', docsToken: 'DOCS-TOKEN-AAA', linearApiKey: 'LIN-KEY-BBB', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
+  await settings.save({ docsUrl: 'https://docs.example.com', tdrFolder: '', productDocs: '', compliance: '', docsToken: 'DOCS-TOKEN-AAA', linearApiKey: 'LIN-KEY-BBB', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
   docs = memoryDocuments({ [STATUS]: statusMd, [`${FOLDER}/2-spec.md`]: SPEC_DONE });
   tracker = fakeTracker(project);
   const quiet = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -400,7 +400,7 @@ describe('gate webhook', () => {
 
 
 describe('/api/settings', () => {
-  const GOOD = { docsUrl: 'https://docs.example.com', jiteraProject: 'proj-1', teams: ['ENG'], engineers: ENGINEERS };
+  const GOOD = { docsUrl: 'https://docs.example.com', teams: ['ENG'], engineers: ENGINEERS };
   const save = (v: Record<string, unknown>, email = MIKA, extra: Record<string, string> = {}) =>
     apiPost('/api/settings', { ...GOOD, ...v }, email, extra);
   const unchanged = () => {
@@ -427,7 +427,7 @@ describe('/api/settings', () => {
     expect(JSON.parse(text)).toEqual({
       email: MIKA,
       settings: {
-        docsUrl: 'https://docs.example.com', jiteraProject: 'proj-1', docsTokenSet: true, linearApiKeySet: true,
+        docsUrl: 'https://docs.example.com', docsTokenSet: true, linearApiKeySet: true,
         teams: ['ENG'], engineers: ENGINEERS, updatedBy: MIKA, updatedAt: expect.any(String),
         publicUrl: ORIGIN, tdrFolder: '', productDocs: '', compliance: '',
       },

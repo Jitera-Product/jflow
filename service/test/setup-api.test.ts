@@ -1,3 +1,4 @@
+import { DEFAULT_VERBS } from '../src/config/defaultVerbs.js';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { fileURLToPath } from 'node:url';
@@ -22,6 +23,7 @@ const MIKA = 'mika@jitera.com';
 const config = {
   flowFolder: 'documents/Flow', templatesDir: '', webDir: '', access: { teamDomain: TEAM, aud: AUD },
   agentFile: fileURLToPath(new URL('../agent/flow-agent.md', import.meta.url)),
+  documents: { kind: 'jitera', verbs: DEFAULT_VERBS },
 } as Config;
 
 let sign: (email: string) => Promise<string>;
@@ -56,18 +58,27 @@ const fakeLinear = (async (_url: any, init: any) => {
   return new Response(JSON.stringify({ data: data[op] }), { status: 200 });
 }) as typeof fetch;
 
+let made: Array<{ url: string; token: string }>;
+let docsFail: string | null;
+const makeDocs = ((conn: { url: string; token: string }) => {
+  made.push({ url: conn.url, token: conn.token });
+  return { list: async () => { if (docsFail) throw new Error(docsFail); return []; } };
+}) as never;
+
 async function start(publicUrl = ORIGIN, linearApiKey = 'LIN-KEY-BBB', docs?: Documents) {
   settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: [MIKA], publicUrl }, () => new Date());
-  await settings.save({ docsUrl: 'https://d.example.com', teams: ['ENG'], engineers: [MIKA], linearApiKey }, MIKA);
+  await settings.save({ docsUrl: 'https://d.example.com', docsToken: 'DOCS-STORED', teams: ['ENG'], engineers: [MIKA], linearApiKey }, MIKA);
   const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [], () => new Date());
   deps = { config, settings, chats, docs: docs ?? memoryDocuments({}), tracker: {} as never, now: () => new Date() };
-  server = createHttpServer(deps, { jwks, fetch: fakeLinear });
+  server = createHttpServer(deps, { jwks, fetch: fakeLinear, makeDocs });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 }
 beforeEach(async () => {
   linearCalls = [];
   linearFails = false;
+  made = [];
+  docsFail = null;
   have.splice(0, have.length, 'flow:intent');
   await start();
 });
@@ -88,7 +99,7 @@ const call = async (method: string, path: string, email: string | null = MIKA, b
 describe('access', () => {
   const routes: Array<[string, string, unknown?]> = [
     ['GET', '/api/setup'], ['GET', '/api/linear/teams'], ['GET', '/api/linear/labels'],
-    ['GET', '/api/chats'], ['POST', '/api/chats', { name: 'x' }], ['DELETE', '/api/chats/abc'], ['GET', '/api/agent-prompt'],
+    ['GET', '/api/chats'], ['POST', '/api/chats', { name: 'x' }], ['DELETE', '/api/chats/abc'], ['GET', '/api/agent-prompt'], ['POST', '/api/setup/jitera', { docsUrl: 'https://d.example.com' }],
   ];
   it.each(routes)('%s %s: 401 without Access, 403 for a non-engineer', async (method, path, body) => {
     expect((await call(method, path, null, body)).status).toBe(401);
@@ -124,12 +135,12 @@ describe('/api/setup', () => {
   });
   it('a failing Linear or Jitera is reported, never thrown, and leaks no secret', async () => {
     linearFails = true;
-    deps.docs.list = async () => { throw new Error('boom DOCS-TOKEN'); };
+    deps.docs.list = async () => { throw new Error('boom DOCS-STORED'); };
     const r = await call('GET', '/api/setup');
     expect(r.status).toBe(200);
     const text = await r.text();
     expect(JSON.parse(text)).toMatchObject({ linear: { ok: false }, jitera: { ok: false } });
-    expect(text).not.toMatch(/LIN-KEY|DOCS-TOKEN/);
+    expect(text).not.toMatch(/LIN-KEY|DOCS-STORED/);
   });
 });
 
@@ -222,5 +233,30 @@ describe('/api/agent-prompt', () => {
     expect(r.status).toBe(200);
     expect(r.headers.get('content-type')).toContain('text/markdown');
     expect((await r.text()).length).toBeGreaterThan(100);
+  });
+});
+
+describe('POST /api/setup/jitera', () => {
+  const test = async (b: unknown) => (await call('POST', '/api/setup/jitera', MIKA, b)).json();
+  it('tests the URL and token from the form, without saving them', async () => {
+    expect(await test({ docsUrl: 'https://new.example.com/mcp', docsToken: 'NEW-TOKEN' })).toEqual({ ok: true });
+    expect(made).toEqual([{ url: 'https://new.example.com/mcp', token: 'NEW-TOKEN' }]);
+    expect(settings.get().docsUrl).toBe('https://d.example.com');
+    expect(settings.get().docsToken).toBe('DOCS-STORED');
+  });
+  it('a blank token uses the stored one, but only for the stored URL', async () => {
+    expect(await test({ docsUrl: 'https://d.example.com' })).toEqual({ ok: true });
+    expect(made).toEqual([{ url: 'https://d.example.com', token: 'DOCS-STORED' }]);
+    expect(await test({ docsUrl: 'https://other.example.com/mcp', docsToken: '' })).toEqual({ ok: false, message: 'Enter the Jitera token.' });
+    expect(made).toHaveLength(1);
+  });
+  it('says why Jitera refused, without the token', async () => {
+    docsFail = 'Error POSTing to endpoint (HTTP 403): Unauthorized for NEW-TOKEN';
+    const r = await test({ docsUrl: 'https://new.example.com/mcp', docsToken: 'NEW-TOKEN' });
+    expect(r).toEqual({ ok: false, message: 'Could not read the Jitera documents: Error POSTing to endpoint (HTTP 403): Unauthorized for ***' });
+  });
+  it('refuses a URL that is not https', async () => {
+    expect(await test({ docsUrl: 'ftp://x', docsToken: 't' })).toEqual({ ok: false, message: 'The Jitera MCP URL must be an https URL.' });
+    expect(made).toEqual([]);
   });
 });

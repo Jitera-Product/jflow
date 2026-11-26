@@ -1,22 +1,23 @@
 import { type ReactNode, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
-import type { SetupView } from '@/api/types';
+import { testJitera } from '@/api/testJitera';
+import type { SetupStep } from '@/api/types';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import type { SettingsFormInput } from './settingsFormSchema';
 import { SettingsSection } from './SettingsSection';
 
-type Props = { tokenSet: boolean; test: () => Promise<SetupView>; footer: ReactNode };
+type Props = { tokenSet: boolean; footer: ReactNode };
 
-export function JiteraSection({ tokenSet, test, footer }: Props) {
-  const { register } = useFormContext<SettingsFormInput>();
+export function JiteraSection({ tokenSet, footer }: Props) {
+  const { register, getValues } = useFormContext<SettingsFormInput>();
   const [testing, setTesting] = useState(false);
-  const [result, setResult] = useState<SetupView['jitera'] | null>(null);
+  const [result, setResult] = useState<SetupStep | null>(null);
 
   const runTest = async () => {
     setTesting(true);
-    setResult((await test()).jitera);
+    setResult(await testJitera(getValues('docsUrl'), getValues('docsToken') ?? '').catch(() => ({ ok: false, message: 'Could not run the test. Reload the page and try again.' })));
     setTesting(false);
   };
 
@@ -39,7 +40,6 @@ export function JiteraSection({ tokenSet, test, footer }: Props) {
           <Button type="button" variant="outline" loading={testing} onClick={runTest}>
             Test
           </Button>
-          <span className="text-muted-foreground">Uses the saved values.</span>
         </div>
         {result && (
           <p role="status" className={result.ok ? 'text-success-text-on-surface' : 'text-error-text'}>

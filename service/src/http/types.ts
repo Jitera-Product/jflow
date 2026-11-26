@@ -1,7 +1,7 @@
 import type { JWTVerifyGetKey } from 'jose';
 import type { Deps } from '../feature/types.js';
 
-export type HttpOptions = { jwks?: JWTVerifyGetKey; fetch?: typeof fetch }; // fetch: stub point for the Linear calls
+export type HttpOptions = { jwks?: JWTVerifyGetKey; fetch?: typeof fetch };
 
 export type HttpContext = {
   deps: Deps;

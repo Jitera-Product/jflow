@@ -79,8 +79,12 @@ export function SettingsPage() {
   // Enter in a field would submit through the first Save (Linear) and show the result there, out of view.
   const onKeyDown = (e: KeyboardEvent<HTMLFormElement>) => {
     if (e.key !== 'Enter' || !(e.target instanceof HTMLInputElement)) return;
+    // Enter that confirms an IME conversion (Japanese input) is not a save. Safari reports it only as keyCode 229.
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
     e.preventDefault();
-    pressed.current = e.target.closest('[role="region"]')?.id as Section;
+    if (e.repeat) return; // a held Enter saves once
+    const section = e.target.closest('[role="region"]')?.id;
+    if (section) pressed.current = section as Section;
     onSubmit();
   };
 

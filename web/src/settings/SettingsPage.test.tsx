@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
 import type { SettingsView, SetupView } from '@/api/types';
@@ -215,6 +215,19 @@ test('Enter in a field saves and shows the result in that field\'s section', asy
   expect(await within(people).findByText('publicUrl: bad address')).toBeTruthy();
   expect(within(screen.getByRole('region', { name: 'Linear' })).queryByRole('alert')).toBeNull();
   expect(callsTo(f, 'POST', '/api/settings')).toHaveLength(2);
+});
+
+test('Enter during IME composition or held down does not save', async () => {
+  const f = routeFetch({ ...base, 'POST /api/settings': reply(200, view) });
+  render(<SettingsPage />);
+  const folder = within(await screen.findByRole('region', { name: 'Jitera' })).getByLabelText('TDR folder');
+  fireEvent.keyDown(folder, { key: 'Enter', isComposing: true });
+  fireEvent.keyDown(folder, { key: 'Enter', keyCode: 229 });
+  fireEvent.keyDown(folder, { key: 'Enter', repeat: true });
+  await new Promise((r) => setTimeout(r, 50));
+  expect(callsTo(f, 'POST', '/api/settings')).toHaveLength(0);
+  fireEvent.keyDown(folder, { key: 'Enter' });
+  await vi.waitFor(() => expect(callsTo(f, 'POST', '/api/settings')).toHaveLength(1));
 });
 
 test('shows problems from a 400 in the section that saved', async () => {

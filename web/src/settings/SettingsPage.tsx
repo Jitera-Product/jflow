@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useRef, useState } from 'react';
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { ApiError } from '@/api/ApiError';
 import { getSettings } from '@/api/getSettings';
@@ -29,6 +29,7 @@ const toForm = (s: SettingsView['settings']): SettingsFormInput => ({
   tdrFolder: s.tdrFolder,
   productDocs: s.productDocs,
   compliance: s.compliance,
+  publicUrl: s.publicUrl,
   engineers: s.engineers.join('\n'),
 });
 
@@ -61,12 +62,12 @@ export function SettingsPage() {
     check();
   }, []);
 
-  const onSubmit = form.handleSubmit(async ({ docsToken, linearApiKey, ...rest }) => {
+  const onSubmit = form.handleSubmit(async ({ docsToken, linearApiKey, publicUrl, ...rest }) => {
     const at = pressed.current;
     setStatus({ at, saved: false, problems: [] });
     try {
-      // A blank secret is left out, so the stored one stays.
-      show(await saveSettings({ ...rest, ...(docsToken ? { docsToken } : {}), ...(linearApiKey ? { linearApiKey } : {}) }));
+      // A blank secret or address is left out, so the stored one stays.
+      show(await saveSettings({ ...rest, ...(publicUrl ? { publicUrl } : {}), ...(docsToken ? { docsToken } : {}), ...(linearApiKey ? { linearApiKey } : {}) }));
       setStatus({ at, saved: true, problems: [] });
       check();
     } catch (e) {
@@ -74,6 +75,14 @@ export function SettingsPage() {
       setStatus({ at, saved: false, problems: err?.problems ?? [err?.message || 'Could not save. Reload the page and try again.'] });
     }
   });
+
+  // Enter in a field would submit through the first Save (Linear) and show the result there, out of view.
+  const onKeyDown = (e: KeyboardEvent<HTMLFormElement>) => {
+    if (e.key !== 'Enter' || !(e.target instanceof HTMLInputElement)) return;
+    e.preventDefault();
+    pressed.current = e.target.closest('[role="region"]')?.id as Section;
+    onSubmit();
+  };
 
   if (failed) {
     return (
@@ -119,7 +128,7 @@ export function SettingsPage() {
           <Checklist setup={setup} />
         </Card>
         <FormProvider {...form}>
-          <form onSubmit={onSubmit} noValidate className="grid gap-6">
+          <form onSubmit={onSubmit} onKeyDown={onKeyDown} noValidate className="grid gap-6">
             <LinearSection keySet={s.linearApiKeySet} savedAt={s.updatedAt} footer={footer('linear')} />
             <JiteraSection tokenSet={s.docsTokenSet} test={check} footer={footer('jitera')} />
             <PeopleSection footer={footer('people')} />

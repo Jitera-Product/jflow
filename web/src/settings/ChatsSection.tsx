@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { ApiError } from '@/api/ApiError';
 import { createChat } from '@/api/createChat';
 import { getChats } from '@/api/getChats';
+import { getSettings } from '@/api/getSettings';
 import { revokeChat } from '@/api/revokeChat';
 import type { ChatToken, CreatedChat } from '@/api/types';
 import { Button } from '@/components/ui/Button';
@@ -9,6 +10,7 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { when } from '@/lib/when';
 import { ChatBlocks } from './ChatBlocks';
+import { CopyText } from './CopyText';
 import { SettingsSection } from './SettingsSection';
 
 const sayError = (e: unknown, fallback: string) => {
@@ -24,7 +26,7 @@ export function ChatsSection({ publicUrl }: { publicUrl: string }) {
   const [busy, setBusy] = useState<string | null>(null); // 'create' or the id being revoked
   const [problem, setProblem] = useState<string | null>(null);
   // The token lives only here, until Done. It is never stored or read again.
-  const [created, setCreated] = useState<CreatedChat | null>(null);
+  const [created, setCreated] = useState<(CreatedChat & { publicUrl: string }) | null>(null);
 
   const load = () => getChats().then((r) => setChats(r.chats), (e) => setProblem(sayError(e, 'Could not load the chat tokens.')));
   useEffect(() => {
@@ -36,7 +38,10 @@ export function ChatsSection({ publicUrl }: { publicUrl: string }) {
     setBusy('create');
     setProblem(null);
     try {
-      setCreated(await createChat(name.trim()));
+      const chat = await createChat(name.trim());
+      // The address may have been set since this page loaded, so read it again.
+      const address = await getSettings().then((v) => v.settings.publicUrl, () => publicUrl);
+      setCreated({ ...chat, publicUrl: address });
       setAsking(false);
       setName('');
     } catch (err) {
@@ -87,7 +92,14 @@ export function ChatsSection({ publicUrl }: { publicUrl: string }) {
       {created ? (
         <div className="grid gap-4">
           <p className="rounded-md bg-secondary px-3 py-2">{`Token for ${created.chat.name}. Copy it now: jflow shows it only once.`}</p>
-          <ChatBlocks publicUrl={publicUrl} token={created.token} />
+          {created.publicUrl ? (
+            <ChatBlocks publicUrl={created.publicUrl} token={created.token} />
+          ) : (
+            <>
+              <p role="alert" className="text-error-text">Save the settings once first, so jflow knows its address.</p>
+              <CopyText label="Token" text={created.token} />
+            </>
+          )}
           <div>
             <Button type="button" onClick={done}>
               Done

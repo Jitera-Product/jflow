@@ -137,6 +137,7 @@ test('save sends every field and leaves out blank secrets', async () => {
     tdrFolder: 'Technical Design Record (TDR)',
     productDocs: 'TDR and Specs',
     compliance: 'ISMAP, SOC 2',
+    publicUrl: 'https://flow.example.com',
   });
   expect(callsTo(f, 'POST', '/api/settings')[0]![1]).toMatchObject({ credentials: 'same-origin', headers: { 'content-type': 'application/json' } });
   expect(screen.getAllByText('Saved')).toHaveLength(1); // only in the section that saved
@@ -176,6 +177,44 @@ test('People: engineers list, saved lower-cased one per line', async () => {
   await user.type(within(people).getByLabelText(/Engineers/), '\nNew@Example.com');
   await user.click(within(people).getByRole('button', { name: 'Save' }));
   await vi.waitFor(() => expect(bodyOf(f, 'POST', '/api/settings').engineers).toEqual(['mika@example.com', 'sam@example.com', 'new@example.com']));
+});
+
+test('People: the jflow address shows the stored value, an edit is saved, a blank one is left out', async () => {
+  const f = routeFetch({ ...base, 'POST /api/settings': reply(200, view) });
+  const user = userEvent.setup();
+  render(<SettingsPage />);
+  const people = await screen.findByRole('region', { name: 'People' });
+  const address = within(people).getByLabelText('jflow address (public URL)') as HTMLInputElement;
+  expect(address.value).toBe('https://flow.example.com');
+  await user.clear(address);
+  await user.type(address, 'https://jflow.example.org');
+  await user.click(within(people).getByRole('button', { name: 'Save' }));
+  await vi.waitFor(() => expect(bodyOf(f, 'POST', '/api/settings').publicUrl).toBe('https://jflow.example.org'));
+
+  await user.clear(address);
+  await user.click(within(people).getByRole('button', { name: 'Save' }));
+  await vi.waitFor(() => expect(callsTo(f, 'POST', '/api/settings')).toHaveLength(2));
+  expect('publicUrl' in bodyOf(f, 'POST', '/api/settings', 1)).toBe(false);
+});
+
+test('Enter in a field saves and shows the result in that field\'s section', async () => {
+  const f = routeFetch({
+    ...base,
+    'POST /api/settings': [reply(200, view), reply(400, { error: 'invalid', problems: ['publicUrl: bad address'] })],
+  });
+  const user = userEvent.setup();
+  render(<SettingsPage />);
+  const jitera = await screen.findByRole('region', { name: 'Jitera' });
+  await user.type(within(jitera).getByLabelText('TDR folder'), '{Enter}');
+  expect(await within(jitera).findByText('Saved')).toBeTruthy();
+  expect(within(screen.getByRole('region', { name: 'Linear' })).queryByText('Saved')).toBeNull();
+  expect(callsTo(f, 'POST', '/api/settings')).toHaveLength(1);
+
+  const people = screen.getByRole('region', { name: 'People' });
+  await user.type(within(people).getByLabelText('jflow address (public URL)'), '{Enter}');
+  expect(await within(people).findByText('publicUrl: bad address')).toBeTruthy();
+  expect(within(screen.getByRole('region', { name: 'Linear' })).queryByRole('alert')).toBeNull();
+  expect(callsTo(f, 'POST', '/api/settings')).toHaveLength(2);
 });
 
 test('shows problems from a 400 in the section that saved', async () => {

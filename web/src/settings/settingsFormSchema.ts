@@ -11,6 +11,7 @@ export const settingsFormSchema = z.object({
   tdrFolder: z.string().trim(),
   productDocs: z.string().trim(),
   compliance: z.string().trim(),
+  publicUrl: z.string().trim(),
   engineers: z.string().transform((s) => words(s.toLowerCase())),
 });
 

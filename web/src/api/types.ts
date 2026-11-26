@@ -24,6 +24,7 @@ export type SettingsInput = {
   tdrFolder: string;
   productDocs: string;
   compliance: string;
+  publicUrl?: string; // blank or missing = keep the stored one
   docsToken?: string;
   linearApiKey?: string;
 };

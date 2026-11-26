@@ -14,6 +14,8 @@ const fresh: ChatToken = { id: 'c2', name: 'Claude Code', createdBy: 'mika@examp
 
 const when = (iso: string) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso));
 
+const settings = (url: string) => reply(200, { email: 'mika@example.com', settings: { publicUrl: url } });
+
 const agentPrompt = () => new Response(prompt, { status: 200, headers: { 'content-type': 'text/markdown; charset=utf-8' } });
 
 afterEach(() => {
@@ -44,6 +46,7 @@ test('New token asks a name, shows the token once with the three blocks, and for
   const f = routeFetch({
     'GET /api/chats': [reply(200, { chats: [] }), reply(200, { chats: [fresh] })],
     'POST /api/chats': reply(200, { chat: fresh, token }),
+    'GET /api/settings': settings(publicUrl),
     'GET /api/agent-prompt': agentPrompt,
   });
   const user = userEvent.setup();
@@ -98,6 +101,7 @@ test('Copy writes to the clipboard; when that fails, the text is selected to cop
   routeFetch({
     'GET /api/chats': reply(200, { chats: [] }),
     'POST /api/chats': reply(200, { chat: fresh, token }),
+    'GET /api/settings': settings(publicUrl),
     'GET /api/agent-prompt': agentPrompt,
   });
   const user = userEvent.setup();
@@ -116,4 +120,30 @@ test('Copy writes to the clipboard; when that fails, the text is selected to cop
   await user.click(within(other).getByRole('button', { name: 'Copy URL' }));
   expect(writeText).toHaveBeenLastCalledWith(`${publicUrl}/mcp`);
   await vi.waitFor(() => expect(String(window.getSelection())).toBe(`${publicUrl}/mcp`));
+});
+
+test('the blocks use the address read after create, and wait while it is still blank', async () => {
+  routeFetch({
+    'GET /api/chats': reply(200, { chats: [] }),
+    'POST /api/chats': reply(200, { chat: fresh, token }),
+    'GET /api/settings': [settings(publicUrl), settings('')],
+    'GET /api/agent-prompt': agentPrompt,
+  });
+  const user = userEvent.setup();
+  render(<ChatsSection publicUrl="" />); // the page loaded before another engineer set the address
+  const make = async () => {
+    await user.click(await screen.findByRole('button', { name: 'New token' }));
+    await user.type(screen.getByLabelText('Chat name'), 'Claude Code');
+    await user.click(screen.getByRole('button', { name: 'Create' }));
+  };
+  await make();
+  const other = await screen.findByRole('group', { name: 'Other MCP chat' });
+  expect(within(other).getByText(`${publicUrl}/mcp`)).toBeTruthy();
+  expect(document.body.innerHTML).not.toMatch(/>\/mcp</);
+  await user.click(screen.getByRole('button', { name: 'Done' }));
+
+  await make();
+  expect(await screen.findByText('Save the settings once first, so jflow knows its address.')).toBeTruthy();
+  expect(screen.queryByRole('group')).toBeNull();
+  expect(screen.getByText(token)).toBeTruthy(); // shown once, so it must not be lost
 });

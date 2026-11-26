@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Config } from '../src/config/types.js';
+import { bareOrigin } from '../src/settings/bareOrigin.js';
 import { checkSettings } from '../src/settings/checkSettings.js';
 import { importLegacySettings } from '../src/settings/importLegacySettings.js';
 import { memorySettingsStore } from '../src/settings/memorySettingsStore.js';
@@ -181,6 +182,19 @@ describe('importLegacySettings', () => {
     expect(importLegacySettings(config(null), {})).toEqual({});
     expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
+  });
+});
+
+describe('bareOrigin', () => {
+  it('returns the normalized origin and refuses credentials, paths, queries and hashes', () => {
+    expect(bareOrigin('HTTPS://Flow.Example.com:443/')).toBe('https://flow.example.com');
+    expect(bareOrigin('http://localhost:8080')).toBe('http://localhost:8080');
+    expect(bareOrigin('https://user:pw@flow.example.com')).toBeNull();
+    expect(bareOrigin('https://user@flow.example.com')).toBeNull();
+    expect(bareOrigin('https://flow.example.com/x')).toBeNull();
+    expect(bareOrigin('https://flow.example.com/?a=1')).toBeNull();
+    expect(bareOrigin('https://flow.example.com/#h')).toBeNull();
+    expect(bareOrigin('ftp://flow.example.com')).toBeNull();
   });
 });
 

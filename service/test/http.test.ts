@@ -16,7 +16,7 @@ import { verifyAccess } from '../src/http/verifyAccess.js';
 import { createHttpServer } from '../src/http/createHttpServer.js';
 import type { TrackerProject } from '../src/linear/types.js';
 import { memorySettingsStore } from '../src/settings/memorySettingsStore.js';
-import type { LiveSettings } from '../src/settings/types.js';
+import type { LegacySettings, LiveSettings } from '../src/settings/types.js';
 import { openSettings } from '../src/settings/openSettings.js';
 import { readGates } from '../src/status/readGates.js';
 import { upsertGate } from '../src/status/upsertGate.js';
@@ -92,6 +92,13 @@ async function setup(project: TrackerProject = PROJECT, publicUrl = ORIGIN) {
 beforeEach(() => setup());
 afterEach(() => new Promise<void>((r) => server.close(() => r())));
 
+async function serve(legacy: LegacySettings) {
+  await new Promise<void>((r) => server.close(() => r()));
+  settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), legacy, () => new Date());
+  server = createHttpServer({ ...deps, settings }, { jwks });
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+  base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+}
 const get = (path: string, headers: Record<string, string>) => fetch(base + path, { headers, redirect: 'manual' });
 const post = (path: string, body: string, headers: Record<string, string>) =>
   fetch(base + path, { method: 'POST', body, headers, redirect: 'manual' });
@@ -400,8 +407,68 @@ describe('/api/settings', () => {
       settings: {
         docsUrl: 'https://docs.example.com', jiteraProject: 'proj-1', docsTokenSet: true, linearApiKeySet: true,
         teams: ['ENG'], engineers: ENGINEERS, updatedBy: MIKA, updatedAt: expect.any(String),
+        publicUrl: ORIGIN, tdrFolder: '', productDocs: '', compliance: '',
       },
     });
+  });
+  it('the view never carries the gate secret', async () => {
+    const secret = settings.get().gateSecret;
+    expect(secret).not.toBe('');
+    const view = await (await get('/api/settings', await as(MIKA))).text();
+    const saved = await (await save({})).text();
+    expect(view).not.toContain(secret);
+    expect(saved).not.toContain(secret);
+    expect(view).not.toContain('gateSecret');
+  });
+  it('POST carries the team settings, and a body that omits them keeps the stored values', async () => {
+    const r = await save({ tdrFolder: 'TDR', productDocs: 'Specs', compliance: 'ISMAP' });
+    expect((await r.json()).settings).toMatchObject({ tdrFolder: 'TDR', productDocs: 'Specs', compliance: 'ISMAP' });
+    expect((await save({ docsUrl: 'https://docs.example.com' })).status).toBe(200);
+    expect(settings.get()).toMatchObject({ tdrFolder: 'TDR', productDocs: 'Specs', compliance: 'ISMAP' });
+    expect((await save({ tdrFolder: '' })).status).toBe(200);
+    expect(settings.get()).toMatchObject({ tdrFolder: '', productDocs: 'Specs', compliance: 'ISMAP' });
+  });
+  it('POST saves publicUrl as a normalized origin and refuses a bad one', async () => {
+    expect((await save({ publicUrl: 'https://flow.example.com/' })).status).toBe(200);
+    expect(settings.get().publicUrl).toBe(ORIGIN);
+    const r = await save({ publicUrl: 'HTTPS://New.Example.com:443/' });
+    expect(r.status).toBe(200);
+    expect((await r.json()).settings.publicUrl).toBe('https://new.example.com');
+  });
+  it('ctx.origin follows a publicUrl saved at runtime', async () => {
+    expect((await save({ publicUrl: 'https://new.example.com' })).status).toBe(200);
+    expect((await save({ docsUrl: 'https://x.example.com' })).status).toBe(403);
+    expect((await save({ docsUrl: 'https://x.example.com' }, MIKA, { origin: 'https://new.example.com' })).status).toBe(200);
+    expect(settings.get().docsUrl).toBe('https://x.example.com');
+  });
+  it('once publicUrl is set, a POST from another origin is refused', async () => {
+    const r = await save({ publicUrl: 'https://other.example.com' }, MIKA, { origin: 'https://other.example.com' });
+    expect(r.status).toBe(403);
+    expect(await r.json()).toEqual({ error: 'refused' });
+    expect(settings.get().publicUrl).toBe(ORIGIN);
+  });
+  it('the first save takes publicUrl from the page origin when none is set', async () => {
+    await serve({ engineers: ENGINEERS });
+    const r = await save({}, MIKA, { origin: 'https://flow.example.com' });
+    expect(r.status).toBe(200);
+    expect((await r.json()).settings.publicUrl).toBe('https://flow.example.com');
+    expect(settings.get().publicUrl).toBe('https://flow.example.com');
+  });
+  it('with no publicUrl, a POST with no Origin is refused', async () => {
+    await serve({ engineers: ENGINEERS });
+    const r = await post('/api/settings', JSON.stringify(GOOD), { ...JSON_H, ...(await as(MIKA)) });
+    expect(r.status).toBe(403);
+    expect(settings.get().publicUrl).toBe('');
+  });
+  it('the first person to open settings on an empty instance becomes an engineer', async () => {
+    await serve({});
+    const a = await get('/api/settings', await as('a@x.com'));
+    expect(a.status).toBe(200);
+    expect(settings.get().engineers).toEqual(['a@x.com']);
+    const b = await get('/api/settings', await as('b@x.com'));
+    expect(b.status).toBe(403);
+    expect((await b.json()).error).toBe('not_allowed');
+    expect(settings.get().engineers).toEqual(['a@x.com']);
   });
   it('POST saves, keeps blank secrets, cleans teams and engineers', async () => {
     const r = await save({ teams: [' core', 'eng', 'ENG', ''], engineers: ['Mika@Jitera.com ', 'ken@jitera.com', 'mika@jitera.com', ' '], docsToken: '', linearApiKey: '  ', docsUrl: ' https://docs.example.com ' });

@@ -19,7 +19,11 @@ export async function handle(ctx: HttpContext, req: IncomingMessage, res: Server
 
   const api = /^\/api\/(?:settings|gate\/([^/]+)\/([^/]+))$/.exec(path);
   if (api && (req.method === 'GET' || req.method === 'POST')) {
-    if (req.method === 'POST' && header(req, 'origin') !== ctx.origin()) return json(res, 403, { error: 'refused' });
+    if (req.method === 'POST') {
+      const from = header(req, 'origin');
+      const expected = ctx.origin() || from; // no publicUrl yet: the first save takes the page origin
+      if (!from || from !== expected) return json(res, 403, { error: 'refused' });
+    }
     const email = await verifyAccess(header(req, 'cf-access-jwt-assertion'), { ...ctx.deps.config.access, jwks: ctx.opts.jwks });
     if (!email) return json(res, 401, { error: 'sign_in' });
     return api[1] ? apiGate(ctx, req, res, email, api[1], api[2]!) : apiSettings(ctx, req, res, email);

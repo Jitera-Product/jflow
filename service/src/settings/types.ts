@@ -19,10 +19,10 @@ export type SettingsInput = {
   jiteraProject: string;
   teams: string[];
   engineers: string[];
-  tdrFolder: string;
-  productDocs: string;
-  compliance: string;
   publicUrl?: string; // undefined or '' = keep the stored value
+  tdrFolder?: string; // undefined = keep the stored value; '' clears it
+  productDocs?: string;
+  compliance?: string;
   docsToken?: string;
   linearApiKey?: string;
 };

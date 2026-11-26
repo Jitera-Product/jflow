@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { z } from 'zod';
 import { SettingsError } from '../../settings/SettingsError.js';
+import { header } from '../header.js';
 import { json } from '../json.js';
 import { readJson } from '../readJson.js';
 import { settingsView } from '../settingsView.js';
@@ -16,13 +17,17 @@ const settingsBody = z.object({
   engineers: list((s) => s.toLowerCase()),
   docsToken: secret,
   linearApiKey: secret,
-  tdrFolder: z.string().trim().default(''),
-  productDocs: z.string().trim().default(''),
-  compliance: z.string().trim().default(''),
+  publicUrl: z.string().trim().optional(),
+  tdrFolder: z.string().trim().optional(), // missing = keep the stored value
+  productDocs: z.string().trim().optional(),
+  compliance: z.string().trim().optional(),
 });
 
 export async function apiSettings(ctx: HttpContext, req: IncomingMessage, res: ServerResponse, email: string) {
   const live = ctx.deps.settings;
+  if (live.get().engineers.length === 0 && (await live.claimFirstEngineer(email))) {
+    console.log(`jflow: ${email} is the first engineer`);
+  }
   if (!live.get().engineers.includes(email)) {
     return json(res, 403, { error: 'not_allowed', message: 'Only jflow engineers can open settings. Ask an engineer to add you.' });
   }
@@ -35,7 +40,8 @@ export async function apiSettings(ctx: HttpContext, req: IncomingMessage, res: S
     return json(res, 400, { error: 'invalid', problems: body.error.issues.map((i) => `${i.path.join('.') || 'body'}: ${i.message}`) });
   }
   try {
-    await live.save(body.data, email);
+    const publicUrl = body.data.publicUrl || (ctx.origin() === '' ? header(req, 'origin') : undefined);
+    await live.save({ ...body.data, publicUrl }, email);
   } catch (e) {
     if (e instanceof SettingsError) return json(res, 400, { error: 'invalid', problems: e.problems });
     throw e;

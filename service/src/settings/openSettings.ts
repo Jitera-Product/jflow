@@ -87,9 +87,9 @@ export async function openSettings(
         teams: input.teams,
         engineers,
         publicUrl: input.publicUrl ? (bareOrigin(input.publicUrl) as string) : stored.publicUrl,
-        tdrFolder: input.tdrFolder,
-        productDocs: input.productDocs,
-        compliance: input.compliance,
+        tdrFolder: input.tdrFolder ?? stored.tdrFolder,
+        productDocs: input.productDocs ?? stored.productDocs,
+        compliance: input.compliance ?? stored.compliance,
         gateSecret: stored.gateSecret,
       };
       await store.save(value, by, at);

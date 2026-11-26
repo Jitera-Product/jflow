@@ -16,7 +16,7 @@ endpoint so an agent can work on the same documents.
 
 Everything else is set on `/settings`: the Linear key and teams, the Jitera MCP URL, token and project, the
 engineers, the jflow address (public URL) and the chat tokens. The first person to sign in becomes an engineer. Until
-the setup is done the MCP tools answer `not_configured`. The setup path and the upgrade from a config file are in
+the jflow address is set, `open_gate` answers `not_configured`. The setup path and the upgrade from a config file are in
 [docs/deploy.md](../docs/deploy.md).
 
 ## Run locally
@@ -30,7 +30,7 @@ npm start
 curl localhost:8080/healthz
 ```
 
-The service serves the built web app from `web/dist` so build it once:
+The service serves the built web app from `web/dist`, so build it once:
 `cd web && npm ci && npm run build`. For UI work run `npm run dev` in `web/`. It serves on
 localhost:5173 and proxies `/api` to the service on localhost:8080. Without Cloudflare Access in front,
 `/api` calls need a valid Access JWT, so the dev server only shows data from a service set up for it.

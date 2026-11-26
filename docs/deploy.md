@@ -63,8 +63,8 @@ The checklist on top shows what is left. Each item links to its section:
    and any other MCP chat. A chat needs no redeploy. "Revoke" stops a token at once, for MCP calls and for
    [gate callbacks](gate-callback.md).
 
-The Chats item is done when any token was used once. Until the jflow address is set, every MCP tool answers
-`not_configured` with a link to `/settings`, and the chat blocks stay hidden.
+The Chats item is done when any token was used once. Until the jflow address is set, only `open_gate`
+answers `not_configured`, and the chat token is shown without the copy blocks.
 
 ## Network
 
@@ -145,3 +145,9 @@ would become invalid.
 
 If `JFLOW_ACCESS_TEAM_DOMAIN` and `JFLOW_ACCESS_AUD` are not set, jflow still takes the two Access values from the
 `access` part of the file. Set both env vars before you remove the file, or the next start fails.
+
+### Moving jflow to a new host
+
+The jflow address can only be changed from that address, so a new host cannot save its own address while the old one
+is stored. Clear the stored address with `update settings set value = value - 'publicUrl' where id = 1;`, then open
+`/settings` at the new address. The next save takes the page origin.

@@ -110,6 +110,11 @@ describe('basics', () => {
     expect(await r.text()).toBe('ok');
     expect((await get('/nope', {})).status).toBe(404);
   });
+  it('/ redirects to /settings', async () => {
+    const r = await get('/', {});
+    expect(r.status).toBe(302);
+    expect(r.headers.get('location')).toBe('/settings');
+  });
   it('a body over 1 MB is 413', async () => {
     expect((await post('/webhooks/gate', 'x'.repeat(1024 * 1024 + 1), {})).status).toBe(413);
   });

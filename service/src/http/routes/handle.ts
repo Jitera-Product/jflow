@@ -13,6 +13,7 @@ import { webhook } from './webhook.js';
 export async function handle(ctx: HttpContext, req: IncomingMessage, res: ServerResponse) {
   const path = new URL(req.url ?? '/', 'http://localhost').pathname;
   if (path === '/healthz' && req.method === 'GET') return send(res, 200, 'ok');
+  if (path === '/' && req.method === 'GET') return send(res, 302, '', { location: '/settings' });
   if (path === '/mcp') return req.method === 'POST' ? mcp(ctx.deps, req, res) : send(res, 405, 'method not allowed');
   if (path === '/webhooks/gate' && req.method === 'POST') return webhook(ctx.deps, req, res);
 

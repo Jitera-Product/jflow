@@ -8,5 +8,5 @@ export default defineConfig({
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   server: { proxy: { '/api': 'http://localhost:8080' } },
   build: { outDir: 'dist', emptyOutDir: true },
-  test: { environment: 'jsdom' },
+  test: { environment: 'jsdom', setupFiles: ['src/test/setup.ts'] },
 });

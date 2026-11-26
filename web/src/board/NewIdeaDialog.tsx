@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { ApiError } from '@/api/ApiError';
 import { createIdea } from '@/api/createIdea';
 import { getIdeaOwners } from '@/api/getIdeaOwners';
@@ -22,6 +22,16 @@ export function NewIdeaDialog({ teams, onClose, onCreated }: Props) {
   const [problems, setProblems] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [created, setCreated] = useState<CreatedIdea | null>(null);
+  const dialog = useRef<HTMLDialogElement>(null);
+  const close = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    dialog.current?.showModal();
+  }, []);
+
+  useEffect(() => {
+    if (created) close.current?.focus();
+  }, [created]);
 
   useEffect(() => {
     let live = true;
@@ -59,8 +69,21 @@ export function NewIdeaDialog({ teams, onClose, onCreated }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 pt-[10vh]" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
-      <div role="dialog" aria-modal="true" aria-labelledby="new-idea-title" className="bg-card text-card-foreground flex w-full max-w-md flex-col gap-5 rounded-xl border p-6 text-sm shadow-lg">
+    <dialog
+      ref={dialog}
+      aria-labelledby="new-idea-title"
+      className="bg-card text-card-foreground m-auto w-[calc(100%-2rem)] max-w-md rounded-xl border p-6 text-sm shadow-lg backdrop:bg-black/40"
+      onKeyDown={(e) => {
+        if (e.key !== 'Escape') return;
+        e.preventDefault();
+        onClose();
+      }}
+      onCancel={(e) => {
+        e.preventDefault();
+        onClose();
+      }}
+    >
+      <div className="flex flex-col gap-5">
         <h2 id="new-idea-title" className="text-lg leading-none font-semibold">New idea</h2>
         {created ? (
           <>
@@ -68,7 +91,7 @@ export function NewIdeaDialog({ teams, onClose, onCreated }: Props) {
             <a href={created.url} target="_blank" rel="noopener" className="text-primary underline underline-offset-4">Open in Linear</a>
             <p>Start it in the Jitera chat with the Flow agent, using the project ID from Linear.</p>
             <div className="flex justify-end">
-              <Button onClick={onClose}>Close</Button>
+              <Button ref={close} onClick={onClose}>Close</Button>
             </div>
           </>
         ) : (
@@ -112,6 +135,6 @@ export function NewIdeaDialog({ teams, onClose, onCreated }: Props) {
           </form>
         )}
       </div>
-    </div>
+    </dialog>
   );
 }

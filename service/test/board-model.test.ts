@@ -19,7 +19,7 @@ const file = (o: Partial<StatusFile> = {}): StatusFile => ({ gates: [], log: [],
 const run = (projects: FlowProject[], files: Array<[string, StatusFile | null]> = [], o: Record<string, unknown> = {}) =>
   buildStageBoard({
     projects, files: new Map(files), ids: new Map(), engineers: ['eng@x.com'], viewer: 'nobody@x.com',
-    mine: false, filesFailed: false, ...o,
+    mine: false, older: false, filesFailed: false, ...o,
   }, NOW);
 const cards = (b: ReturnType<typeof run>) => b.columns.flatMap((c) => c.cards);
 
@@ -133,6 +133,11 @@ describe('buildStageBoard', () => {
     expect(cards(run([done({ updatedAt: daysAgo(13) })]))).toHaveLength(1);
     const log = [{ date: '2026-11-11', stage: 'Done', who: 'a', text: '' }];
     expect(cards(run([done({ updatedAt: daysAgo(1) })], [['s1', file({ log })]]))).toHaveLength(0);
+  });
+
+  it('older keeps Done cards older than 14 days', () => {
+    const old = proj({ flowLabel: 'flow:done', updatedAt: daysAgo(40) });
+    expect(cards(run([old], [], { older: true }))).toHaveLength(1);
   });
 
   it('sets the notice and ignores files when filesFailed', () => {

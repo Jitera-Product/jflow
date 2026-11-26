@@ -54,8 +54,30 @@ test('from the header: picked teams, owner preselected, created in Linear, then 
   expect(within(intent).getByText('Not started in jflow')).toBeTruthy();
   expect(callsTo(f, 'GET', '/api/board?refresh=1')).toHaveLength(1);
 
+  expect(document.activeElement).toBe(d.getByRole('button', { name: 'Close' }));
   await user.click(d.getByRole('button', { name: 'Close' }));
   expect(screen.queryByRole('dialog')).toBeNull();
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'New idea' }));
+  expect(screen.getByRole('banner').contains(dialog)).toBe(false);
+});
+
+test('Escape closes the dialog before and after success', async () => {
+  routeFetch({ 'GET /api/ideas/owners?team=ENG': reply(200, owners('u1')), 'POST /api/ideas': reply(200, created) });
+  const onClose = vi.fn();
+  const user = userEvent.setup();
+  render(<NewIdeaDialog teams={['ENG']} onClose={onClose} />);
+  await screen.findByRole('dialog', { name: 'New idea' });
+  await user.keyboard('{Escape}');
+  expect(onClose).toHaveBeenCalledOnce();
+  cleanup();
+
+  render(<NewIdeaDialog teams={['ENG']} onClose={onClose} />);
+  await vi.waitFor(() => expect((screen.getByRole('combobox', { name: 'Owner' }) as HTMLSelectElement).value).toBe('u1'));
+  await user.type(screen.getByLabelText('Title'), 'Bulk invite');
+  await user.click(screen.getByRole('button', { name: 'Create' }));
+  await screen.findByText('Created in Linear');
+  await user.keyboard('{Escape}');
+  expect(onClose).toHaveBeenCalledTimes(2);
 });
 
 test('without a default owner the owner is required; a team change loads its members', async () => {

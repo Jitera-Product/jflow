@@ -1,17 +1,16 @@
-/* The workload board as it was in the Worker, scoped to .wb so it does not touch the other pages. */
+/* The workload board as it was in the Worker, scoped to .wb so it does not touch the other pages; colors follow the app tokens, light and dark. */
 .wb {
-  --bg: #f7f7f5;
-  --panel: #ffffff;
-  --fg: #1f2328;
-  --muted: #6b7280;
-  --line: #e5e7eb;
-  --own: #3b82f6;
+  --bg: var(--background);
+  --panel: var(--card);
+  --fg: var(--foreground);
+  --muted: var(--muted-foreground);
+  --line: var(--border);
+  --own: var(--brand-gradient-from);
   --out: #f59e0b;
-  --ok: #15803d;
-  --warn: #b45309;
-  --bad: #b91c1c;
+  --ok: var(--success-text-on-surface);
+  --warn: #d97706;
+  --bad: var(--destructive);
   --radius: 10px;
-  color-scheme: light;
   background: var(--bg);
   color: var(--fg);
   font: 14px/1.45 system-ui, -apple-system, 'Segoe UI', sans-serif;

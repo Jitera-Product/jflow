@@ -10,7 +10,7 @@ const NOTICE = 'jflow could not read the status files in Jitera. Stages come fro
 export function buildStageBoard(
   input: {
     projects: FlowProject[]; files: Map<string, StatusFile | null>; ids: Map<string, string>;
-    engineers: string[]; viewer: string; mine: boolean; filesFailed: boolean;
+    engineers: string[]; viewer: string; mine: boolean; older: boolean; filesFailed: boolean;
   },
   now: Date,
 ): StageBoard {
@@ -20,7 +20,7 @@ export function buildStageBoard(
     if (!stage) continue;
     const file = input.filesFailed ? null : input.files.get(p.slugId) ?? null;
     const c = cardOf(p, stage, file, input.ids.get(p.slugId) ?? null, input.engineers, input.viewer, now);
-    if (stage === 'Done' && c.days > DONE_KEEP_DAYS) continue;
+    if (stage === 'Done' && c.days > DONE_KEEP_DAYS && !input.older) continue;
     if (input.mine && !c.waitingForMe) continue;
     cards.push(c);
   }

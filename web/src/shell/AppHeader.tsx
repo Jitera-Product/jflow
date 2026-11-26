@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getMe } from '@/api/getMe';
 import type { Me } from '@/api/types';
 import { NewIdeaDialog } from '@/board/NewIdeaDialog';
@@ -12,34 +12,51 @@ const LINKS = [
   { href: '/settings', label: 'Settings', here: (p: string) => p === '/settings', engineers: true },
 ];
 
-export function AppHeader({ onIdeaCreated }: { onIdeaCreated?: () => void }) {
-  const [me, setMe] = useState<Me | null>(null);
+// me: undefined = the header asks /api/me itself; null = the page is still asking for it.
+type Props = { me?: Me | null; onIdeaCreated?: () => void };
+
+export function AppHeader({ me: given, onIdeaCreated }: Props) {
+  const [fetched, setFetched] = useState<Me | null>(null);
   const [adding, setAdding] = useState(false);
+  const button = useRef<HTMLButtonElement>(null);
+  const asks = given === undefined;
+  const me = asks ? fetched : given;
 
   useEffect(() => {
-    getMe().then(setMe, () => setMe(null));
-  }, []);
+    if (asks) getMe().then(setFetched, () => setFetched(null));
+  }, [asks]);
 
   const path = location.pathname;
   return (
-    <header className="border-b bg-background">
-      <nav className="flex h-12 items-center gap-1 px-4 text-sm">
-        <span className="mr-3 font-semibold">jflow</span>
-        {LINKS.filter((l) => !l.engineers || me?.engineer).map((l) => (
-          <a
-            key={l.href}
-            href={l.href}
-            aria-current={l.here(path) ? 'page' : undefined}
-            className={cn('rounded-md px-2 py-1 text-muted-foreground hover:bg-accent hover:text-foreground', l.here(path) && 'text-foreground font-medium')}
-          >
-            {l.label}
-          </a>
-        ))}
-        <Button size="sm" className="ml-auto" disabled={!me?.teams.length} onClick={() => setAdding(true)}>
-          New idea
-        </Button>
-      </nav>
-      {adding && me && <NewIdeaDialog teams={me.teams} onClose={() => setAdding(false)} onCreated={onIdeaCreated} />}
-    </header>
+    <>
+      <header className="border-b bg-background">
+        <nav className="flex h-12 items-center gap-1 px-4 text-sm">
+          <span className="mr-3 font-semibold">jflow</span>
+          {LINKS.filter((l) => !l.engineers || me?.engineer).map((l) => (
+            <a
+              key={l.href}
+              href={l.href}
+              aria-current={l.here(path) ? 'page' : undefined}
+              className={cn('rounded-md px-2 py-1 text-muted-foreground hover:bg-accent hover:text-foreground', l.here(path) && 'text-foreground font-medium')}
+            >
+              {l.label}
+            </a>
+          ))}
+          <Button ref={button} size="sm" className="ml-auto" disabled={!me?.teams.length} onClick={() => setAdding(true)}>
+            New idea
+          </Button>
+        </nav>
+      </header>
+      {adding && me && (
+        <NewIdeaDialog
+          teams={me.teams}
+          onCreated={onIdeaCreated}
+          onClose={() => {
+            setAdding(false);
+            button.current?.focus();
+          }}
+        />
+      )}
+    </>
   );
 }

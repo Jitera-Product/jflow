@@ -79,18 +79,46 @@ test('409 not_configured shows the setup message', async () => {
   expect(await screen.findByText('An engineer has to finish setup on /settings first.')).toBeTruthy();
 });
 
-test('the header links Stages and Workload, and Settings only for engineers', async () => {
-  routeFetch({ 'GET /api/me': [reply(200, me()), reply(200, me())], 'GET /api/board': reply(200, board([])) });
+test('the header links Stages and Workload, and Settings only for engineers; /api/me is asked once', async () => {
+  const f = routeFetch({ 'GET /api/me': reply(200, me()), 'GET /api/board': reply(200, board([])) });
   renderAt('/');
   const nav = await screen.findByRole('navigation');
   await screen.findByRole('region', { name: 'Intent' });
   expect(within(nav).getByRole('link', { name: 'Stages' }).getAttribute('href')).toBe('/');
   expect(within(nav).getByRole('link', { name: 'Workload' }).getAttribute('href')).toBe('/workload');
   expect(within(nav).queryByRole('link', { name: 'Settings' })).toBeNull();
+  expect(callsTo(f, 'GET', '/api/me')).toHaveLength(1);
   cleanup();
 
   routeFetch({ 'GET /api/me': reply(200, me({ engineer: true })), 'GET /api/board': reply(200, board([])) });
   renderAt('/');
   const nav2 = await screen.findByRole('navigation');
   expect((await within(nav2).findByRole('link', { name: 'Settings' })).getAttribute('href')).toBe('/settings');
+});
+
+test('an empty board says "No features yet."; with "Only waiting for me" it says "Nothing waits for you."', async () => {
+  routeFetch({ 'GET /api/me': reply(200, me()), 'GET /api/board': reply(200, board([])), 'GET /api/board?mine=1': reply(200, board([])) });
+  const user = userEvent.setup();
+  renderAt('/');
+  expect(await screen.findByText('No features yet.')).toBeTruthy();
+  await user.click(screen.getByRole('checkbox', { name: 'Only waiting for me' }));
+  expect(await screen.findByText('Nothing waits for you.')).toBeTruthy();
+  expect(screen.queryByText('No features yet.')).toBeNull();
+});
+
+test('"Show older" in Done asks with older=1, "Hide older" goes back', async () => {
+  const old = card({ key: 'P-ENG-2', id: 'P-ENG-2', name: 'Old login', stage: 'Done', days: 40, waitsFor: [] });
+  const f = routeFetch({
+    'GET /api/me': reply(200, me()),
+    'GET /api/board': reply(200, board([stuck])),
+    'GET /api/board?older=1': reply(200, board([stuck, old])),
+  });
+  const user = userEvent.setup();
+  renderAt('/');
+  const done = await screen.findByRole('region', { name: 'Done' });
+  await user.click(within(done).getByRole('button', { name: 'Show older' }));
+  expect(await within(done).findByText('Old login')).toBeTruthy();
+  expect(callsTo(f, 'GET', '/api/board?older=1')).toHaveLength(1);
+  await user.click(within(done).getByRole('button', { name: 'Hide older' }));
+  await vi.waitFor(() => expect(within(screen.getByRole('region', { name: 'Done' })).queryByText('Old login')).toBeNull());
 });

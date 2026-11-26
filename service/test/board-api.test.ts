@@ -155,6 +155,12 @@ describe('/api/board', () => {
     expect(linearCalls.at(-1)).toEqual(['CORE']);
     expect(cards(b).map((c) => c.slugId)).toEqual(['s2']);
   });
+  it('older=1 adds Done cards older than 14 days from the same cached load', async () => {
+    nodes.push(node('s9', 'flow:done', { updatedAt: '2026-10-01T00:00:00.000Z' }));
+    expect(cards(await (await get('/api/board')).json()).map((c) => c.slugId)).not.toContain('s9');
+    expect(cards(await (await get('/api/board?older=1')).json()).map((c) => c.slugId)).toContain('s9');
+    expect(linearCalls).toHaveLength(1);
+  });
   it('mine keeps only the cards waiting for me', async () => {
     const b = await (await get('/api/board?mine=1')).json();
     expect(cards(b).map((c) => c.slugId)).toEqual(['s1']);

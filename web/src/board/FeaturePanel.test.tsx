@@ -52,6 +52,30 @@ test('a card click opens the panel at /f/<ID>; Close goes back to the board', as
   expect(callsTo(f, 'GET', '/api/board')).toHaveLength(1);
 });
 
+test('the panel takes focus; Escape closes it and gives focus back to the card', async () => {
+  routeFetch(routes());
+  const user = userEvent.setup();
+  const router = renderAt('/');
+  const link = await screen.findByRole('link', { name: /Search filters/ });
+  await user.click(link);
+  const dialog = await screen.findByRole('dialog', { name: 'P-ENG-12 Search filters' });
+  expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Close' }));
+  await user.keyboard('{Escape}');
+  await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(router.state.location.pathname).toBe('/');
+  expect(document.activeElement).toBe(screen.getByRole('link', { name: /Search filters/ }));
+});
+
+test('Escape closes a panel opened at /f/<ID>', async () => {
+  routeFetch(routes());
+  const user = userEvent.setup();
+  const router = renderAt('/f/P-ENG-12');
+  await screen.findByRole('dialog', { name: 'P-ENG-12 Search filters' });
+  await user.keyboard('{Escape}');
+  await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(router.state.location.pathname).toBe('/');
+});
+
 test('/f/<ID> opens the panel with stages, log, the open gate link, files and the Linear link', async () => {
   routeFetch(routes());
   renderAt('/f/P-ENG-12');

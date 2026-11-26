@@ -1,4 +1,4 @@
-import { createRootRoute, createRoute, createRouter, Outlet, useNavigate } from '@tanstack/react-router';
+import { createRootRoute, createRoute, createRouter, lazyRouteComponent, Outlet, useNavigate } from '@tanstack/react-router';
 import { ApiError } from './api/ApiError';
 import { BoardPage } from './board/BoardPage';
 import { FeaturePanel } from './board/FeaturePanel';
@@ -6,7 +6,6 @@ import { GatePage } from './gate/GatePage';
 import { SettingsPage } from './settings/SettingsPage';
 import { PageShell } from './shell/PageShell';
 import { StatePanel } from './shell/StatePanel';
-import { WorkloadPage } from './workload/WorkloadPage';
 
 const root = createRootRoute({
   component: Outlet,
@@ -32,7 +31,11 @@ const feature = createRoute({
   },
 });
 
-const workload = createRoute({ getParentRoute: () => root, path: '/workload', component: WorkloadPage });
+const workload = createRoute({
+  getParentRoute: () => root,
+  path: '/workload',
+  component: lazyRouteComponent(() => import('./workload/WorkloadPage'), 'WorkloadPage'),
+});
 
 const settings = createRoute({ getParentRoute: () => root, path: '/settings', component: SettingsPage });
 

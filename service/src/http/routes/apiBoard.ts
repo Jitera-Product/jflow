@@ -15,5 +15,7 @@ export async function apiBoard(ctx: HttpContext, req: IncomingMessage, res: Serv
   } catch {
     return json(res, 502, { error: 'linear', message: 'Linear did not answer. Check the key and try again.' });
   }
-  json(res, 200, buildStageBoard({ ...data, engineers, viewer: email, mine: q.get('mine') === '1' }, new Date(data.at)));
+  // The cache holds the loaded data; mine and older only shape the board built from it, so they share one cache entry.
+  const shape = { mine: q.get('mine') === '1', older: q.get('older') === '1' };
+  json(res, 200, buildStageBoard({ ...data, engineers, viewer: email, ...shape }, new Date(data.at)));
 }

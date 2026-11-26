@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getFeaturePanel } from '@/api/getFeaturePanel';
 import type { FeaturePanelView } from '@/api/types';
 import { Button } from '@/components/ui/Button';
@@ -10,6 +10,25 @@ const LINK = 'text-primary underline underline-offset-4';
 export function FeaturePanel({ featureKey, onClose }: { featureKey: string; onClose: () => void }) {
   const [view, setView] = useState<FeaturePanelView | null>(null);
   const [failed, setFailed] = useState<unknown>(null);
+  const close = useRef<HTMLButtonElement>(null);
+
+  // Focus moves into the panel; on close it goes back to the card that opened it, if any.
+  useEffect(() => {
+    const opener = document.activeElement;
+    close.current?.focus();
+    return () => {
+      if (opener instanceof HTMLElement && opener !== document.body && opener.isConnected) opener.focus();
+    };
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // Escape in the New idea dialog closes only that dialog.
+      if (e.key === 'Escape' && !document.querySelector('dialog[open]')) onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   useEffect(() => {
     let live = true;
@@ -31,11 +50,10 @@ export function FeaturePanel({ featureKey, onClose }: { featureKey: string; onCl
       role="dialog"
       aria-label={title}
       className="bg-background fixed inset-y-0 right-0 z-40 flex w-full max-w-md flex-col gap-6 overflow-y-auto border-l p-6 text-sm shadow-lg"
-      onKeyDown={(e) => e.key === 'Escape' && onClose()}
     >
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-lg leading-tight font-semibold wrap-anywhere">{title}</h2>
-        <Button variant="ghost" size="icon-sm" aria-label="Close" onClick={onClose}>
+        <Button ref={close} variant="ghost" size="icon-sm" aria-label="Close" onClick={onClose}>
           <X />
         </Button>
       </div>

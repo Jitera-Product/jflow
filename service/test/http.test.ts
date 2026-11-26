@@ -123,11 +123,6 @@ describe('basics', () => {
     expect(await r.text()).toBe('ok');
     expect((await get('/nope', {})).status).toBe(404);
   });
-  it('/ redirects to /settings', async () => {
-    const r = await get('/', {});
-    expect(r.status).toBe(302);
-    expect(r.headers.get('location')).toBe('/settings');
-  });
   it('a body over 1 MB is 413', async () => {
     expect((await post('/webhooks/gate', 'x'.repeat(1024 * 1024 + 1), {})).status).toBe(413);
   });
@@ -429,7 +424,7 @@ describe('/api/settings', () => {
       settings: {
         docsUrl: 'https://docs.example.com', docsTokenSet: true, linearApiKeySet: true,
         teams: ['ENG'], engineers: ENGINEERS, updatedBy: MIKA, updatedAt: expect.any(String),
-        publicUrl: ORIGIN, tdrFolder: '', },
+        publicUrl: ORIGIN, tdrFolder: '', flowAgentUrl: '', },
     });
   });
   it('the view never carries the gate secret', async () => {
@@ -448,6 +443,18 @@ describe('/api/settings', () => {
     expect(settings.get()).toMatchObject({ tdrFolder: 'TDR' });
     expect((await save({ tdrFolder: '' })).status).toBe(200);
     expect(settings.get()).toMatchObject({ tdrFolder: '' });
+  });
+  it('POST carries the Flow agent link, keeps it when omitted, and refuses one that is not a chat link', async () => {
+    const agent = 'https://studio.jitera.app/p/core/chat?a=agent-1';
+    expect((await (await save({ flowAgentUrl: agent })).json()).settings).toMatchObject({ flowAgentUrl: agent });
+    expect((await save({})).status).toBe(200);
+    expect(settings.get().flowAgentUrl).toBe(agent);
+    const bad = await save({ flowAgentUrl: 'https://studio.jitera.app/p/core' });
+    expect(bad.status).toBe(400);
+    expect((await bad.json()).problems[0]).toMatch(/^flowAgentUrl must be/);
+    expect(settings.get().flowAgentUrl).toBe(agent);
+    expect((await save({ flowAgentUrl: '' })).status).toBe(200);
+    expect(settings.get().flowAgentUrl).toBe('');
   });
   it('POST saves publicUrl as a normalized origin and refuses a bad one', async () => {
     expect((await save({ publicUrl: 'https://flow.example.com/' })).status).toBe(200);

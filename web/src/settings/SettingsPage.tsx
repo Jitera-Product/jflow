@@ -26,6 +26,7 @@ const toForm = (s: SettingsView['settings']): SettingsFormInput => ({
   linearApiKey: '',
   teams: s.teams,
   tdrFolder: s.tdrFolder,
+  flowAgentUrl: s.flowAgentUrl,
   publicUrl: s.publicUrl,
   engineers: s.engineers.join('\n'),
 });
@@ -87,14 +88,14 @@ export function SettingsPage() {
 
   if (failed) {
     return (
-      <PageShell>
+      <PageShell header>
         <StatePanel error={failed} />
       </PageShell>
     );
   }
   if (!view) {
     return (
-      <PageShell>
+      <PageShell header>
         <p className="text-muted-foreground">Loading...</p>
       </PageShell>
     );
@@ -116,7 +117,7 @@ export function SettingsPage() {
   };
 
   return (
-    <PageShell>
+    <PageShell header>
       <div className="grid gap-6">
         <Card className="px-6">
           <div className="grid gap-2">

@@ -65,6 +65,11 @@ The checklist on top shows what is left. Each item links to its section:
    token as Client Secret (a secret without a client ID is a bearer token). A chat needs no redeploy. "Revoke" stops a token at once, for MCP calls and for
    [gate callbacks](gate-callback.md).
 
+For the "Open in Jitera chat" link on each feature, set the Flow agent link in the Jitera section: open a chat
+with the Flow agent in Studio and paste its address. In Studio, make the jflow connector "shared", so every
+member's chat with the Flow agent can use the jflow tools; a private connector only works for its creator. Each
+person's chat stays private.
+
 The Chats item is done when any token was used once. Until the jflow address is set, only `open_gate`
 answers `not_configured`, and the chat token is shown without the copy blocks.
 
@@ -72,10 +77,10 @@ answers `not_configured`, and the chat token is shown without the copy blocks.
 
 - Put TLS in front with any reverse proxy. The jflow address on `/settings` is the public origin, for example
   `https://flow.example.com`. Gate links are built from it.
-- `/gate/*`, `/settings` and `/api/*` must sit behind Cloudflare Access. The pages are a static app that
+- `/`, `/f/*`, `/workload`, `/gate/*`, `/settings` and `/api/*` must sit behind Cloudflare Access. The pages are a static app that
   jflow serves itself, and the app calls `/api/*`. Access sends the `Cf-Access-Jwt-Assertion` header, and
   jflow verifies that JWT itself against `JFLOW_ACCESS_TEAM_DOMAIN` and `JFLOW_ACCESS_AUD` on every `/api` call. Cloudflare
-  Access is the only SSO supported today. Do not route `/gate/*`, `/settings` or `/api/*` to jflow without it.
+  Access is the only SSO supported today. Do not route those paths to jflow without it. The boards need nothing extra: they use the Linear key and teams from `/settings`. Anyone Access lets in can open them, and only `/settings` is limited to engineers.
 - `/mcp` and `/webhooks/gate` must be reachable by the MCP client and by the chat host. They do their own
   auth (bearer token and signed body). Keep them off the open internet if you can, for example with an IP
   allow list at the proxy.
@@ -122,8 +127,8 @@ spec:
           livenessProbe: { httpGet: { path: /healthz, port: 8080 } }
 ```
 
-Add a Service and an Ingress (or any proxy) for TLS, with Cloudflare Access in front of `/gate/*`,
-`/settings` and `/api/*`.
+Add a Service and an Ingress (or any proxy) for TLS, with Cloudflare Access in front of every path except
+`/healthz`, `/mcp` and `/webhooks/gate`.
 
 ## Upgrading from a config file
 

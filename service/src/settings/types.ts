@@ -6,6 +6,7 @@ export type Settings = {
   engineers: string[];
   publicUrl: string; // bare origin, no trailing slash; '' until set
   tdrFolder: string;
+  flowAgentUrl: string; // Studio chat address of the Flow agent; '' until set
   gateSecret: string;
   legacyChatsImported: boolean;
   updatedBy: string | null;
@@ -18,6 +19,7 @@ export type SettingsInput = {
   engineers: string[];
   publicUrl?: string; // undefined or '' = keep the stored value
   tdrFolder?: string; // undefined = keep the stored value; '' clears it
+  flowAgentUrl?: string; // undefined = keep the stored value; '' clears it
   docsToken?: string;
   linearApiKey?: string;
 };
@@ -30,6 +32,7 @@ export type StoredValue = {
   engineers: string[];
   publicUrl: string;
   tdrFolder: string;
+  flowAgentUrl: string;
   gateSecret: string;
   legacyChatsImported: boolean; // the JFLOW_CONFIG chat clients are imported once, so a revoked one stays revoked
 };

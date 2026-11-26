@@ -1,4 +1,5 @@
 import http from 'node:http';
+import { boardCache } from '../board/boardCache.js';
 import type { Deps } from '../feature/types.js';
 import { handle } from './routes/handle.js';
 import { send } from './send.js';
@@ -8,6 +9,8 @@ export function createHttpServer(deps: Deps, opts: HttpOptions = {}): http.Serve
   const ctx: HttpContext = {
     deps,
     opts,
+    board: boardCache(60_000, deps.now),
+    workload: boardCache(600_000, deps.now),
     origin: () => {
       const { publicUrl } = deps.settings.get();
       return publicUrl ? new URL(publicUrl).origin : ''; // normalizes case and default ports

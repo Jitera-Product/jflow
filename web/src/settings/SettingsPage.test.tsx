@@ -15,6 +15,7 @@ const view: SettingsView = {
     engineers: ['mika@example.com', 'sam@example.com'],
     publicUrl: 'https://flow.example.com',
     tdrFolder: 'Technical Design Record (TDR)',
+    flowAgentUrl: 'https://studio.jitera.app/p/core/chat?a=agent-1',
     updatedBy: 'sam@example.com',
     updatedAt: '2026-11-20T10:00:00.000Z',
   },
@@ -57,6 +58,10 @@ test('loaded values show, secrets only as "Set"', async () => {
   render(<SettingsPage />);
   expect(((await screen.findByLabelText('Jitera MCP URL')) as HTMLInputElement).value).toBe('https://docs.example.com/mcp');
   expect((screen.getByLabelText('TDR folder') as HTMLInputElement).value).toBe('Technical Design Record (TDR)');
+  const agent = screen.getByLabelText('Flow agent link') as HTMLInputElement;
+  expect(agent.value).toBe('https://studio.jitera.app/p/core/chat?a=agent-1');
+  expect(agent.getAttribute('aria-describedby')).toBeTruthy();
+  expect(document.getElementById(agent.getAttribute('aria-describedby')!)!.textContent).toBe('Open a chat with the Flow agent in Studio and paste its address.');
   expect((screen.getByLabelText(/Engineers/) as HTMLTextAreaElement).value).toBe('mika@example.com\nsam@example.com');
   const token = screen.getByLabelText('Jitera token') as HTMLInputElement;
   expect(token.type).toBe('password');
@@ -121,6 +126,8 @@ test('save sends every field and leaves out blank secrets', async () => {
   const jitera = await screen.findByRole('region', { name: 'Jitera' });
   await user.clear(within(jitera).getByLabelText('TDR folder'));
   await user.type(within(jitera).getByLabelText('TDR folder'), 'TDRs');
+  await user.clear(within(jitera).getByLabelText('Flow agent link'));
+  await user.type(within(jitera).getByLabelText('Flow agent link'), 'https://studio.jitera.app/p/ops/chat?a=agent-2');
   await user.click(within(jitera).getByRole('button', { name: 'Save' }));
   expect(await within(jitera).findByText('Saved')).toBeTruthy();
   expect(bodyOf(f, 'POST', '/api/settings')).toEqual({
@@ -128,6 +135,7 @@ test('save sends every field and leaves out blank secrets', async () => {
     teams: ['CORE'],
     engineers: ['mika@example.com', 'sam@example.com'],
     tdrFolder: 'TDRs',
+    flowAgentUrl: 'https://studio.jitera.app/p/ops/chat?a=agent-2',
     publicUrl: 'https://flow.example.com',
   });
   expect(callsTo(f, 'POST', '/api/settings')[0]![1]).toMatchObject({ credentials: 'same-origin', headers: { 'content-type': 'application/json' } });

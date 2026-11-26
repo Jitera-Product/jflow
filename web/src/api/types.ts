@@ -7,6 +7,10 @@ export type SettingsView = {
     linearApiKeySet: boolean;
     teams: string[];
     engineers: string[];
+    publicUrl: string;
+    tdrFolder: string;
+    productDocs: string;
+    compliance: string;
     updatedBy: string | null;
     updatedAt: string | null;
   };
@@ -17,9 +21,22 @@ export type SettingsInput = {
   jiteraProject: string;
   teams: string[];
   engineers: string[];
+  tdrFolder: string;
+  productDocs: string;
+  compliance: string;
   docsToken?: string;
   linearApiKey?: string;
 };
+
+export type SetupStep = { ok: boolean; message?: string };
+
+export type SetupView = { linear: SetupStep; jitera: SetupStep; chats: { ok: boolean } };
+
+export type LinearTeam = { key: string; name: string };
+
+export type ChatToken = { id: string; name: string; createdBy: string; createdAt: string; lastUsedAt: string | null };
+
+export type CreatedChat = { chat: ChatToken; token: string };
 
 export type Role = 'owner' | 'engineer';
 

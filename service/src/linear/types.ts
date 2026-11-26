@@ -16,3 +16,9 @@ export type ProjectData = {
   teams: { nodes: Array<{ key: string }> };
   labels: { nodes: Label[] };
 };
+
+export type FlowProject = {
+  uuid: string; slugId: string; identifier: string | null; name: string; url: string; team: string;
+  lead: { name: string; email: string } | null;
+  flowLabel: string; state: string; updatedAt: string;
+};

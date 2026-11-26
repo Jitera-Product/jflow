@@ -52,7 +52,7 @@ export type GateView = {
 
 export type Decision = { decision: 'approve' | 'changes'; to: string };
 
-export type Me = { email: string; engineer: boolean; teams: string[]; flowAgentUrl: string };
+export type Me = { email: string; engineer: boolean; teams: string[] };
 
 export type Waiting = { kind: 'owner' | 'engineer' | 'agent'; names: string[] };
 
@@ -90,6 +90,7 @@ export type FeaturePanelView = {
   linearUrl: string;
   behind: boolean;
   folder: string | null;
+  chatUrl: string | null;
   notice: string | null;
 };
 

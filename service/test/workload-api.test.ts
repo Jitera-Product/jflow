@@ -5,6 +5,7 @@ import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair } from 'jose';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { memoryChatTokenStore } from '../src/chats/memoryChatTokenStore.js';
 import { openChatTokens } from '../src/chats/openChatTokens.js';
+import { memoryFeatureChatStore } from '../src/featureChats/memoryFeatureChatStore.js';
 import type { Config } from '../src/config/types.js';
 import { memoryDocuments } from '../src/documents/memoryDocuments.js';
 import type { Deps } from '../src/feature/types.js';
@@ -67,7 +68,7 @@ async function start(input: Partial<SettingsInput> = {}) {
   const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: [MIKA], publicUrl: ORIGIN }, () => NOW);
   await settings.save({ ...GOOD, ...input }, MIKA);
   const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [], () => NOW);
-  const deps: Deps = { config, settings, chats, docs: memoryDocuments({}), tracker: {} as never, now: () => now };
+  const deps: Deps = { config, settings, chats, featureChats: memoryFeatureChatStore(), docs: memoryDocuments({}), tracker: {} as never, now: () => now };
   server = createHttpServer(deps, { jwks, fetch: fakeLinear });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;

@@ -6,6 +6,7 @@ import { loadFeature } from '../../feature/loadFeature.js';
 import type { Deps } from '../../feature/types.js';
 import { cell } from '../cell.js';
 import { folderOf } from '../folderOf.js';
+import { inFeatureChat } from '../inFeatureChat.js';
 import { run } from '../run.js';
 import { project, UI_FILE } from '../types.js';
 
@@ -16,7 +17,7 @@ export function registerSaveUiHandoff(server: McpServer, deps: Deps) {
       project, link: z.string().describe('Link to the design handoff'),
       screens: z.array(z.object({ name: z.string(), state: z.string(), file: z.string() })),
     },
-  }, ({ project, link, screens }) => run(async () => {
+  }, async ({ project, link, screens }, extra) => inFeatureChat(deps, project, extra._meta, () => run(async () => {
     const f = await loadFeature(deps, project);
     const path = `${folderOf(f)}/${UI_FILE}`;
     const rows = screens.map((s) => `| ${cell(s.name)} | ${cell(s.state)} | ${cell(s.file)} |`);
@@ -25,5 +26,5 @@ export function registerSaveUiHandoff(server: McpServer, deps: Deps) {
     const text = `${head.trimEnd()}\n${rows.join('\n')}${rows.length ? '\n' : ''}`;
     await ((await deps.docs.read(path)) !== null ? deps.docs.update(path, text) : deps.docs.create(path, text));
     return { file: UI_FILE };
-  }));
+  })));
 }

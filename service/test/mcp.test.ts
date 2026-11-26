@@ -2,10 +2,11 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { memoryChatTokenStore } from '../src/chats/memoryChatTokenStore.js';
 import { openChatTokens } from '../src/chats/openChatTokens.js';
 import type { Config } from '../src/config/types.js';
+import { memoryFeatureChatStore } from '../src/featureChats/memoryFeatureChatStore.js';
 import { memoryDocuments } from '../src/documents/memoryDocuments.js';
 import type { Documents } from '../src/documents/types.js';
 import { liveDocuments } from '../src/documents/liveDocuments.js';
@@ -50,13 +51,15 @@ const statusMd = readFileSync(`${TEMPLATES}/0-status.md`, 'utf8')
   .replaceAll('<PROJECT-ID>', 'P-ENG-12').replaceAll('<Project name>', 'Export').replaceAll('<project URL>', PROJECT.url);
 
 let docs: Documents;
+let featureChats: ReturnType<typeof memoryFeatureChatStore>;
 let tracker: ReturnType<typeof fakeTracker>;
 let client: Client;
 
 async function setup(project: TrackerProject = PROJECT) {
   docs = memoryDocuments({ [STATUS]: statusMd, [`${FOLDER}/2-spec.md`]: SPEC_DONE });
+  featureChats = memoryFeatureChatStore();
   tracker = fakeTracker(project);
-  await connect({ config, settings, chats, docs, tracker, now: NOW });
+  await connect({ config, settings, chats, featureChats, docs, tracker, now: NOW });
 }
 async function connect(deps: Deps) {
   const [a, b] = InMemoryTransport.createLinkedPair();
@@ -69,6 +72,9 @@ beforeEach(() => setup());
 type R = { isError?: boolean; content: Array<{ text: string }> };
 const call = async (name: string, args: Record<string, unknown>) => (await client.callTool({ name, arguments: { project: 'P-ENG-12', ...args } })) as R;
 const json = (r: R) => JSON.parse(r.content[0]!.text);
+const CHAT = '6f1c1d8e-0000-4000-8000-000000000001';
+const inChat = async (name: string, args: Record<string, unknown>, chat: unknown = { id: CHAT }) =>
+  (await client.callTool({ name, arguments: { project: 'P-ENG-12', ...args }, _meta: { 'jitera/chat': chat } })) as R;
 
 describe('mcp tools', () => {
   it('lists exactly the flow tools', async () => {
@@ -187,7 +193,7 @@ describe('mcp tools', () => {
   it('read_settings returns the four team settings, with no Linear key set', async () => {
     const s = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, NOW);
     await s.save({ docsUrl: '', tdrFolder: 'TDRs', teams: [], engineers: ENGINEERS }, 'mika@jitera.com');
-    await connect({ config, settings: s, chats, docs, tracker, now: NOW });
+    await connect({ config, settings: s, chats, featureChats, docs, tracker, now: NOW });
     const r = await call('read_settings', {});
     expect(r.isError).toBeUndefined();
     expect(json(r)).toEqual({ tdrFolder: 'TDRs' });
@@ -195,7 +201,7 @@ describe('mcp tools', () => {
   it('a tool returns not_configured when settings are empty', async () => {
     const blank = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, NOW);
     await connect({
-      config, settings: blank, chats, docs: liveDocuments(blank, config.documents), tracker: liveTracker(blank), now: NOW,
+      config, settings: blank, chats, featureChats, docs: liveDocuments(blank, config.documents), tracker: liveTracker(blank), now: NOW,
     });
     const r = await call('read_feature', {});
     expect(r.isError).toBe(true);
@@ -203,7 +209,7 @@ describe('mcp tools', () => {
   });
   it('open_gate returns not_configured with the settings path until publicUrl is set', async () => {
     const noUrl = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, NOW);
-    await connect({ config, settings: noUrl, chats, docs, tracker, now: NOW });
+    await connect({ config, settings: noUrl, chats, featureChats, docs, tracker, now: NOW });
     const r = await call('open_gate', { to: 'flow:plan' });
     expect(r.isError).toBe(true);
     expect(r.content[0]!.text).toMatch(/^not_configured: .*\/settings/);
@@ -213,5 +219,65 @@ describe('mcp tools', () => {
     const r = await call('save_ui_handoff', { link: 'l', screens: [{ name: 'a|b', state: 's', file: 'f' }] });
     expect(r.isError).toBe(true);
     expect(await docs.read(`${FOLDER}/2-ui/README.md`)).toBeNull();
+  });
+});
+
+describe('feature chats', () => {
+  const OTHER = '6f1c1d8e-0000-4000-8000-000000000002';
+  const withAgent = async (flowAgentUrl: string) => {
+    const s = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, NOW);
+    await s.save({ docsUrl: '', tdrFolder: '', teams: ['ENG'], engineers: ENGINEERS, flowAgentUrl }, 'mika@jitera.com');
+    await connect({ config, settings: s, chats, featureChats, docs, tracker, now: NOW });
+  };
+
+  it.each([
+    ['read_feature', {}], ['start_feature', {}], ['read_file', { file: '2-spec.md' }], ['write_file', { file: '3-plan.md', content: 'x' }],
+    ['log_stage', { stage: 'Spec', status: 'done', note: 'n' }], ['set_stage', { to: 'flow:spec-review' }], ['open_gate', { to: 'flow:plan' }],
+    ['save_ui_handoff', { link: 'l', screens: [] }],
+  ])('%s with no stored chat runs and remembers its chat', async (name, args) => {
+    if (name === 'set_stage') await setup({ ...PROJECT, flowLabel: 'flow:spec' });
+    const r = await inChat(name, { project: 'p-eng-12', ...args });
+    expect(r.isError, r.content[0]?.text).toBeUndefined();
+    expect(await featureChats.get('P-ENG-12')).toBe(CHAT);
+  });
+  it('the same chat runs as normal', async () => {
+    await featureChats.remember('P-ENG-12', CHAT, NOW);
+    const r = await inChat('read_feature', {});
+    expect(r.isError).toBeUndefined();
+    expect(json(r)).toMatchObject({ identifier: 'P-ENG-12' });
+  });
+  it('a call with no _meta, a bad chat id or a failed tool runs as normal and stores nothing', async () => {
+    await featureChats.remember('P-ENG-12', OTHER, NOW);
+    expect((await call('read_feature', {})).isError).toBeUndefined();
+    expect((await inChat('read_feature', {}, { id: 'not-a-uuid' })).isError).toBeUndefined();
+    await inChat('read_feature', { project: 'P-ENG-99' });
+    expect(await featureChats.get('P-ENG-99')).toBeNull();
+  });
+  it('another chat gets only the link to the feature chat: no read, no write, no store', async () => {
+    await withAgent('https://studio.jitera.app/p/core/chat?a=agent-1');
+    await featureChats.remember('P-ENG-12', OTHER, NOW);
+    const message = `This feature already has a chat: https://studio.jitera.app/p/core/docs/%2FFlow%2FP-ENG-12%20Export?a=agent-1&c=${OTHER}. Continue there.`;
+    const read = await inChat('read_feature', {});
+    expect(read.content).toEqual([{ type: 'text', text: message }]);
+    const write = await inChat('write_file', { file: '3-plan.md', content: 'leak' });
+    expect(write.content).toEqual([{ type: 'text', text: message }]);
+    expect(await docs.read(`${FOLDER}/3-plan.md`)).toBeNull();
+    expect(await featureChats.get('P-ENG-12')).toBe(OTHER);
+  });
+  it.each(['', 'https://studio.jitera.app/chat?a=agent-1'])('another chat with Flow agent link %j is told to ask for access', async (agent) => {
+    await withAgent(agent);
+    await featureChats.remember('P-ENG-12', OTHER, NOW);
+    expect((await inChat('read_feature', {})).content).toEqual([{ type: 'text', text: 'This feature already has a chat in Jitera. Ask its owner for access.' }]);
+  });
+  it('a failing store never fails the tool; it warns', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    featureChats.remember = async () => { throw new Error('db down'); };
+    expect((await inChat('read_feature', {})).isError).toBeUndefined();
+    featureChats.get = async () => { throw new Error('db gone'); };
+    expect((await inChat('read_feature', {})).isError).toBeUndefined();
+    const said = warn.mock.calls.map((c) => c[0]);
+    expect(said).toContainEqual(expect.stringMatching(/P-ENG-12.*db down/));
+    expect(said).toContainEqual(expect.stringMatching(/P-ENG-12.*db gone/));
+    warn.mockRestore();
   });
 });

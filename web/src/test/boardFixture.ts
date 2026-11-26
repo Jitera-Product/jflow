@@ -15,4 +15,4 @@ export const board = (cards: BoardCard[], o: Partial<StageBoard> = {}): StageBoa
   ...o,
 });
 
-export const me = (o: { engineer?: boolean; flowAgentUrl?: string } = {}) => ({ email: 'mika@example.com', engineer: false, teams: ['ENG', 'CORE'], flowAgentUrl: '', ...o });
+export const me = (o: { engineer?: boolean } = {}) => ({ email: 'mika@example.com', engineer: false, teams: ['ENG', 'CORE'], ...o });

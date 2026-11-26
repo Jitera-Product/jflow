@@ -26,5 +26,5 @@ export type FeaturePanel = {
   card: Card; stages: StageRow[]; log: LogLine[];
   gate: { url: string; from: string; to: string; missing: Role[] } | null;
   files: string[]; linearUrl: string; behind: boolean;
-  folder: string | null; notice: string | null;
+  folder: string | null; chatUrl: string | null; notice: string | null;
 };

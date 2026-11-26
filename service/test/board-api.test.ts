@@ -2,10 +2,11 @@ import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair } from 'jose';
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mapLimit } from '../src/board/mapLimit.js';
 import { memoryChatTokenStore } from '../src/chats/memoryChatTokenStore.js';
 import { openChatTokens } from '../src/chats/openChatTokens.js';
+import { memoryFeatureChatStore } from '../src/featureChats/memoryFeatureChatStore.js';
 import type { Config } from '../src/config/types.js';
 import { memoryDocuments } from '../src/documents/memoryDocuments.js';
 import type { Documents } from '../src/documents/types.js';
@@ -24,6 +25,7 @@ const WEB = fileURLToPath(new URL('./fixtures/web', import.meta.url));
 const config = { flowFolder: 'documents/Flow', templatesDir: '', webDir: WEB, access: { teamDomain: TEAM, aud: AUD } } as Config;
 const NOW = new Date('2026-11-26T12:00:00.000Z');
 const AGENT = 'https://studio.jitera.app/p/core/chat?a=agent-1';
+const CHAT = '6f1c1d8e-0000-4000-8000-000000000001';
 
 const STATUS = `# Status - P-ENG-12 Export
 
@@ -85,6 +87,7 @@ let base: string;
 let settings: LiveSettings;
 let docs: Documents;
 let deps: Deps;
+let featureChats: ReturnType<typeof memoryFeatureChatStore>;
 let now: Date;
 const GOOD: SettingsInput = {
   docsUrl: 'https://d.example.com', docsToken: 'DOCS-TOKEN-AAA', linearApiKey: 'LIN-KEY-BBB',
@@ -96,7 +99,8 @@ async function start(input: Partial<SettingsInput> = {}) {
   await settings.save({ ...GOOD, ...input }, MIKA);
   const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [], () => NOW);
   docs = memoryDocuments(FILES);
-  deps = { config, settings, chats, docs, tracker: {} as never, now: () => now };
+  featureChats = memoryFeatureChatStore();
+  deps = { config, settings, chats, featureChats, docs, tracker: {} as never, now: () => now };
   server = createHttpServer(deps, { jwks, fetch: fakeLinear });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -132,12 +136,8 @@ describe('access', () => {
     expect((await get('/api/settings', EVE)).status).toBe(403);
   });
   it('/api/me says who you are, whether you are an engineer, and the picked teams', async () => {
-    expect(await (await get('/api/me')).json()).toEqual({ email: MIKA, engineer: true, teams: ['ENG', 'CORE'], flowAgentUrl: '' });
-    expect(await (await get('/api/me', EVE)).json()).toEqual({ email: EVE, engineer: false, teams: ['ENG', 'CORE'], flowAgentUrl: '' });
-  });
-  it('/api/me carries the Flow agent link to every Access user', async () => {
-    await restart({ flowAgentUrl: AGENT });
-    expect((await (await get('/api/me', EVE)).json()).flowAgentUrl).toBe(AGENT);
+    expect(await (await get('/api/me')).json()).toEqual({ email: MIKA, engineer: true, teams: ['ENG', 'CORE'] });
+    expect(await (await get('/api/me', EVE)).json()).toEqual({ email: EVE, engineer: false, teams: ['ENG', 'CORE'] });
   });
   it('board routes are GET only', async () => {
     const r = await fetch(base + '/api/board', { method: 'POST', headers: { 'cf-access-jwt-assertion': await sign(MIKA), origin: ORIGIN } });
@@ -280,6 +280,27 @@ describe('/api/board/feature', () => {
   it('shows a not started project by slugId', async () => {
     const p = await (await get('/api/board/feature/s2')).json();
     expect(p).toMatchObject({ card: { key: 's2', notStarted: true }, stages: [], log: [], gate: null, files: [], behind: false, folder: null, notice: null });
+  });
+  it('links the feature folder with the Flow agent, and the chat the agent first worked in', async () => {
+    expect((await (await get('/api/board/feature/P-ENG-12')).json()).chatUrl).toBeNull();
+    await restart({ flowAgentUrl: AGENT });
+    const folderLink = 'https://studio.jitera.app/p/core/docs/%2FFlow%2FP-ENG-12%20Export?a=agent-1';
+    expect((await (await get('/api/board/feature/P-ENG-12')).json()).chatUrl).toBe(folderLink);
+    await featureChats.remember('P-ENG-12', CHAT, NOW);
+    for (const who of [MIKA, EVE]) {
+      expect((await (await get('/api/board/feature/P-ENG-12', who)).json()).chatUrl).toBe(`${folderLink}&c=${CHAT}`);
+    }
+    expect((await (await get('/api/board/feature/s2')).json()).chatUrl).toBe(AGENT);
+  });
+  it('a failing chat store still shows the folder link', async () => {
+    await restart({ flowAgentUrl: AGENT });
+    featureChats.get = async () => { throw new Error('db down'); };
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const r = await get('/api/board/feature/P-ENG-12');
+    expect(r.status).toBe(200);
+    expect((await r.json()).chatUrl).toBe('https://studio.jitera.app/p/core/docs/%2FFlow%2FP-ENG-12%20Export?a=agent-1');
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/P-ENG-12.*db down/));
+    warn.mockRestore();
   });
   it('reads fresh', async () => {
     await get('/api/board/feature/P-ENG-12');

@@ -1,17 +1,14 @@
 import { X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { getFeaturePanel } from '@/api/getFeaturePanel';
-import { getMe } from '@/api/getMe';
 import type { FeaturePanelView } from '@/api/types';
 import { Button } from '@/components/ui/Button';
 import { StatePanel } from '@/shell/StatePanel';
-import { chatLink } from './chatLink';
 
 const LINK = 'text-primary underline underline-offset-4';
 
 export function FeaturePanel({ featureKey, onClose }: { featureKey: string; onClose: () => void }) {
   const [view, setView] = useState<FeaturePanelView | null>(null);
-  const [agentUrl, setAgentUrl] = useState('');
   const [failed, setFailed] = useState<unknown>(null);
   const close = useRef<HTMLButtonElement>(null);
 
@@ -37,13 +34,8 @@ export function FeaturePanel({ featureKey, onClose }: { featureKey: string; onCl
     let live = true;
     setView(null);
     setFailed(null);
-    // Shown together, so the chat link does not pop in after the panel. Without /api/me there is just no link.
-    Promise.all([getFeaturePanel(featureKey), getMe().then((m) => m.flowAgentUrl, () => '')]).then(
-      ([v, url]) => {
-        if (!live) return;
-        setView(v);
-        setAgentUrl(url);
-      },
+    getFeaturePanel(featureKey).then(
+      (v) => live && setView(v),
       (e) => live && setFailed(e),
     );
     return () => {
@@ -52,7 +44,6 @@ export function FeaturePanel({ featureKey, onClose }: { featureKey: string; onCl
   }, [featureKey]);
 
   const c = view?.card;
-  const chat = view?.folder && agentUrl ? chatLink(agentUrl, view.folder) : null;
   const title = c ? (c.id ? `${c.id} ${c.name}` : c.name) : featureKey;
   return (
     <aside
@@ -122,7 +113,7 @@ export function FeaturePanel({ featureKey, onClose }: { featureKey: string; onCl
               </ul>
             </section>
           )}
-          {chat && <a className={LINK} href={chat} target="_blank" rel="noopener noreferrer">Open in Jitera chat</a>}
+          {view.chatUrl && <a className={LINK} href={view.chatUrl} target="_blank" rel="noopener noreferrer">Open in Jitera chat</a>}
           <a className={LINK} href={view.linearUrl} target="_blank" rel="noopener noreferrer">Open in Linear</a>
         </>
       )}

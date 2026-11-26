@@ -170,8 +170,7 @@ hooks/                           Claude Code hooks: one stage per session, and a
 skills/<name>/CONVENTIONS.md     symlinks to the root file and templates/, so skills work in
 skills/<name>/templates          Claude Code and Codex
 scripts/install-codex.sh         links skills into ~/.agents/skills for Codex
-web/                             jflow web app (React + Vite): /settings and gate pages, served by the service
-board/                           team workload board (Cloudflare Worker + React)
+web/                             jflow web app (React + Vite): the boards, /settings and gate pages, served by the service
 ```
 
 Skills never use Claude-only features (`${CLAUDE_PLUGIN_ROOT}`, `!` commands). Shared files
@@ -179,8 +178,9 @@ are reached through symlinks next to each SKILL.md. Keep it that way so both age
 
 ## Team workload board
 
-A Cloudflare Worker app in [board/](board/README.md). Setup, access and deploy are described
-there.
+The service serves it at `/workload`, next to the board by stage at `/`. It needs nothing beyond the
+Linear key and teams on `/settings`. Anyone Cloudflare Access lets in can open it. Pick the teams and
+statuses with the filters at the top; the link carries the choice, so a team can share one link.
 
 ## Not done yet
 

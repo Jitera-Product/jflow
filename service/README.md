@@ -56,9 +56,9 @@ For a real deployment (network, health check, Docker and Kubernetes examples) se
 | Route | Use |
 | --- | --- |
 | `GET /healthz` | Returns `ok`. |
-| `GET /` | Redirects to `/settings`. |
+| `GET /` | The board by stage. Redirects to `/settings` until jflow is set up. |
 | `POST /mcp` | MCP endpoint for agents. Needs the bearer token of a live chat token. |
-| `GET /settings`, `GET /gate/<project>/<gate>` | The web app (`index.html` from the built web app). |
+| `GET /settings`, `/workload`, `/f/<KEY>`, `/gate/<project>/<gate>` | The web app (`index.html` from the built web app). `/f/<KEY>` is the feature panel. |
 | `GET /assets/<file>` | The web app's built files. |
 | `GET`, `POST /api/settings` | Settings for the web app. Engineers only. |
 | `GET /api/setup` | The checklist: Linear, Jitera, Chats. Engineers only. |
@@ -68,6 +68,12 @@ For a real deployment (network, health check, Docker and Kubernetes examples) se
 | `GET /api/linear/labels` | The `flow:*` labels Linear still lacks. jflow creates them on each settings save and when it sets a stage. Engineers only. |
 | `GET`, `POST /api/chats` | List chat tokens, create one. The token is shown once, in the answer to POST. POST answers 409 `no_public_url` until the jflow address is set. Engineers only. |
 | `DELETE /api/chats/<id>` | Revoke a chat token. It stops working at once. Engineers only. |
+| `GET /api/me` | The signed-in viewer. Open to every Access user. |
+| `GET /api/board` | The board by stage. Query: `team`, `mine`, `older`, `refresh=1`. Cached 60 seconds per team set. Open to every Access user. |
+| `GET /api/board/feature/<KEY>` | The feature panel, read fresh. Open to every Access user. |
+| `GET /api/ideas/owners` | Owners to pick for a new idea. Open to every Access user. |
+| `POST /api/ideas` | New idea: creates the Linear project with `flow:intent`. The folder is created when the feature is started in chat. Answers 400 `owner_required` without an owner. Open to every Access user. |
+| `GET /api/workload`, `GET /api/workload/options` | The team workload board and its filters. Cached 10 minutes; `refresh=1` skips it. Open to every Access user. |
 | `GET`, `POST /api/gate/<project>/<gate>` | A gate for the web app, and the decision on it. |
 | `POST /webhooks/gate` | Signed callback from a chat host. See [docs/gate-callback.md](../docs/gate-callback.md). |
 

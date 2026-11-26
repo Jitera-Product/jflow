@@ -23,15 +23,10 @@ const STATUS = `${FOLDER}/0-status.md`;
 const SPEC_DONE = '**Flagged concerns.**\n\n1. Format - Decide: Mika\n   Decision: CSV - Mika, 2026-11-20\n';
 const SPEC_OPEN = '**Flagged concerns.**\n\n1. Format - Decide: Mika\n';
 
-const config = {
-  publicUrl: 'https://flow.example.com',
-  flowFolder: 'documents/Flow',
-  templatesDir: TEMPLATES,
-  gateSecret: 's'.repeat(32),
-} as Config;
+const config = { flowFolder: 'documents/Flow', templatesDir: TEMPLATES } as Config;
 const ENGINEERS = ['mika@jitera.com', 'ken@jitera.com'];
-const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), ENGINEERS, () => new Date());
-await settings.save({ docsUrl: '', jiteraProject: '', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
+const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS, publicUrl: 'https://flow.example.com' }, () => new Date());
+await settings.save({ docsUrl: '', jiteraProject: '', tdrFolder: '', productDocs: '', compliance: '', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
 
 const PROJECT: TrackerProject = {
   id: 'uuid-12', identifier: 'P-ENG-12', name: 'Export', url: 'https://linear.app/x/project/export-abc',
@@ -180,7 +175,7 @@ describe('gates', () => {
     expect(linesAtMove).toBe(1);
     const line = log.mock.calls[0]![0] as string;
     expect(line).not.toContain('\n');
-    expect(line).not.toContain(config.gateSecret);
+    expect(line).not.toContain(settings.get().gateSecret);
     expect(JSON.parse(line)).toEqual({
       audit: 'gate', project: 'P-ENG-12', gate: g.gate, from: 'flow:spec-review', to: 'flow:plan',
       email: 'mika@jitera.com', decision: 'approve', channel: 'chat',
@@ -235,7 +230,7 @@ describe('gates', () => {
         const md = (await inner.read(STATUS))!;
         const row = readGates(md)[0]!;
         const changed = { ...row, approvals: [{ role: 'owner' as const, email: 'other@jitera.com' }] };
-        await inner.update(STATUS, upsertGate(md, { ...changed, sig: signRow(config.gateSecret, 'P-ENG-12', changed) }));
+        await inner.update(STATUS, upsertGate(md, { ...changed, sig: signRow(settings.get().gateSecret, 'P-ENG-12', changed) }));
       }
       return inner.read(path);
     } } };

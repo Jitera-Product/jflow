@@ -79,4 +79,18 @@ describe.skipIf(!url)('migrate', () => {
     expect((await store.load())?.value).toEqual(next);
     expect((await pool.query('select count(*)::int as n from settings')).rows[0].n).toBe(1);
   });
+
+  it('pgSettingsStore claims the first engineer once, and never on a missing row', async () => {
+    await migrate(pool, fileURLToPath(new URL('../migrations', import.meta.url)));
+    const store = pgSettingsStore(pool);
+    const at = new Date('2026-11-26T00:00:00Z');
+    expect(await store.claimFirstEngineer('a@x.com', at)).toBe(false);
+    await store.save({ docsUrl: '', jiteraProject: '', docsToken: '', linearApiKey: '', teams: [], engineers: [], publicUrl: '', tdrFolder: '', productDocs: '', compliance: '', gateSecret: 'sealed' }, 'jflow', at);
+    const [first, second] = await Promise.all([store.claimFirstEngineer('a@x.com', at), store.claimFirstEngineer('b@x.com', at)]);
+    expect([first, second].filter(Boolean)).toHaveLength(1);
+    const row = await store.load();
+    expect(row?.value.engineers).toEqual([first ? 'a@x.com' : 'b@x.com']);
+    expect(row?.updatedBy).toBe(first ? 'a@x.com' : 'b@x.com');
+    expect(row?.value.gateSecret).toBe('sealed');
+  });
 });

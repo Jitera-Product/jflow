@@ -8,7 +8,10 @@ export function createHttpServer(deps: Deps, opts: HttpOptions = {}): http.Serve
   const ctx: HttpContext = {
     deps,
     opts,
-    origin: new URL(deps.config.publicUrl).origin, // normalizes case and default ports
+    origin: () => {
+      const { publicUrl } = deps.settings.get();
+      return publicUrl ? new URL(publicUrl).origin : ''; // normalizes case and default ports
+    },
   };
 
   return http.createServer((req, res) => {

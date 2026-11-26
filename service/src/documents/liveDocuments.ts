@@ -4,12 +4,12 @@ import type { LiveSettings } from '../settings/types.js';
 import { mcpDocuments } from './mcpDocuments.js';
 import type { Documents } from './types.js';
 
-export function liveDocuments(settings: LiveSettings, base: Config['documents'], publicUrl: string, make = mcpDocuments): Documents {
+export function liveDocuments(settings: LiveSettings, base: Config['documents'], make = mcpDocuments): Documents {
   let key = '';
   let docs: Documents | undefined;
 
   const current = (): Documents => {
-    const { docsUrl, jiteraProject, docsToken } = settings.get();
+    const { docsUrl, jiteraProject, docsToken, publicUrl } = settings.get();
     if (docsUrl === '' || jiteraProject === '' || docsToken === '') {
       throw new FeatureError(
         'not_configured',

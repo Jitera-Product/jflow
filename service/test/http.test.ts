@@ -33,9 +33,8 @@ const MCP_TOKEN = 't'.repeat(32);
 const MCP_TOKEN_B = 'b'.repeat(32);
 
 const config = {
-  publicUrl: ORIGIN, flowFolder: 'documents/Flow', templatesDir: TEMPLATES, webDir: WEB,
+  flowFolder: 'documents/Flow', templatesDir: TEMPLATES, webDir: WEB,
   access: { teamDomain: TEAM, aud: AUD },
-  gateSecret: 's'.repeat(32),
   mcpClients: [{ name: 'test', token: MCP_TOKEN }, { name: 'second-agent', token: MCP_TOKEN_B }],
 } as Config;
 const ENGINEERS = ['mika@jitera.com', 'ken@jitera.com'];
@@ -78,12 +77,12 @@ let gate: string;
 let gatePath: string;
 const apiGatePath = () => `/api${gatePath}`;
 
-async function setup(project: TrackerProject = PROJECT, cfg: Config = config) {
-  settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), ENGINEERS, () => new Date());
-  await settings.save({ docsUrl: 'https://docs.example.com', jiteraProject: 'proj-1', docsToken: 'DOCS-TOKEN-AAA', linearApiKey: 'LIN-KEY-BBB', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
+async function setup(project: TrackerProject = PROJECT, publicUrl = ORIGIN) {
+  settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS, publicUrl }, () => new Date());
+  await settings.save({ docsUrl: 'https://docs.example.com', jiteraProject: 'proj-1', tdrFolder: '', productDocs: '', compliance: '', docsToken: 'DOCS-TOKEN-AAA', linearApiKey: 'LIN-KEY-BBB', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
   docs = memoryDocuments({ [STATUS]: statusMd, [`${FOLDER}/2-spec.md`]: SPEC_DONE });
   tracker = fakeTracker(project);
-  deps = { config: cfg, settings, docs, tracker, now: () => new Date() };
+  deps = { config, settings, docs, tracker, now: () => new Date() };
   gate = (await openGate(deps, 'P-ENG-12', 'flow:plan')).gate;
   gatePath = `/gate/P-ENG-12/${gate}`;
   server = createHttpServer(deps, { jwks });
@@ -287,7 +286,7 @@ describe('POST /api/gate', () => {
   });
   it('the origin check normalizes case and the default port of publicUrl', async () => {
     server.close();
-    await setup(PROJECT, { ...config, publicUrl: 'https://Flow.Example.COM:443' });
+    await setup(PROJECT, 'https://Flow.Example.COM:443');
     expect((await apiPost(apiGatePath(), { decision: 'approve', to: 'flow:plan' })).status).toBe(200);
     expect(tracker.labels).toEqual(['flow:plan']);
   });

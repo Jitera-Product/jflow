@@ -16,6 +16,9 @@ const settingsBody = z.object({
   engineers: list((s) => s.toLowerCase()),
   docsToken: secret,
   linearApiKey: secret,
+  tdrFolder: z.string().trim().default(''),
+  productDocs: z.string().trim().default(''),
+  compliance: z.string().trim().default(''),
 });
 
 export async function apiSettings(ctx: HttpContext, req: IncomingMessage, res: ServerResponse, email: string) {

@@ -20,13 +20,12 @@ const STATUS = `${FOLDER}/0-status.md`;
 const SPEC_DONE = '**Flagged concerns.**\n\n1. Format - Decide: Mika\n   Decision: CSV - Mika, 2026-11-20\n';
 
 const config = {
-  publicUrl: 'https://flow.example.com', flowFolder: 'documents/Flow', templatesDir: TEMPLATES,
-  gateSecret: 's'.repeat(32),
+  flowFolder: 'documents/Flow', templatesDir: TEMPLATES,
 } as Config;
 const NOW = () => new Date('2026-11-23T10:00:00Z');
 const ENGINEERS = ['mika@jitera.com', 'ken@jitera.com'];
-const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), ENGINEERS, NOW);
-await settings.save({ docsUrl: '', jiteraProject: '', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
+const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS, publicUrl: 'https://flow.example.com' }, NOW);
+await settings.save({ docsUrl: '', jiteraProject: '', tdrFolder: '', productDocs: '', compliance: '', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
 
 const PROJECT: TrackerProject = {
   id: 'uuid-12', identifier: 'P-ENG-12', name: 'Export', url: 'https://linear.app/x/project/export-abc',
@@ -183,13 +182,21 @@ describe('mcp tools', () => {
     expect(await docs.read(STATUS)).toContain('edited meanwhile');
   });
   it('a tool returns not_configured when settings are empty', async () => {
-    const blank = await openSettings(memorySettingsStore(), 'k'.repeat(32), ENGINEERS, NOW);
+    const blank = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, NOW);
     await connect({
-      config, settings: blank, docs: liveDocuments(blank, config.documents, config.publicUrl), tracker: liveTracker(blank, config.publicUrl), now: NOW,
+      config, settings: blank, docs: liveDocuments(blank, config.documents), tracker: liveTracker(blank), now: NOW,
     });
     const r = await call('read_feature', {});
     expect(r.isError).toBe(true);
     expect(r.content[0]!.text).toMatch(/^not_configured: /);
+  });
+  it('open_gate returns not_configured with the settings path until publicUrl is set', async () => {
+    const noUrl = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, NOW);
+    await connect({ config, settings: noUrl, docs, tracker, now: NOW });
+    const r = await call('open_gate', { to: 'flow:plan' });
+    expect(r.isError).toBe(true);
+    expect(r.content[0]!.text).toMatch(/^not_configured: .*\/settings/);
+    expect(await docs.read(STATUS)).toBe(statusMd);
   });
   it('save_ui_handoff refuses a cell with a pipe', async () => {
     const r = await call('save_ui_handoff', { link: 'l', screens: [{ name: 'a|b', state: 's', file: 'f' }] });

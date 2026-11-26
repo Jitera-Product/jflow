@@ -1,3 +1,4 @@
+import { FeatureError } from '../feature/FeatureError.js';
 import { loadFeature } from '../feature/loadFeature.js';
 import type { Deps } from '../feature/types.js';
 import { readGates } from '../status/readGates.js';
@@ -15,6 +16,10 @@ import type { OpenedGate } from './types.js';
 import { undecidedConcerns } from './undecidedConcerns.js';
 
 export async function openGate(deps: Deps, ref: string, to: string): Promise<OpenedGate> {
+  const { publicUrl, gateSecret } = deps.settings.get();
+  if (publicUrl === '') {
+    throw new FeatureError('not_configured', 'jflow is not set up yet: the public URL is missing. An engineer opens /settings on jflow to set it.');
+  }
   const f = await loadFeature(deps, ref);
   const path = statusPath(f);
   const from = f.flowLabel ?? '';
@@ -33,8 +38,8 @@ export async function openGate(deps: Deps, ref: string, to: string): Promise<Ope
   }
 
   let md = (await deps.docs.read(path)) ?? '';
-  const url = (id: string) => `${deps.config.publicUrl}/gate/${f.identifier}/${id}`;
-  const open = readGates(md).filter((r) => r.status === 'open' && rowIsValid(deps.config.gateSecret, f.identifier, r));
+  const url = (id: string) => `${publicUrl}/gate/${f.identifier}/${id}`;
+  const open = readGates(md).filter((r) => r.status === 'open' && rowIsValid(gateSecret, f.identifier, r));
   const same = open.find((r) => r.from === from && r.to === to);
   if (same) return { project: f.identifier, gate: same.id, url: url(same.id), from, to, roles: same.roles };
 

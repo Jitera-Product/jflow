@@ -1,28 +1,44 @@
+import { randomBytes } from 'node:crypto';
+import { bareOrigin } from './bareOrigin.js';
 import { checkSettings } from './checkSettings.js';
 import { openSecret } from './openSecret.js';
 import { sealSecret } from './sealSecret.js';
 import { SettingsError } from './SettingsError.js';
-import type { LiveSettings, Settings, SettingsStore, StoredRow } from './types.js';
+import type { LegacySettings, LiveSettings, Settings, SettingsStore, StoredRow, StoredValue } from './types.js';
+
+const EMPTY: StoredValue = {
+  docsUrl: '', jiteraProject: '', docsToken: '', linearApiKey: '', teams: [], engineers: [],
+  publicUrl: '', tdrFolder: '', productDocs: '', compliance: '', gateSecret: '',
+};
 
 export async function openSettings(
   store: SettingsStore,
   key: string,
-  seedEngineers: string[],
+  legacy: LegacySettings,
   now: () => Date,
 ): Promise<LiveSettings> {
-  let row = await store.load();
-  if (!row) {
-    const value = {
-      docsUrl: '',
-      jiteraProject: '',
-      docsToken: '',
-      linearApiKey: '',
-      teams: [],
-      engineers: seedEngineers.map((e) => e.toLowerCase()),
-    };
-    await store.save(value, 'config', now());
-    row = (await store.load()) as StoredRow;
+  const loaded = await store.load();
+  // A row from an older jflow lacks the newer fields; legacy values fill only what is still empty.
+  const value: StoredValue = { ...EMPTY, ...loaded?.value };
+  let changed = !loaded || Object.keys(EMPTY).some((k) => !(k in loaded.value));
+  if (value.engineers.length === 0 && legacy.engineers?.length) {
+    value.engineers = legacy.engineers.map((e) => e.toLowerCase());
+    changed = true;
   }
+  if (value.publicUrl === '' && legacy.publicUrl) {
+    const origin = bareOrigin(legacy.publicUrl);
+    if (origin) {
+      value.publicUrl = origin;
+      changed = true;
+    } else console.warn(`jflow: settings: the old publicUrl ${legacy.publicUrl} is not a bare origin; set it on /settings`);
+  }
+  if (value.gateSecret === '') {
+    value.gateSecret = sealSecret(key, legacy.gateSecret || randomBytes(32).toString('base64url'));
+    changed = true;
+  }
+  // Only write when something changed: a blind write at start could undo a save made meanwhile by another replica.
+  if (changed) await store.save(value, loaded?.updatedBy ?? 'jflow', loaded?.updatedAt ?? now());
+  let row = (await store.load()) as StoredRow;
 
   const read = (r: StoredRow, field: 'docsToken' | 'linearApiKey'): string => {
     const plain = openSecret(key, r.value[field]);
@@ -32,19 +48,28 @@ export async function openSettings(
     }
     return plain;
   };
-  const toSettings = (r: StoredRow): Settings => ({
-    docsUrl: r.value.docsUrl,
-    jiteraProject: r.value.jiteraProject,
-    docsToken: read(r, 'docsToken'),
-    linearApiKey: read(r, 'linearApiKey'),
-    teams: r.value.teams,
-    engineers: r.value.engineers,
-    updatedBy: r.updatedBy,
-    updatedAt: r.updatedAt.toISOString(),
-  });
+  const toSettings = (r: StoredRow): Settings => {
+    const gateSecret = openSecret(key, r.value.gateSecret);
+    // Never replace it: a new secret would make every open gate look changed by hand.
+    if (!gateSecret) throw new Error('cannot open the stored gate secret: JFLOW_SETTINGS_KEY changed? Restore the old key.');
+    return {
+      docsUrl: r.value.docsUrl,
+      jiteraProject: r.value.jiteraProject,
+      docsToken: read(r, 'docsToken'),
+      linearApiKey: read(r, 'linearApiKey'),
+      teams: r.value.teams,
+      engineers: r.value.engineers,
+      publicUrl: r.value.publicUrl,
+      tdrFolder: r.value.tdrFolder,
+      productDocs: r.value.productDocs,
+      compliance: r.value.compliance,
+      gateSecret,
+      updatedBy: r.updatedBy,
+      updatedAt: r.updatedAt.toISOString(),
+    };
+  };
 
   let current = toSettings(row);
-  let stored = row.value;
 
   return {
     get: () => current,
@@ -53,18 +78,30 @@ export async function openSettings(
       const problems = checkSettings({ ...input, engineers }, by.toLowerCase());
       if (problems.length > 0) throw new SettingsError(problems);
       const at = now();
-      const value = {
+      const stored = row.value;
+      const value: StoredValue = {
         docsUrl: input.docsUrl,
         jiteraProject: input.jiteraProject,
         docsToken: input.docsToken ? sealSecret(key, input.docsToken) : stored.docsToken,
         linearApiKey: input.linearApiKey ? sealSecret(key, input.linearApiKey) : stored.linearApiKey,
         teams: input.teams,
         engineers,
+        publicUrl: input.publicUrl ? (bareOrigin(input.publicUrl) as string) : stored.publicUrl,
+        tdrFolder: input.tdrFolder,
+        productDocs: input.productDocs,
+        compliance: input.compliance,
+        gateSecret: stored.gateSecret,
       };
       await store.save(value, by, at);
-      stored = value;
-      current = toSettings({ value, updatedBy: by, updatedAt: at });
+      row = { value, updatedBy: by, updatedAt: at };
+      current = toSettings(row);
       return current;
+    },
+    async claimFirstEngineer(email) {
+      const won = await store.claimFirstEngineer(email.toLowerCase(), now());
+      row = (await store.load()) as StoredRow;
+      current = toSettings(row);
+      return won;
     },
   };
 }

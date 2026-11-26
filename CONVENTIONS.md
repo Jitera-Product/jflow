@@ -46,7 +46,7 @@ folder and goes straight to build (see `skills/quick/SKILL.md`).
 
 ## Settings
 
-With the jflow tools, call `read_settings` first. Per setting, a non-empty jflow value wins,
+With the jflow tools, call `read_settings` first. Per setting it returns, a non-empty jflow value wins,
 else the line in the `## jflow` section of the CLAUDE.md files in scope (user, project, repo),
 else the default. "Model route" is read from CLAUDE.md only. Without the jflow tools, CLAUDE.md
 lines override the defaults:

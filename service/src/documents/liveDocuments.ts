@@ -9,16 +9,16 @@ export function liveDocuments(settings: LiveSettings, base: Config['documents'],
   let docs: Documents | undefined;
 
   const current = (): Documents => {
-    const { docsUrl, jiteraProject, docsToken, publicUrl } = settings.get();
-    if (docsUrl === '' || jiteraProject === '' || docsToken === '') {
+    const { docsUrl, docsToken, publicUrl } = settings.get();
+    if (docsUrl === '' || docsToken === '') {
       throw new FeatureError(
         'not_configured',
-        `jflow is not set up yet: the Jitera docs URL, project or token is missing. An engineer sets them at ${publicUrl}/settings.`,
+        `jflow is not set up yet: the Jitera MCP URL or token is missing. An engineer sets them at ${publicUrl}/settings.`,
       );
     }
-    const want = JSON.stringify([docsUrl, jiteraProject, docsToken]);
+    const want = JSON.stringify([docsUrl, docsToken]);
     if (!docs || want !== key) {
-      docs = make({ kind: base.kind, url: docsUrl, token: docsToken, headers: { 'x-jitera-project': jiteraProject }, verbs: base.verbs });
+      docs = make({ kind: base.kind, url: docsUrl, token: docsToken, headers: {}, verbs: base.verbs });
       key = want;
     }
     return docs;

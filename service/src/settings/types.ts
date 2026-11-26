@@ -1,6 +1,5 @@
 export type Settings = {
   docsUrl: string;
-  jiteraProject: string;
   docsToken: string;
   linearApiKey: string;
   teams: string[];
@@ -17,7 +16,6 @@ export type Settings = {
 
 export type SettingsInput = {
   docsUrl: string;
-  jiteraProject: string;
   teams: string[];
   engineers: string[];
   publicUrl?: string; // undefined or '' = keep the stored value
@@ -30,7 +28,6 @@ export type SettingsInput = {
 
 export type StoredValue = {
   docsUrl: string;
-  jiteraProject: string;
   docsToken: string;
   linearApiKey: string;
   teams: string[];

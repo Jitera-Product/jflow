@@ -9,7 +9,6 @@ const view: SettingsView = {
   email: 'mika@example.com',
   settings: {
     docsUrl: 'https://docs.example.com/mcp',
-    jiteraProject: 'proj-1',
     docsTokenSet: true,
     linearApiKeySet: false,
     teams: ['CORE'],
@@ -27,7 +26,7 @@ const withKey: SettingsView = { ...view, settings: { ...view.settings, linearApi
 
 const setup: SetupView = {
   linear: { ok: true },
-  jitera: { ok: false, message: 'Could not read the Jitera documents. Check the URL, project and token.' },
+  jitera: { ok: false, message: 'Could not read the Jitera documents. Check the URL and the token.' },
   chats: { ok: false },
 };
 
@@ -59,7 +58,6 @@ test('loaded values show, secrets only as "Set"', async () => {
   const f = routeFetch({ ...base, 'GET /api/settings': reply(200, { ...view, settings: { ...view.settings, docsToken: 'tok-secret-1' } }) }); // as if the service leaked it
   render(<SettingsPage />);
   expect(((await screen.findByLabelText('Jitera MCP URL')) as HTMLInputElement).value).toBe('https://docs.example.com/mcp');
-  expect((screen.getByLabelText('Project for flow documents') as HTMLInputElement).value).toBe('proj-1');
   expect((screen.getByLabelText('TDR folder') as HTMLInputElement).value).toBe('Technical Design Record (TDR)');
   expect((screen.getByLabelText('Product docs to search for context') as HTMLInputElement).value).toBe('TDR and Specs');
   expect((screen.getByLabelText('Compliance to check in specs and TDRs') as HTMLInputElement).value).toBe('ISMAP');
@@ -131,7 +129,6 @@ test('save sends every field and leaves out blank secrets', async () => {
   expect(await within(jitera).findByText('Saved')).toBeTruthy();
   expect(bodyOf(f, 'POST', '/api/settings')).toEqual({
     docsUrl: 'https://docs.example.com/mcp',
-    jiteraProject: 'proj-1',
     teams: ['CORE'],
     engineers: ['mika@example.com', 'sam@example.com'],
     tdrFolder: 'Technical Design Record (TDR)',
@@ -156,7 +153,7 @@ test('Jitera: Test re-reads /api/setup and shows the Jitera message', async () =
   const jitera = await screen.findByRole('region', { name: 'Jitera' });
   await vi.waitFor(() => expect(callsTo(f, 'GET', '/api/setup')).toHaveLength(1));
   await user.click(within(jitera).getByRole('button', { name: 'Test' }));
-  expect(await within(jitera).findByText('Could not read the Jitera documents. Check the URL, project and token.')).toBeTruthy();
+  expect(await within(jitera).findByText('Could not read the Jitera documents. Check the URL and the token.')).toBeTruthy();
   expect(callsTo(f, 'GET', '/api/setup')).toHaveLength(2);
 });
 

@@ -14,7 +14,6 @@ const secret = z.string().trim().optional().transform((s) => s || undefined); //
 
 const settingsBody = z.object({
   docsUrl: z.string().trim(),
-  jiteraProject: z.string().trim(),
   teams: list((s) => s.toUpperCase()),
   engineers: list((s) => s.toLowerCase()),
   docsToken: secret,

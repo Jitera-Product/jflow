@@ -34,7 +34,6 @@ export function JiteraSection({ tokenSet, test, footer }: Props) {
         <Label htmlFor="docsToken">Jitera token</Label>
         <Input id="docsToken" type="password" autoComplete="new-password" placeholder={tokenSet ? 'Set, leave blank to keep' : 'Not set'} {...register('docsToken')} />
       </div>
-      {field('jiteraProject', 'Project for flow documents')}
       <div className="grid gap-2">
         <div className="flex flex-wrap items-center gap-3">
           <Button type="button" variant="outline" loading={testing} onClick={runTest}>

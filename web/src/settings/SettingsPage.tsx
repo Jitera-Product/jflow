@@ -22,7 +22,6 @@ type Section = 'linear' | 'jitera' | 'people';
 
 const toForm = (s: SettingsView['settings']): SettingsFormInput => ({
   docsUrl: s.docsUrl,
-  jiteraProject: s.jiteraProject,
   docsToken: '',
   linearApiKey: '',
   teams: s.teams,

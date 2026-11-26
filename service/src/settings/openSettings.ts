@@ -7,7 +7,7 @@ import { SettingsError } from './SettingsError.js';
 import type { LegacySettings, LiveSettings, Settings, SettingsStore, StoredRow, StoredValue } from './types.js';
 
 const EMPTY: StoredValue = {
-  docsUrl: '', jiteraProject: '', docsToken: '', linearApiKey: '', teams: [], engineers: [],
+  docsUrl: '', docsToken: '', linearApiKey: '', teams: [], engineers: [],
   publicUrl: '', tdrFolder: '', productDocs: '', compliance: '', gateSecret: '', legacyChatsImported: false,
 };
 
@@ -61,7 +61,6 @@ export async function openSettings(
     if (!gateSecret) throw new Error('cannot open the stored gate secret: JFLOW_SETTINGS_KEY changed? Restore the old key.');
     return {
       docsUrl: r.value.docsUrl,
-      jiteraProject: r.value.jiteraProject,
       docsToken: read(r, 'docsToken'),
       linearApiKey: read(r, 'linearApiKey'),
       teams: r.value.teams,
@@ -89,7 +88,6 @@ export async function openSettings(
       const stored = row.value;
       const value: StoredValue = {
         docsUrl: input.docsUrl,
-        jiteraProject: input.jiteraProject,
         docsToken: input.docsToken ? sealSecret(key, input.docsToken) : stored.docsToken,
         linearApiKey: input.linearApiKey ? sealSecret(key, input.linearApiKey) : stored.linearApiKey,
         teams: input.teams,

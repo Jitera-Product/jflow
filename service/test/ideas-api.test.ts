@@ -23,11 +23,13 @@ const NOW = new Date('2026-11-26T12:00:00.000Z');
 type Body = { query: string; variables: any };
 let bodies: Body[];
 let linearFails: boolean;
+let userLookupFails: boolean;
 const fakeLinear = (async (_url: unknown, init: { body: string }) => {
   const body = JSON.parse(init.body) as Body;
   bodies.push(body);
   if (linearFails) return new Response(JSON.stringify({ errors: [{ message: 'bad key LIN-KEY-BBB' }] }), { status: 401 });
   const op = /(?:query|mutation)\s+(\w+)/.exec(body.query)![1];
+  if (userLookupFails && body.query.includes('BoardUserByEmail')) return new Response('{}', { status: 500 });
   const data = {
     BoardTeamMembers: { teams: { nodes: [{ members: { nodes: [
       { id: 'u-mika', name: 'Mika', email: 'Mika@Jitera.com', active: true },
@@ -54,6 +56,7 @@ let base: string;
 beforeEach(async () => {
   bodies = [];
   linearFails = false;
+  userLookupFails = false;
   const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: [MIKA], publicUrl: ORIGIN }, () => NOW);
   await settings.save({ docsUrl: 'https://d.example.com', docsToken: 'DOCS-TOKEN-AAA', linearApiKey: 'LIN-KEY-BBB', teams: ['ENG', 'CORE'], engineers: [MIKA] }, MIKA);
   const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [], () => NOW);
@@ -92,6 +95,14 @@ describe('GET /api/ideas/owners', () => {
     expect(r.status).toBe(200);
     expect((await r.json()).defaultOwnerId).toBeNull();
   });
+  it('a failing user lookup still returns the owners with no default', async () => {
+    userLookupFails = true;
+    const r = await get('/api/ideas/owners?team=CORE');
+    expect(r.status).toBe(200);
+    const b = await r.json();
+    expect(b.owners).toHaveLength(2);
+    expect(b.defaultOwnerId).toBeNull();
+  });
   it('400 for a team that is not picked', async () => {
     expect((await get('/api/ideas/owners?team=NOPE')).status).toBe(400);
   });
@@ -121,6 +132,20 @@ describe('POST /api/ideas', () => {
     const r = await post({ ...idea, ...bad });
     expect(r.status).toBe(400);
     expect((await r.json()).error).toBe('invalid');
+  });
+  it('400 when the owner is not a member of the team, and no project is created', async () => {
+    const r = await post({ ...idea, ownerId: 'u-foreign' });
+    expect(r.status).toBe(400);
+    expect(await r.json()).toMatchObject({ error: 'invalid', problems: ['owner: not a member of this team'] });
+    expect(bodies.some((b) => b.query.includes('BoardProjectCreate'))).toBe(false);
+  });
+  it.each([['title', 256], ['problem', 5001], ['audience', 2001]])('400 invalid naming %s when over %i characters wide', async (field, n) => {
+    const r = await post({ ...idea, [field]: 'x'.repeat(n) });
+    expect(r.status).toBe(400);
+    const b = await r.json();
+    expect(b.error).toBe('invalid');
+    expect(b.problems.join()).toContain(field);
+    expect(bodies).toEqual([]);
   });
   it('403 for a foreign origin', async () => {
     expect((await post(idea, { origin: 'https://evil.example.com' })).status).toBe(403);

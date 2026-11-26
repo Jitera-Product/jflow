@@ -8,7 +8,7 @@ import { readJson } from '../readJson.js';
 import type { HttpContext } from '../types.js';
 
 const ideaBody = z.object({
-  title: z.string().trim().min(1), problem: z.string().trim(), audience: z.string().trim(),
+  title: z.string().trim().min(1).max(255), problem: z.string().trim().max(5000), audience: z.string().trim().max(2000),
   team: z.string(), ownerId: z.string().trim().optional(),
 });
 
@@ -19,17 +19,22 @@ export async function apiIdeas(ctx: HttpContext, req: IncomingMessage, res: Serv
     if (req.method === 'GET') {
       const team = new URL(req.url ?? '/', 'http://localhost').searchParams.get('team') ?? '';
       if (!teams.includes(team)) return json(res, 400, { error: 'invalid', message: 'Pick a team.' });
-      const [owners, me] = await Promise.all([listTeamMembers(f, linearApiKey, team), findUserByEmail(f, linearApiKey, email)]);
+      const [owners, me] = await Promise.all([listTeamMembers(f, linearApiKey, team), findUserByEmail(f, linearApiKey, email).catch(() => null)]);
       return json(res, 200, { owners, defaultOwnerId: me?.id ?? null });
     }
     const read = await readJson(req, res);
     if (!read) return;
     const body = ideaBody.safeParse(read.body);
     if (!body.success || !teams.includes(body.data.team)) {
-      return json(res, 400, { error: 'invalid', message: 'Give the idea a title and pick a team.' });
+      const problems = body.success ? ['team: not picked'] : [...new Set(body.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`))];
+      return json(res, 400, { error: 'invalid', message: 'Give the idea a title and pick a team.', problems });
     }
     const { title, problem, audience, team, ownerId } = body.data;
     if (!ownerId) return json(res, 400, { error: 'owner_required', message: 'Pick an owner.' });
+    const members = await listTeamMembers(f, linearApiKey, team);
+    if (!members.some((m) => m.id === ownerId)) {
+      return json(res, 400, { error: 'invalid', message: 'Pick an owner from this team.', problems: ['owner: not a member of this team'] });
+    }
     const content = `## Problem\n\n${problem}\n\n## Who it is for\n\n${audience}\n`;
     json(res, 200, await createFlowProject(f, linearApiKey, { teamKey: team, name: title, summary: problem, content, leadId: ownerId }));
   } catch {

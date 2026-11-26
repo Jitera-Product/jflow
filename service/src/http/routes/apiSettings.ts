@@ -51,8 +51,8 @@ export async function apiSettings(ctx: HttpContext, req: IncomingMessage, res: S
     try {
       const created = await createFlowLabels(ctx.opts.fetch ?? fetch, key);
       if (created.length) console.log(`jflow: created Linear project labels ${created.join(', ')}`);
-    } catch {
-      console.warn('jflow: could not create the Linear flow labels; check that the key can create project labels');
+    } catch (e) {
+      console.warn(`jflow: could not create the Linear flow labels (${e instanceof Error ? e.message : String(e)}); check that the key can create project labels`);
     }
   }
   json(res, 200, settingsView(email, live.get()));

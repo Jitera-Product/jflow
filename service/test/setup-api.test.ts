@@ -50,7 +50,7 @@ const fakeLinear = (async (_url: any, init: any) => {
     FlowViewer: { viewer: { id: 'u' } },
     FlowTeams: { teams: { nodes: [{ key: 'ENG', name: 'Engineering' }] } },
     FlowProjectLabels: { projectLabels: { nodes: have.map((name) => ({ name })) } },
-    CreateFlowLabel: { projectLabelCreate: { success: true } },
+    CreateFlowLabel: { projectLabelCreate: { success: true, projectLabel: { id: 'new' } } },
   };
   if (op === 'CreateFlowLabel') have.push(variables.name);
   return new Response(JSON.stringify({ data: data[op] }), { status: 200 });

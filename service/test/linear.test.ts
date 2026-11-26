@@ -71,9 +71,10 @@ it('creates the label when it does not exist in the workspace, then sets it', as
   const bodies: Body[] = [];
   await linearTracker('k', fakeFetch({
     ProjectLabelIds: withLabels([]), FlowLabel: labelLookup([]), SetProjectLabels: updated,
+    FlowProjectLabels: { data: { projectLabels: { nodes: [{ name: 'flow:plan', parent: { id: 'group-flow' } }, { name: 'Bug', parent: null }] } } },
     CreateFlowLabel: { data: { projectLabelCreate: { success: true, projectLabel: { id: 'label-flow-ui' } } } },
   }, bodies)).setFlowLabel('p1', 'flow:ui');
-  expect(bodies.find((b) => b.query.includes('projectLabelCreate'))!.variables).toEqual({ name: 'flow:ui' });
+  expect(bodies.find((b) => b.query.includes('projectLabelCreate'))!.variables).toEqual({ name: 'flow:ui', parentId: 'group-flow' });
   expect(bodies.at(-1)!.variables.input.labelIds).toEqual(['label-flow-ui']);
 });
 
@@ -96,8 +97,17 @@ describe('setup helpers', () => {
   it('createFlowLabels sends one projectLabelCreate per missing label', async () => {
     const bodies: Body[] = [];
     const have = ['flow:intent', 'flow:spec', 'flow:spec-review', 'flow:tdr', 'flow:ui'];
-    const created = await createFlowLabels(fakeFetch({ FlowProjectLabels: labelsAnswer(have), CreateFlowLabel: { data: { projectLabelCreate: { success: true } } } }, bodies), 'k');
-    expect(bodies.filter((b) => b.query.includes('projectLabelCreate')).map((b) => b.variables.name)).toEqual(['flow:plan', 'flow:build']);
+    const created = await createFlowLabels(fakeFetch({ FlowProjectLabels: labelsAnswer(have), CreateFlowLabel: { data: { projectLabelCreate: { success: true, projectLabel: { id: 'x' } } } } }, bodies), 'k');
+    expect(bodies.filter((b) => b.query.includes('projectLabelCreate')).map((b) => b.variables)).toEqual([
+      { name: 'flow:plan', parentId: null }, { name: 'flow:build', parentId: null },
+    ]);
     expect(created).toEqual(['flow:plan', 'flow:build']);
+  });
+  it('createFlowLabels puts new labels in the group the flow labels already sit in', async () => {
+    const bodies: Body[] = [];
+    const nodes = ['flow:intent', 'flow:spec', 'flow:spec-review', 'flow:tdr', 'flow:plan', 'flow:build'].map((name) => ({ name, parent: { id: 'group-flow' } }));
+    const created = await createFlowLabels(fakeFetch({ FlowProjectLabels: { data: { projectLabels: { nodes } } }, CreateFlowLabel: { data: { projectLabelCreate: { success: true, projectLabel: { id: 'x' } } } } }, bodies), 'k');
+    expect(created).toEqual(['flow:ui']);
+    expect(bodies.find((b) => b.query.includes('projectLabelCreate'))!.variables).toEqual({ name: 'flow:ui', parentId: 'group-flow' });
   });
 });

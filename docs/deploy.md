@@ -60,7 +60,8 @@ The checklist on top shows what is left. Each item links to its section:
    The TDR folder, the product docs and the compliance list are here too.
 3. **People.** Check the jflow address. List the engineers, one email per line.
 4. **Chats.** "New token" asks for a name and shows the token once, with copy blocks for Jitera, Claude Code
-   and any other MCP chat. A chat needs no redeploy. "Revoke" stops a token at once, for MCP calls and for
+   and any other MCP chat. In Jitera, add jflow as a custom connector: the MCP URL, Client ID empty, and the
+   token as Client Secret (a secret without a client ID is a bearer token). A chat needs no redeploy. "Revoke" stops a token at once, for MCP calls and for
    [gate callbacks](gate-callback.md).
 
 The Chats item is done when any token was used once. Until the jflow address is set, only `open_gate`

@@ -65,7 +65,8 @@ test('New token asks a name, shows the token once with the three blocks, and for
   const jitera = await screen.findByRole('group', { name: 'Jitera' });
   expect(await within(jitera).findByText((_, el) => el?.tagName === 'PRE' && el.textContent === prompt)).toBeTruthy();
   expect(within(jitera).getByText(`${publicUrl}/mcp`)).toBeTruthy();
-  expect(within(jitera).getByText('Auth type: Bearer token')).toBeTruthy();
+  expect(within(jitera).getByText('Client ID: leave it empty, so Jitera sends the secret as a bearer token.')).toBeTruthy();
+  expect(within(jitera).getByRole('button', { name: 'Copy Client Secret' })).toBeTruthy();
   expect(within(jitera).getByText(token)).toBeTruthy();
 
   const claude = screen.getByRole('group', { name: 'Claude Code' });

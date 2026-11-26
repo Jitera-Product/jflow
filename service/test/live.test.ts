@@ -17,7 +17,7 @@ let s: Settings;
 const settings: LiveSettings = { get: () => s, save: async () => s, claimFirstEngineer: async () => false };
 const empty = (): Settings => ({
   docsUrl: '', docsToken: '', linearApiKey: '', teams: [], engineers: ['ken@example.com'],
-  publicUrl: URL, tdrFolder: '', productDocs: '', compliance: '', gateSecret: 's'.repeat(32), updatedBy: null, updatedAt: null,
+  publicUrl: URL, tdrFolder: '', gateSecret: 's'.repeat(32), updatedBy: null, updatedAt: null,
 });
 
 function fakeDocs(made: DocumentsConnection[]) {

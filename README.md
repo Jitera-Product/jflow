@@ -106,9 +106,7 @@ project or repo level) with any of these lines:
 ## jflow
 - Jitera project for flow documents: Flow
 - TDR folder: Technical Design Record (TDR)
-- Product docs to search for context: <Jitera project names>
 - Model route: <route name, if your sessions go through a model gateway>
-- Compliance to check in specs and TDRs: <for example ISMAP, SOC 2, HIPAA>
 ```
 
 ## Install

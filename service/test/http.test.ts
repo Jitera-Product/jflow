@@ -83,7 +83,7 @@ const apiGatePath = () => `/api${gatePath}`;
 
 async function setup(project: TrackerProject = PROJECT, publicUrl = ORIGIN) {
   settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS, publicUrl }, () => new Date());
-  await settings.save({ docsUrl: 'https://docs.example.com', tdrFolder: '', productDocs: '', compliance: '', docsToken: 'DOCS-TOKEN-AAA', linearApiKey: 'LIN-KEY-BBB', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
+  await settings.save({ docsUrl: 'https://docs.example.com', tdrFolder: '', docsToken: 'DOCS-TOKEN-AAA', linearApiKey: 'LIN-KEY-BBB', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
   docs = memoryDocuments({ [STATUS]: statusMd, [`${FOLDER}/2-spec.md`]: SPEC_DONE });
   tracker = fakeTracker(project);
   const quiet = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -429,8 +429,7 @@ describe('/api/settings', () => {
       settings: {
         docsUrl: 'https://docs.example.com', docsTokenSet: true, linearApiKeySet: true,
         teams: ['ENG'], engineers: ENGINEERS, updatedBy: MIKA, updatedAt: expect.any(String),
-        publicUrl: ORIGIN, tdrFolder: '', productDocs: '', compliance: '',
-      },
+        publicUrl: ORIGIN, tdrFolder: '', },
     });
   });
   it('the view never carries the gate secret', async () => {
@@ -443,12 +442,12 @@ describe('/api/settings', () => {
     expect(view).not.toContain('gateSecret');
   });
   it('POST carries the team settings, and a body that omits them keeps the stored values', async () => {
-    const r = await save({ tdrFolder: 'TDR', productDocs: 'Specs', compliance: 'ISMAP' });
-    expect((await r.json()).settings).toMatchObject({ tdrFolder: 'TDR', productDocs: 'Specs', compliance: 'ISMAP' });
+    const r = await save({ tdrFolder: 'TDR' });
+    expect((await r.json()).settings).toMatchObject({ tdrFolder: 'TDR' });
     expect((await save({ docsUrl: 'https://docs.example.com' })).status).toBe(200);
-    expect(settings.get()).toMatchObject({ tdrFolder: 'TDR', productDocs: 'Specs', compliance: 'ISMAP' });
+    expect(settings.get()).toMatchObject({ tdrFolder: 'TDR' });
     expect((await save({ tdrFolder: '' })).status).toBe(200);
-    expect(settings.get()).toMatchObject({ tdrFolder: '', productDocs: 'Specs', compliance: 'ISMAP' });
+    expect(settings.get()).toMatchObject({ tdrFolder: '' });
   });
   it('POST saves publicUrl as a normalized origin and refuses a bad one', async () => {
     expect((await save({ publicUrl: 'https://flow.example.com/' })).status).toBe(200);

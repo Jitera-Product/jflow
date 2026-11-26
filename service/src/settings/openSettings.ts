@@ -8,7 +8,7 @@ import type { LegacySettings, LiveSettings, Settings, SettingsStore, StoredRow, 
 
 const EMPTY: StoredValue = {
   docsUrl: '', docsToken: '', linearApiKey: '', teams: [], engineers: [],
-  publicUrl: '', tdrFolder: '', productDocs: '', compliance: '', gateSecret: '', legacyChatsImported: false,
+  publicUrl: '', tdrFolder: '', gateSecret: '', legacyChatsImported: false,
 };
 
 export async function openSettings(
@@ -67,8 +67,6 @@ export async function openSettings(
       engineers: r.value.engineers,
       publicUrl: r.value.publicUrl,
       tdrFolder: r.value.tdrFolder,
-      productDocs: r.value.productDocs,
-      compliance: r.value.compliance,
       gateSecret,
       legacyChatsImported: r.value.legacyChatsImported,
       updatedBy: r.updatedBy,
@@ -94,8 +92,6 @@ export async function openSettings(
         engineers,
         publicUrl: input.publicUrl ? (bareOrigin(input.publicUrl) as string) : stored.publicUrl,
         tdrFolder: input.tdrFolder ?? stored.tdrFolder,
-        productDocs: input.productDocs ?? stored.productDocs,
-        compliance: input.compliance ?? stored.compliance,
         gateSecret: stored.gateSecret,
         legacyChatsImported: stored.legacyChatsImported,
       };

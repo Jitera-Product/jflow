@@ -52,7 +52,7 @@ Use the jflow tools for the flow files, the stage and the gates. Use nothing els
 
 | Tool | Use it to |
 | --- | --- |
-| `read_settings` | read the team settings: TDR folder, product docs, compliance. Call it at the start. |
+| `read_settings` | read the team settings: the TDR folder. Call it at the start. |
 | `read_feature` | see the label, the files, the status table and open gates. Call it early, and again after a gate. |
 | `start_feature` | make the folder for a project and set `flow:intent`. Safe to repeat. |
 | `read_file` | read a file of the feature, like `2-spec.md`. |

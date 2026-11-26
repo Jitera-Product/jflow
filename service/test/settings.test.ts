@@ -18,8 +18,6 @@ const input = (over: Partial<SettingsInput> = {}): SettingsInput => ({
   teams: ['CORE'],
   engineers: [ken],
   tdrFolder: '',
-  productDocs: '',
-  compliance: '',
   ...over,
 });
 
@@ -40,7 +38,7 @@ describe('openSettings', () => {
   it('a fresh store has no engineers, a random gate secret and no publicUrl', async () => {
     const store = memorySettingsStore();
     const s = await openSettings(store, KEY, {}, now);
-    expect(s.get()).toMatchObject({ engineers: [], publicUrl: '', tdrFolder: '', productDocs: '', compliance: '' });
+    expect(s.get()).toMatchObject({ engineers: [], publicUrl: '', tdrFolder: '' });
     expect(s.get().gateSecret.length).toBeGreaterThanOrEqual(32);
     expect(JSON.stringify(store.row)).not.toContain(s.get().gateSecret);
     let saves = 0;
@@ -115,7 +113,7 @@ describe('openSettings', () => {
     const s = await openSettings(store, KEY, { engineers: ['mika@x.com'], publicUrl: 'https://flow.example.com', gateSecret: 'g'.repeat(32) }, now);
     expect(s.get()).toMatchObject({
       engineers: [ken], docsToken: 'tok-1', teams: ['CORE'], publicUrl: 'https://flow.example.com', gateSecret: 'g'.repeat(32),
-      tdrFolder: '', productDocs: '', compliance: '', updatedBy: ken, legacyChatsImported: false,
+      tdrFolder: '', updatedBy: ken, legacyChatsImported: false,
     });
     expect(openSecret(KEY, store.row!.value.gateSecret)).toBe('g'.repeat(32));
     const fresh = memorySettingsStore();
@@ -143,8 +141,8 @@ describe('openSettings', () => {
   it('saves publicUrl and the team settings, and keeps publicUrl and the gate secret when not sent', async () => {
     const s = await openSettings(memorySettingsStore(), KEY, { engineers: [ken] }, now);
     const secret = s.get().gateSecret;
-    await s.save(input({ publicUrl: 'https://flow.example.com/', tdrFolder: 'TDR', productDocs: 'Specs', compliance: 'ISMAP' }), ken);
-    expect(s.get()).toMatchObject({ publicUrl: 'https://flow.example.com', tdrFolder: 'TDR', productDocs: 'Specs', compliance: 'ISMAP', gateSecret: secret });
+    await s.save(input({ publicUrl: 'https://flow.example.com/', tdrFolder: 'TDR' }), ken);
+    expect(s.get()).toMatchObject({ publicUrl: 'https://flow.example.com', tdrFolder: 'TDR', gateSecret: secret });
     await s.save(input(), ken);
     expect(s.get().publicUrl).toBe('https://flow.example.com');
     expect(s.get().gateSecret).toBe(secret);

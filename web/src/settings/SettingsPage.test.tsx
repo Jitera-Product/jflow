@@ -15,8 +15,6 @@ const view: SettingsView = {
     engineers: ['mika@example.com', 'sam@example.com'],
     publicUrl: 'https://flow.example.com',
     tdrFolder: 'Technical Design Record (TDR)',
-    productDocs: 'TDR and Specs',
-    compliance: 'ISMAP',
     updatedBy: 'sam@example.com',
     updatedAt: '2026-11-20T10:00:00.000Z',
   },
@@ -59,8 +57,6 @@ test('loaded values show, secrets only as "Set"', async () => {
   render(<SettingsPage />);
   expect(((await screen.findByLabelText('Jitera MCP URL')) as HTMLInputElement).value).toBe('https://docs.example.com/mcp');
   expect((screen.getByLabelText('TDR folder') as HTMLInputElement).value).toBe('Technical Design Record (TDR)');
-  expect((screen.getByLabelText('Product docs to search for context') as HTMLInputElement).value).toBe('TDR and Specs');
-  expect((screen.getByLabelText('Compliance to check in specs and TDRs') as HTMLInputElement).value).toBe('ISMAP');
   expect((screen.getByLabelText(/Engineers/) as HTMLTextAreaElement).value).toBe('mika@example.com\nsam@example.com');
   const token = screen.getByLabelText('Jitera token') as HTMLInputElement;
   expect(token.type).toBe('password');
@@ -123,17 +119,15 @@ test('save sends every field and leaves out blank secrets', async () => {
   const user = userEvent.setup();
   render(<SettingsPage />);
   const jitera = await screen.findByRole('region', { name: 'Jitera' });
-  await user.clear(within(jitera).getByLabelText('Compliance to check in specs and TDRs'));
-  await user.type(within(jitera).getByLabelText('Compliance to check in specs and TDRs'), 'ISMAP, SOC 2');
+  await user.clear(within(jitera).getByLabelText('TDR folder'));
+  await user.type(within(jitera).getByLabelText('TDR folder'), 'TDRs');
   await user.click(within(jitera).getByRole('button', { name: 'Save' }));
   expect(await within(jitera).findByText('Saved')).toBeTruthy();
   expect(bodyOf(f, 'POST', '/api/settings')).toEqual({
     docsUrl: 'https://docs.example.com/mcp',
     teams: ['CORE'],
     engineers: ['mika@example.com', 'sam@example.com'],
-    tdrFolder: 'Technical Design Record (TDR)',
-    productDocs: 'TDR and Specs',
-    compliance: 'ISMAP, SOC 2',
+    tdrFolder: 'TDRs',
     publicUrl: 'https://flow.example.com',
   });
   expect(callsTo(f, 'POST', '/api/settings')[0]![1]).toMatchObject({ credentials: 'same-origin', headers: { 'content-type': 'application/json' } });

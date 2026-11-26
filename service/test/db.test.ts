@@ -86,7 +86,7 @@ describe.skipIf(!url)('migrate', () => {
     const store = pgSettingsStore(pool);
     const at = new Date('2026-11-26T00:00:00Z');
     expect(await store.claimFirstEngineer('a@x.com', at)).toBe(false);
-    await store.save({ docsUrl: '', docsToken: '', linearApiKey: '', teams: [], engineers: [], publicUrl: '', tdrFolder: '', productDocs: '', compliance: '', gateSecret: 'sealed' }, 'jflow', at);
+    await store.save({ docsUrl: '', docsToken: '', linearApiKey: '', teams: [], engineers: [], publicUrl: '', tdrFolder: '', gateSecret: 'sealed' }, 'jflow', at);
     const [first, second] = await Promise.all([store.claimFirstEngineer('a@x.com', at), store.claimFirstEngineer('b@x.com', at)]);
     expect([first, second].filter(Boolean)).toHaveLength(1);
     const row = await store.load();

@@ -58,7 +58,7 @@ The checklist on top shows what is left. Each item links to its section:
 1. **Linear.** Paste an API key and pick the teams. On save, jflow creates the `flow:*` project labels that are missing.
 2. **Jitera.** Set the MCP URL and a token tied to the project that holds the flow documents (for example the key of
    an agent in that project). "Test" lists the flow folder.
-   The TDR folder, the product docs and the compliance list are here too.
+   The TDR folder is here too.
 3. **People.** Check the jflow address. List the engineers, one email per line.
 4. **Chats.** "New token" asks for a name and shows the token once, with copy blocks for Jitera, Claude Code
    and any other MCP chat. In Jitera, add jflow as a custom connector: the MCP URL, Client ID empty, and the

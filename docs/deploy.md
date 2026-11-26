@@ -66,9 +66,12 @@ The checklist on top shows what is left. Each item links to its section:
    [gate callbacks](gate-callback.md).
 
 For the "Open in Jitera chat" link on each feature, set the Flow agent link in the Jitera section: open a chat
-with the Flow agent in Studio and paste its address. In Studio, make the jflow connector "shared", so every
-member's chat with the Flow agent can use the jflow tools; a private connector only works for its creator. Each
-person's chat stays private.
+with the Flow agent in Studio and paste its address. The link opens the feature's folder with the Flow agent chat
+beside it. jflow remembers the feature's chat: the first chat the agent worked on the feature in. From then on the
+link opens that chat, and the jflow tools refuse the feature in any other chat and point to that one instead.
+People without access to that chat ask for it in Jitera. A feature with no folder yet opens a new chat. In Studio,
+make the jflow connector "shared", so every member's chat with the Flow agent can use the jflow tools; a private
+connector only works for its creator.
 
 The Chats item is done when any token was used once. Until the jflow address is set, only `open_gate`
 answers `not_configured`, and the chat token is shown without the copy blocks.

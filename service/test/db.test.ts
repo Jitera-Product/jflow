@@ -7,6 +7,7 @@ import pg from 'pg';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { pgChatTokenStore } from '../src/chats/pgChatTokenStore.js';
 import { migrate } from '../src/db/migrate.js';
+import { pgFeatureChatStore } from '../src/featureChats/pgFeatureChatStore.js';
 import { pgSettingsStore } from '../src/settings/pgSettingsStore.js';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -110,5 +111,15 @@ describe.skipIf(!url)('migrate', () => {
     expect(await store.remove(row.id)).toBe(true);
     expect(await store.remove(row.id)).toBe(false);
     expect(await store.load()).toEqual([]);
+  });
+
+  it('pgFeatureChatStore keeps the first chat of a feature', async () => {
+    await migrate(pool, fileURLToPath(new URL('../migrations', import.meta.url)));
+    const store = pgFeatureChatStore(pool);
+    expect(await store.get('P-ENG-12')).toBeNull();
+    await store.remember('P-ENG-12', 'chat-1', new Date('2026-11-27T00:00:00Z'));
+    await store.remember('P-ENG-12', 'chat-2', new Date('2026-11-27T00:05:00Z'));
+    expect(await store.get('P-ENG-12')).toBe('chat-1');
+    expect(await store.get('P-ENG-13')).toBeNull();
   });
 });

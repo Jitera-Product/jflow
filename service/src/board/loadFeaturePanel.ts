@@ -1,4 +1,6 @@
 import type { Deps } from '../feature/types.js';
+import { chatUrlOf } from '../featureChats/chatUrlOf.js';
+import { storedChat } from '../featureChats/storedChat.js';
 import { listFlowProjects } from '../linear/listFlowProjects.js';
 import { lines } from '../status/lines.js';
 import { cardOf } from './cardOf.js';
@@ -33,6 +35,8 @@ export async function loadFeaturePanel(deps: Deps, fetchFn: typeof fetch, key: s
   const file = found ? readStatusFile(found.md) : null;
   const id = found?.id ?? null;
   const card = cardOf({ ...p, identifier: id }, stage, file, id, s.engineers, viewer, deps.now());
+  const folder = found?.folder ?? null;
+  const chatUrl = chatUrlOf(s.flowAgentUrl, folder, found ? await storedChat(deps, found.id) : null);
   const row = card.openGate && file!.gates.find((g) => g.id === card.openGate!.id);
   return {
     card,
@@ -45,7 +49,8 @@ export async function loadFeaturePanel(deps: Deps, fetchFn: typeof fetch, key: s
     files: found?.files ?? [],
     linearUrl: p.url,
     behind: card.behind,
-    folder: found?.folder ?? null,
+    folder,
+    chatUrl,
     notice,
   };
 }

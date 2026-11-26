@@ -5,6 +5,7 @@ import { startChatTokens } from './chats/startChatTokens.js';
 import { legacyFileHint } from './config/legacyFileHint.js';
 import { loadConfig } from './config/loadConfig.js';
 import { migrate } from './db/migrate.js';
+import { pgFeatureChatStore } from './featureChats/pgFeatureChatStore.js';
 import { liveDocuments } from './documents/liveDocuments.js';
 import { createHttpServer } from './http/createHttpServer.js';
 import { liveTracker } from './linear/liveTracker.js';
@@ -24,6 +25,7 @@ const server = createHttpServer({
   config,
   settings,
   chats,
+  featureChats: pgFeatureChatStore(pool),
   docs: liveDocuments(settings, config.documents),
   tracker: liveTracker(settings),
   now: () => new Date(),

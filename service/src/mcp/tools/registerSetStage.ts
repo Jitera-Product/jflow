@@ -8,6 +8,7 @@ import { stageOf } from '../../gates/stageOf.js';
 import { appendLog } from '../../status/appendLog.js';
 import { setStage } from '../../status/setStage.js';
 import { Refusal } from '../Refusal.js';
+import { inFeatureChat } from '../inFeatureChat.js';
 import { run } from '../run.js';
 import { statusOf } from '../statusOf.js';
 import { project } from '../types.js';
@@ -16,7 +17,7 @@ export function registerSetStage(server: McpServer, deps: Deps, by: string) {
   server.registerTool('set_stage', {
     description: 'Move the flow label where the agent may move it (none to flow:intent, flow:spec to flow:spec-review). Other moves need open_gate.',
     inputSchema: { project, to: z.string().describe('A flow label, like flow:spec-review') },
-  }, ({ project, to }) => run(async () => {
+  }, async ({ project, to }, extra) => inFeatureChat(deps, project, extra._meta, () => run(async () => {
     const f = await loadFeature(deps, project);
     const from = f.flowLabel ?? '';
     const allowed = AGENT_MOVES[from] ?? [];
@@ -33,5 +34,5 @@ export function registerSetStage(server: McpServer, deps: Deps, by: string) {
     md = appendLog(md, `${date} - ${stageOf(to)} - ${by} - stage set to ${to}`);
     await deps.docs.update(path, md);
     return { from, to };
-  }));
+  })));
 }

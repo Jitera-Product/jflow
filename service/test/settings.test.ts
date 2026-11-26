@@ -116,7 +116,7 @@ describe('openSettings', () => {
     const s = await openSettings(store, KEY, { engineers: ['mika@x.com'], publicUrl: 'https://flow.example.com', gateSecret: 'g'.repeat(32) }, now);
     expect(s.get()).toMatchObject({
       engineers: [ken], docsToken: 'tok-1', teams: ['CORE'], publicUrl: 'https://flow.example.com', gateSecret: 'g'.repeat(32),
-      tdrFolder: '', productDocs: '', compliance: '', updatedBy: ken,
+      tdrFolder: '', productDocs: '', compliance: '', updatedBy: ken, legacyChatsImported: false,
     });
     expect(openSecret(KEY, store.row!.value.gateSecret)).toBe('g'.repeat(32));
     const fresh = memorySettingsStore();
@@ -149,6 +149,17 @@ describe('openSettings', () => {
     await s.save(input(), ken);
     expect(s.get().publicUrl).toBe('https://flow.example.com');
     expect(s.get().gateSecret).toBe(secret);
+  });
+
+  it('the legacy chat marker is set once and kept by a save', async () => {
+    const store = memorySettingsStore();
+    const s = await openSettings(store, KEY, { engineers: [ken] }, now);
+    const before = store.row!;
+    await s.markLegacyChatsImported();
+    expect(s.get().legacyChatsImported).toBe(true);
+    expect(store.row).toMatchObject({ updatedBy: before.updatedBy, updatedAt: before.updatedAt, value: { legacyChatsImported: true } });
+    await s.save(input(), ken);
+    expect((await openSettings(store, KEY, {}, now)).get().legacyChatsImported).toBe(true);
   });
 
   it('a secret that cannot be opened is treated as not set', async () => {

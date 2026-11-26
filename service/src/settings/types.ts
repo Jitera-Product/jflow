@@ -10,6 +10,7 @@ export type Settings = {
   productDocs: string;
   compliance: string;
   gateSecret: string;
+  legacyChatsImported: boolean;
   updatedBy: string | null;
   updatedAt: string | null;
 };
@@ -39,6 +40,7 @@ export type StoredValue = {
   productDocs: string;
   compliance: string;
   gateSecret: string;
+  legacyChatsImported: boolean; // the JFLOW_CONFIG chat clients are imported once, so a revoked one stays revoked
 };
 
 export type StoredRow = { value: StoredValue; updatedBy: string; updatedAt: Date };
@@ -55,4 +57,5 @@ export type LiveSettings = {
   get(): Settings;
   save(input: SettingsInput, by: string): Promise<Settings>;
   claimFirstEngineer(email: string): Promise<boolean>;
+  markLegacyChatsImported(): Promise<void>;
 };

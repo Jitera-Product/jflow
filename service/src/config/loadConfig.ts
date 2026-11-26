@@ -1,10 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { DEFAULT_VERBS } from './defaultVerbs.js';
+import { MIN_SECRET } from './minSecret.js';
 import { readLegacyFile } from './readLegacyFile.js';
 import type { Config } from './types.js';
-
-const MIN_SECRET = 32;
 
 export function loadConfig(
   env: Record<string, string | undefined>,

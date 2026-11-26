@@ -4,8 +4,11 @@ import { importLegacyTokens } from '../src/chats/importLegacyTokens.js';
 import { memoryChatTokenStore } from '../src/chats/memoryChatTokenStore.js';
 import { newToken } from '../src/chats/newToken.js';
 import { openChatTokens } from '../src/chats/openChatTokens.js';
+import { startChatTokens } from '../src/chats/startChatTokens.js';
 import type { Config } from '../src/config/types.js';
+import { memorySettingsStore } from '../src/settings/memorySettingsStore.js';
 import { openSecret } from '../src/settings/openSecret.js';
+import { openSettings } from '../src/settings/openSettings.js';
 
 const KEY = 'k'.repeat(32);
 const T0 = new Date('2026-11-26T00:00:00Z').getTime();
@@ -157,5 +160,40 @@ describe('importLegacyTokens', () => {
   it('is empty without a legacy file', () => {
     expect(importLegacyTokens(config(null), {})).toEqual([]);
     expect(importLegacyTokens(config({}), {})).toEqual([]);
+  });
+});
+
+describe('startChatTokens', () => {
+  const legacyConfig = { settingsKey: KEY, legacy: { mcpClients: [{ name: 'agent', tokenEnv: 'MCP_TOKEN' }] } } as Config;
+  const env = { MCP_TOKEN: 'm'.repeat(32) };
+
+  it('imports the legacy clients once: a revoked one stays revoked on the next start', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const settingsStore = memorySettingsStore();
+    const store = memoryChatTokenStore();
+    const settings = await openSettings(settingsStore, KEY, {}, clock().now);
+    const first = await startChatTokens(store, settings, legacyConfig, env, clock().now);
+    const agent = first.find('m'.repeat(32));
+    expect(agent?.name).toBe('agent');
+    expect(settings.get().legacyChatsImported).toBe(true);
+    expect(await first.revoke(agent!.id)).toBe(true);
+    warn.mockClear();
+    const again = await openSettings(settingsStore, KEY, {}, clock().now);
+    const second = await startChatTokens(store, again, legacyConfig, env, clock().now);
+    expect(second.find('m'.repeat(32))).toBeNull();
+    expect(store.rows).toEqual([]);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('a fresh start with no legacy clients sets the marker too', async () => {
+    const settingsStore = memorySettingsStore();
+    const settings = await openSettings(settingsStore, KEY, {}, clock().now);
+    expect(settings.get().legacyChatsImported).toBe(false);
+    await startChatTokens(memoryChatTokenStore(), settings, { settingsKey: KEY, legacy: null } as Config, {}, clock().now);
+    expect(settings.get().legacyChatsImported).toBe(true);
+    expect(settingsStore.row?.value.legacyChatsImported).toBe(true);
+    const later = await startChatTokens(memoryChatTokenStore(), await openSettings(settingsStore, KEY, {}, clock().now), legacyConfig, env, clock().now);
+    expect(later.list()).toEqual([]);
   });
 });

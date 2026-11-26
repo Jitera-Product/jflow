@@ -8,7 +8,7 @@ import type { LegacySettings, LiveSettings, Settings, SettingsStore, StoredRow, 
 
 const EMPTY: StoredValue = {
   docsUrl: '', jiteraProject: '', docsToken: '', linearApiKey: '', teams: [], engineers: [],
-  publicUrl: '', tdrFolder: '', productDocs: '', compliance: '', gateSecret: '',
+  publicUrl: '', tdrFolder: '', productDocs: '', compliance: '', gateSecret: '', legacyChatsImported: false,
 };
 
 export async function openSettings(
@@ -71,6 +71,7 @@ export async function openSettings(
       productDocs: r.value.productDocs,
       compliance: r.value.compliance,
       gateSecret,
+      legacyChatsImported: r.value.legacyChatsImported,
       updatedBy: r.updatedBy,
       updatedAt: r.updatedAt.toISOString(),
     };
@@ -98,6 +99,7 @@ export async function openSettings(
         productDocs: input.productDocs ?? stored.productDocs,
         compliance: input.compliance ?? stored.compliance,
         gateSecret: stored.gateSecret,
+        legacyChatsImported: stored.legacyChatsImported,
       };
       await store.save(value, by, at);
       row = { value, updatedBy: by, updatedAt: at };
@@ -109,6 +111,12 @@ export async function openSettings(
       row = (await store.load()) as StoredRow;
       current = toSettings(row);
       return won;
+    },
+    async markLegacyChatsImported() {
+      const value = { ...row.value, legacyChatsImported: true };
+      await store.save(value, row.updatedBy, row.updatedAt);
+      row = { ...row, value };
+      current = toSettings(row);
     },
   };
 }

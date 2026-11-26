@@ -1,0 +1,33 @@
+import type { FlowProject } from '../linear/types.js';
+import { STAGES } from '../status/stages.js';
+import { cardOf } from './cardOf.js';
+import { stageOfLabel } from './stageOfLabel.js';
+import type { Card, StageBoard, StatusFile } from './types.js';
+
+const DONE_KEEP_DAYS = 14;
+const NOTICE = 'jflow could not read the status files in Jitera. Stages come from Linear only.';
+
+export function buildStageBoard(
+  input: {
+    projects: FlowProject[]; files: Map<string, StatusFile | null>; ids: Map<string, string>;
+    engineers: string[]; viewer: string; mine: boolean; filesFailed: boolean;
+  },
+  now: Date,
+): StageBoard {
+  const cards: Card[] = [];
+  for (const p of input.projects) {
+    const stage = stageOfLabel(p.flowLabel);
+    if (!stage) continue;
+    const file = input.filesFailed ? null : input.files.get(p.slugId) ?? null;
+    const c = cardOf(p, stage, file, input.ids.get(p.slugId) ?? null, input.engineers, input.viewer, now);
+    if (stage === 'Done' && c.days > DONE_KEEP_DAYS) continue;
+    if (input.mine && !c.waitingForMe) continue;
+    cards.push(c);
+  }
+  return {
+    columns: STAGES.map((stage) => ({ stage, cards: cards.filter((c) => c.stage === stage) })),
+    stuck: cards.filter((c) => c.stuck).length,
+    notice: input.filesFailed ? NOTICE : null,
+    at: now.toISOString(),
+  };
+}

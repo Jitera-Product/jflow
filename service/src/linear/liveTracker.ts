@@ -3,12 +3,12 @@ import type { LiveSettings } from '../settings/types.js';
 import { linearTracker } from './linearTracker.js';
 import type { Tracker } from './types.js';
 
-export function liveTracker(settings: LiveSettings, publicUrl: string, make = linearTracker): Tracker {
+export function liveTracker(settings: LiveSettings, make = linearTracker): Tracker {
   let key = '';
   let tracker: Tracker | undefined;
 
   const current = (): Tracker => {
-    const { linearApiKey } = settings.get();
+    const { linearApiKey, publicUrl } = settings.get();
     if (linearApiKey === '') {
       throw new FeatureError(
         'not_configured',

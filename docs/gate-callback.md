@@ -64,8 +64,9 @@ The body is at most 1 MB.
 
 ## Signature
 
-The secret is the bearer token your host uses for the jflow MCP server, the token of its `mcpClients`
-entry. jflow accepts a signature made with the token of any of its MCP clients.
+The secret is the chat token your host uses for the jflow MCP server. An engineer creates it on
+`/settings` -> Chats and sees it once. jflow accepts a signature made with any live chat token. A revoked
+token stops signing at once.
 
 1. Take the current unix time in seconds as a string, for example `1795600000`.
 2. Take the exact bytes of the JSON body you send.

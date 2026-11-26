@@ -46,8 +46,10 @@ folder and goes straight to build (see `skills/quick/SKILL.md`).
 
 ## Settings
 
-Read the `## jflow` section of the CLAUDE.md files in scope (user, project, repo). Each line
-overrides one default:
+With the jflow tools, call `read_settings` first. Per setting, a non-empty jflow value wins,
+else the line in the `## jflow` section of the CLAUDE.md files in scope (user, project, repo),
+else the default. "Model route" is read from CLAUDE.md only. Without the jflow tools, CLAUDE.md
+lines override the defaults:
 
 | Setting | Default |
 | --- | --- |
@@ -83,7 +85,7 @@ Project status (Backlog, Planned, In Progress, ...) and issue statuses keep work
 
 ## With the jflow service
 
-When the jflow MCP tools are present (`read_feature`, `start_feature`, `read_file`, `write_file`,
+When the jflow MCP tools are present (`read_settings`, `read_feature`, `start_feature`, `read_file`, `write_file`,
 `log_stage`, `set_stage`, `open_gate`, `save_ui_handoff`), use them and nothing else for flow files
 and labels:
 

@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair, type JWTVerifyGetKey } from 'jose';
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { memoryChatTokenStore } from '../src/chats/memoryChatTokenStore.js';
+import { openChatTokens } from '../src/chats/openChatTokens.js';
 import type { Config } from '../src/config/types.js';
 import { memoryDocuments } from '../src/documents/memoryDocuments.js';
 import type { Documents } from '../src/documents/types.js';
@@ -16,7 +18,7 @@ import { verifyAccess } from '../src/http/verifyAccess.js';
 import { createHttpServer } from '../src/http/createHttpServer.js';
 import type { TrackerProject } from '../src/linear/types.js';
 import { memorySettingsStore } from '../src/settings/memorySettingsStore.js';
-import type { LiveSettings } from '../src/settings/types.js';
+import type { LegacySettings, LiveSettings } from '../src/settings/types.js';
 import { openSettings } from '../src/settings/openSettings.js';
 import { readGates } from '../src/status/readGates.js';
 import { upsertGate } from '../src/status/upsertGate.js';
@@ -33,10 +35,8 @@ const MCP_TOKEN = 't'.repeat(32);
 const MCP_TOKEN_B = 'b'.repeat(32);
 
 const config = {
-  publicUrl: ORIGIN, flowFolder: 'documents/Flow', templatesDir: TEMPLATES, webDir: WEB,
+  flowFolder: 'documents/Flow', templatesDir: TEMPLATES, webDir: WEB,
   access: { teamDomain: TEAM, aud: AUD },
-  gateSecret: 's'.repeat(32),
-  mcpClients: [{ name: 'test', token: MCP_TOKEN }, { name: 'second-agent', token: MCP_TOKEN_B }],
 } as Config;
 const ENGINEERS = ['mika@jitera.com', 'ken@jitera.com'];
 let settings: LiveSettings;
@@ -78,12 +78,15 @@ let gate: string;
 let gatePath: string;
 const apiGatePath = () => `/api${gatePath}`;
 
-async function setup(project: TrackerProject = PROJECT, cfg: Config = config) {
-  settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), ENGINEERS, () => new Date());
-  await settings.save({ docsUrl: 'https://docs.example.com', jiteraProject: 'proj-1', docsToken: 'DOCS-TOKEN-AAA', linearApiKey: 'LIN-KEY-BBB', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
+async function setup(project: TrackerProject = PROJECT, publicUrl = ORIGIN) {
+  settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS, publicUrl }, () => new Date());
+  await settings.save({ docsUrl: 'https://docs.example.com', jiteraProject: 'proj-1', tdrFolder: '', productDocs: '', compliance: '', docsToken: 'DOCS-TOKEN-AAA', linearApiKey: 'LIN-KEY-BBB', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
   docs = memoryDocuments({ [STATUS]: statusMd, [`${FOLDER}/2-spec.md`]: SPEC_DONE });
   tracker = fakeTracker(project);
-  deps = { config: cfg, settings, docs, tracker, now: () => new Date() };
+  const quiet = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [{ name: 'test', token: MCP_TOKEN }, { name: 'second-agent', token: MCP_TOKEN_B }], () => new Date());
+  quiet.mockRestore();
+  deps = { config, settings, chats, docs, tracker, now: () => new Date() };
   gate = (await openGate(deps, 'P-ENG-12', 'flow:plan')).gate;
   gatePath = `/gate/P-ENG-12/${gate}`;
   server = createHttpServer(deps, { jwks });
@@ -93,6 +96,13 @@ async function setup(project: TrackerProject = PROJECT, cfg: Config = config) {
 beforeEach(() => setup());
 afterEach(() => new Promise<void>((r) => server.close(() => r())));
 
+async function serve(legacy: LegacySettings) {
+  await new Promise<void>((r) => server.close(() => r()));
+  settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), legacy, () => new Date());
+  server = createHttpServer({ ...deps, settings }, { jwks });
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+  base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+}
 const get = (path: string, headers: Record<string, string>) => fetch(base + path, { headers, redirect: 'manual' });
 const post = (path: string, body: string, headers: Record<string, string>) =>
   fetch(base + path, { method: 'POST', body, headers, redirect: 'manual' });
@@ -145,7 +155,7 @@ describe('/mcp', () => {
     await client.connect(new StreamableHTTPClientTransport(new URL(base + '/mcp'), {
       requestInit: { headers: { authorization: `Bearer ${MCP_TOKEN}` } },
     }));
-    expect((await client.listTools()).tools).toHaveLength(8);
+    expect((await client.listTools()).tools).toHaveLength(9);
     await client.close();
   });
   it('the token picks the client: token B acts as client B', async () => {
@@ -157,6 +167,14 @@ describe('/mcp', () => {
     expect(r.isError).toBeFalsy();
     expect(await docs.read(STATUS)).toContain('- Spec - Flow agent (second-agent) - hello');
     await client.close();
+  });
+  it('a token created on /settings works at once, and a revoked one is 401 at once', async () => {
+    const { chat, token } = await deps.chats.create('fresh', 'mika@jitera.com');
+    const h = { 'content-type': 'application/json', accept: 'application/json, text/event-stream', authorization: `Bearer ${token}` };
+    expect((await post('/mcp', initBody, h)).status).toBe(200);
+    expect(deps.chats.list().find((c) => c.id === chat.id)?.lastUsedAt).not.toBeNull();
+    expect(await deps.chats.revoke(chat.id)).toBe(true);
+    expect((await post('/mcp', initBody, h)).status).toBe(401);
   });
 });
 
@@ -287,7 +305,7 @@ describe('POST /api/gate', () => {
   });
   it('the origin check normalizes case and the default port of publicUrl', async () => {
     server.close();
-    await setup(PROJECT, { ...config, publicUrl: 'https://Flow.Example.COM:443' });
+    await setup(PROJECT, 'https://Flow.Example.COM:443');
     expect((await apiPost(apiGatePath(), { decision: 'approve', to: 'flow:plan' })).status).toBe(200);
     expect(tracker.labels).toEqual(['flow:plan']);
   });
@@ -318,6 +336,13 @@ describe('gate webhook', () => {
     const r = await hook(body);
     expect(r.status).toBe(409); // closed now
     expect(await r.json()).toEqual({ error: 'closed' });
+  });
+  it('a revoked token no longer signs; a live one does', async () => {
+    const revoked = await deps.chats.create('gone', 'mika@jitera.com');
+    await deps.chats.revoke(revoked.chat.id);
+    expect((await hook(bodyOf({}), { secret: revoked.token })).status).toBe(401);
+    const live = await deps.chats.create('live', 'mika@jitera.com');
+    expect((await hook(bodyOf({}), { secret: live.token })).status).toBe(200);
   });
   it('a partial approval answers open with the missing role', async () => {
     const tdr = (await openGate(deps, 'P-ENG-12', 'flow:tdr')).gate;
@@ -401,8 +426,72 @@ describe('/api/settings', () => {
       settings: {
         docsUrl: 'https://docs.example.com', jiteraProject: 'proj-1', docsTokenSet: true, linearApiKeySet: true,
         teams: ['ENG'], engineers: ENGINEERS, updatedBy: MIKA, updatedAt: expect.any(String),
+        publicUrl: ORIGIN, tdrFolder: '', productDocs: '', compliance: '',
       },
     });
+  });
+  it('the view never carries the gate secret', async () => {
+    const secret = settings.get().gateSecret;
+    expect(secret).not.toBe('');
+    const view = await (await get('/api/settings', await as(MIKA))).text();
+    const saved = await (await save({})).text();
+    expect(view).not.toContain(secret);
+    expect(saved).not.toContain(secret);
+    expect(view).not.toContain('gateSecret');
+  });
+  it('POST carries the team settings, and a body that omits them keeps the stored values', async () => {
+    const r = await save({ tdrFolder: 'TDR', productDocs: 'Specs', compliance: 'ISMAP' });
+    expect((await r.json()).settings).toMatchObject({ tdrFolder: 'TDR', productDocs: 'Specs', compliance: 'ISMAP' });
+    expect((await save({ docsUrl: 'https://docs.example.com' })).status).toBe(200);
+    expect(settings.get()).toMatchObject({ tdrFolder: 'TDR', productDocs: 'Specs', compliance: 'ISMAP' });
+    expect((await save({ tdrFolder: '' })).status).toBe(200);
+    expect(settings.get()).toMatchObject({ tdrFolder: '', productDocs: 'Specs', compliance: 'ISMAP' });
+  });
+  it('POST saves publicUrl as a normalized origin and refuses a bad one', async () => {
+    expect((await save({ publicUrl: 'https://flow.example.com/' })).status).toBe(200);
+    expect(settings.get().publicUrl).toBe(ORIGIN);
+    const r = await save({ publicUrl: 'HTTPS://Flow.Example.com:443/' });
+    expect(r.status).toBe(200);
+    expect((await r.json()).settings.publicUrl).toBe(ORIGIN);
+  });
+  it('POST refuses a publicUrl that differs from the request origin, and the stored value stays', async () => {
+    const r = await save({ publicUrl: 'https://new.example.com' });
+    expect(r.status).toBe(400);
+    expect((await r.json()).problems).toEqual(['Open /settings at that address to set it.']);
+    expect(settings.get().publicUrl).toBe(ORIGIN);
+  });
+  it('POST accepts a publicUrl with the same origin as the request', async () => {
+    expect((await save({ publicUrl: ORIGIN + '/' })).status).toBe(200);
+    expect(settings.get().publicUrl).toBe(ORIGIN);
+  });
+  it('once publicUrl is set, a POST from another origin is refused', async () => {
+    const r = await save({ publicUrl: 'https://other.example.com' }, MIKA, { origin: 'https://other.example.com' });
+    expect(r.status).toBe(403);
+    expect(await r.json()).toEqual({ error: 'refused' });
+    expect(settings.get().publicUrl).toBe(ORIGIN);
+  });
+  it('the first save takes publicUrl from the page origin when none is set', async () => {
+    await serve({ engineers: ENGINEERS });
+    const r = await save({}, MIKA, { origin: 'https://flow.example.com' });
+    expect(r.status).toBe(200);
+    expect((await r.json()).settings.publicUrl).toBe('https://flow.example.com');
+    expect(settings.get().publicUrl).toBe('https://flow.example.com');
+  });
+  it('with no publicUrl, a POST with no Origin is refused', async () => {
+    await serve({ engineers: ENGINEERS });
+    const r = await post('/api/settings', JSON.stringify(GOOD), { ...JSON_H, ...(await as(MIKA)) });
+    expect(r.status).toBe(403);
+    expect(settings.get().publicUrl).toBe('');
+  });
+  it('the first person to open settings on an empty instance becomes an engineer', async () => {
+    await serve({});
+    const a = await get('/api/settings', await as('a@x.com'));
+    expect(a.status).toBe(200);
+    expect(settings.get().engineers).toEqual(['a@x.com']);
+    const b = await get('/api/settings', await as('b@x.com'));
+    expect(b.status).toBe(403);
+    expect((await b.json()).error).toBe('not_allowed');
+    expect(settings.get().engineers).toEqual(['a@x.com']);
   });
   it('POST saves, keeps blank secrets, cleans teams and engineers', async () => {
     const r = await save({ teams: [' core', 'eng', 'ENG', ''], engineers: ['Mika@Jitera.com ', 'ken@jitera.com', 'mika@jitera.com', ' '], docsToken: '', linearApiKey: '  ', docsUrl: ' https://docs.example.com ' });

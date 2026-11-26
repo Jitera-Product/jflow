@@ -1,52 +1,40 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { fileSchema, type Config } from './types.js';
-
-const MIN_SECRET = 32;
+import { DEFAULT_VERBS } from './defaultVerbs.js';
+import { MIN_SECRET } from './minSecret.js';
+import { readLegacyFile } from './readLegacyFile.js';
+import type { Config } from './types.js';
 
 export function loadConfig(
   env: Record<string, string | undefined>,
   readFile: (p: string) => string = (p) => readFileSync(p, 'utf8'),
 ): Config {
-  const file = fileSchema.parse(JSON.parse(readFile(env.JFLOW_CONFIG ?? '')));
+  const legacy = readLegacyFile(env.JFLOW_CONFIG, readFile);
 
   const problems: string[] = [];
-  const secret = (name: string, minLength = 1): string => {
-    const v = env[name];
+  const need = (name: string, fallback?: string, minLength = 1): string => {
+    const v = env[name] || fallback;
     if (!v) problems.push(`${name} is missing`);
     else if (v.length < minLength) problems.push(`${name} must be at least ${minLength} characters`);
     return v ?? '';
   };
 
-  const access = (envName: string, fileKey: 'aud' | 'teamDomain'): string => {
-    const v = env[envName] || file.access?.[fileKey];
-    if (!v) problems.push(`${envName} is missing (or set access.${fileKey} in the config file)`);
-    return v ?? '';
-  };
-
-  const aud = access('JFLOW_ACCESS_AUD', 'aud');
-  const teamDomain = access('JFLOW_ACCESS_TEAM_DOMAIN', 'teamDomain');
-  const gateSecret = secret('JFLOW_GATE_SECRET', MIN_SECRET);
-  const databaseUrl = secret('DATABASE_URL');
-  const settingsKey = secret('JFLOW_SETTINGS_KEY', MIN_SECRET);
-  const mcpClients = file.mcpClients.map((c) => ({ name: c.name, token: secret(c.tokenEnv, MIN_SECRET) }));
-  const tokens = mcpClients.map((c) => c.token).filter(Boolean);
-  if (new Set(tokens).size !== tokens.length) problems.push('two mcpClients have the same token');
-
+  const databaseUrl = need('DATABASE_URL');
+  const settingsKey = need('JFLOW_SETTINGS_KEY', undefined, MIN_SECRET);
+  const teamDomain = need('JFLOW_ACCESS_TEAM_DOMAIN', legacy?.access?.teamDomain);
+  const aud = need('JFLOW_ACCESS_AUD', legacy?.access?.aud);
   if (problems.length) throw new Error(`Bad config: ${problems.join('; ')}`);
 
   return {
-    port: Number(env.PORT ?? 8080),
-    publicUrl: file.publicUrl.replace(/\/+$/, ''),
-    flowFolder: file.flowFolder,
-    templatesDir: file.templatesDir ?? fileURLToPath(new URL('../../../templates', import.meta.url)),
-    webDir: file.webDir ?? fileURLToPath(new URL('../../../web/dist', import.meta.url)),
-    seedEngineers: file.engineers.map((e) => e.toLowerCase()),
+    port: Number(env.PORT || 8080),
+    flowFolder: 'documents/Flow',
+    templatesDir: fileURLToPath(new URL('../../../templates', import.meta.url)),
+    webDir: fileURLToPath(new URL('../../../web/dist', import.meta.url)),
+    agentFile: fileURLToPath(new URL('../../agent/flow-agent.md', import.meta.url)),
     access: { teamDomain, aud },
-    documents: { kind: file.documents.kind, verbs: file.documents.verbs },
+    documents: { kind: 'jitera', verbs: DEFAULT_VERBS },
     databaseUrl,
     settingsKey,
-    gateSecret,
-    mcpClients,
+    legacy,
   };
 }

@@ -20,6 +20,7 @@ COPY service/package*.json ./
 RUN npm ci --omit=dev
 COPY --from=build /app/service/dist ./dist
 COPY service/migrations ./migrations
+COPY service/agent ./agent
 COPY --from=web /app/web/dist /app/web/dist
 COPY templates /app/templates
 USER node

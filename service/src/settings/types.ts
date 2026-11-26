@@ -5,6 +5,12 @@ export type Settings = {
   linearApiKey: string;
   teams: string[];
   engineers: string[];
+  publicUrl: string; // bare origin, no trailing slash; '' until set
+  tdrFolder: string;
+  productDocs: string;
+  compliance: string;
+  gateSecret: string;
+  legacyChatsImported: boolean;
   updatedBy: string | null;
   updatedAt: string | null;
 };
@@ -14,7 +20,11 @@ export type SettingsInput = {
   jiteraProject: string;
   teams: string[];
   engineers: string[];
-  docsToken?: string; // undefined or '' = keep the stored value
+  publicUrl?: string; // undefined or '' = keep the stored value
+  tdrFolder?: string; // undefined = keep the stored value; '' clears it
+  productDocs?: string;
+  compliance?: string;
+  docsToken?: string;
   linearApiKey?: string;
 };
 
@@ -25,6 +35,12 @@ export type StoredValue = {
   linearApiKey: string;
   teams: string[];
   engineers: string[];
+  publicUrl: string;
+  tdrFolder: string;
+  productDocs: string;
+  compliance: string;
+  gateSecret: string;
+  legacyChatsImported: boolean; // the JFLOW_CONFIG chat clients are imported once, so a revoked one stays revoked
 };
 
 export type StoredRow = { value: StoredValue; updatedBy: string; updatedAt: Date };
@@ -32,9 +48,14 @@ export type StoredRow = { value: StoredValue; updatedBy: string; updatedAt: Date
 export type SettingsStore = {
   load(): Promise<StoredRow | null>;
   save(value: StoredValue, by: string, at: Date): Promise<void>;
+  claimFirstEngineer(email: string, at: Date): Promise<boolean>;
 };
+
+export type LegacySettings = { engineers?: string[]; publicUrl?: string; gateSecret?: string };
 
 export type LiveSettings = {
   get(): Settings;
   save(input: SettingsInput, by: string): Promise<Settings>;
+  claimFirstEngineer(email: string): Promise<boolean>;
+  markLegacyChatsImported(): Promise<void>;
 };

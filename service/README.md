@@ -4,34 +4,20 @@ A small Node service for the jflow flow. It keeps feature documents in a Jitera 
 issues from Linear, and asks people to approve each stage of a feature at a gate. It also serves an MCP
 endpoint so an agent can work on the same documents.
 
-## Config file
-
-Set `JFLOW_CONFIG` to the path of a JSON file. See `config.example.json` for a full example.
-
-| Field | Meaning |
-| --- | --- |
-| `publicUrl` | Public origin of the service, for example `https://flow.example.com`. No path, query or hash. |
-| `flowFolder` | Folder in the documents store that holds the flow, for example `documents/Flow`. |
-| `templatesDir` | Optional. Folder with the document templates. Normally needs no setting: the default is the `templates/` folder at the repo root, and the container image keeps that layout. |
-| `webDir` | Optional. Folder with the built web app. The default is `web/dist` at the repo root. |
-| `engineers` | Emails of the first engineers, at least one. Read only when the database has no settings yet; after that the list on `/settings` wins. |
-| `access` | `teamDomain` and `aud` of the Cloudflare Access app that protects the web pages. Optional here when `JFLOW_ACCESS_TEAM_DOMAIN` and `JFLOW_ACCESS_AUD` are set. |
-| `documents` | The documents MCP connection: `kind` and the `verbs` (`read`, `list`, `create`, `update`) as a tool name plus args. Args may use `{path}` and `{content}`. The URL, project and token are set on `/settings`. |
-| `mcpClients` | Clients of the `/mcp` route. Each has a `name` and a `tokenEnv`. |
-
 ## Environment variables
 
-- `JFLOW_CONFIG`: path to the config file.
-- `JFLOW_GATE_SECRET`: at least 32 characters.
-- `DATABASE_URL`: Postgres 14 or newer. jflow runs its migrations at start.
-- `JFLOW_SETTINGS_KEY`: at least 32 characters. Encrypts the docs token and the Linear key in the database. If you change it, type the two keys again on `/settings`.
-- One variable per entry in `mcpClients`, named by its `tokenEnv` (the example uses `MCP_TOKEN`). At least 32 characters, and each one different.
-- `JFLOW_ACCESS_AUD`, `JFLOW_ACCESS_TEAM_DOMAIN`: the Cloudflare Access `aud` and team domain. When set and not empty, they win over `access.aud` and `access.teamDomain` in the config file. One of the two places must give each value.
-- `PORT`: optional, default `8080`.
+| Env var | Meaning |
+| --- | --- |
+| `DATABASE_URL` | Postgres 14 or newer. jflow runs its migrations at start. |
+| `JFLOW_SETTINGS_KEY` | At least 32 characters. Encrypts the secrets in the database (docs token, Linear key, gate secret, chat tokens). |
+| `JFLOW_ACCESS_TEAM_DOMAIN` | Team domain of the Cloudflare Access app that protects the web pages. |
+| `JFLOW_ACCESS_AUD` | Audience (AUD) tag of that Access app. |
+| `PORT` | Optional, default `8080`. |
 
-The docs URL, project, docs token, Linear API key, teams and engineers live in the database. On the first run
-open `<publicUrl>/settings` as one of the `engineers` in the file and set them. Until then the MCP tools
-answer `not_configured`.
+Everything else is set on `/settings`: the Linear key and teams, the Jitera MCP URL, token and project, the
+engineers, the jflow address (public URL) and the chat tokens. The first person to sign in becomes an engineer. Until
+the jflow address is set, `open_gate` answers `not_configured`. The setup path and the upgrade from a config file are in
+[docs/deploy.md](../docs/deploy.md).
 
 ## Run locally
 
@@ -39,14 +25,12 @@ answer `not_configured`.
 cd service
 npm ci
 npm run build
-cp config.example.json config.local.json   # then edit it
-export JFLOW_CONFIG=$PWD/config.local.json
-export DATABASE_URL=... JFLOW_SETTINGS_KEY=... JFLOW_GATE_SECRET=... MCP_TOKEN=...
+export DATABASE_URL=... JFLOW_SETTINGS_KEY=... JFLOW_ACCESS_TEAM_DOMAIN=... JFLOW_ACCESS_AUD=...
 npm start
 curl localhost:8080/healthz
 ```
 
-The service serves the built web app from `web/dist` (override with `webDir`), so build it once:
+The service serves the built web app from `web/dist`, so build it once:
 `cd web && npm ci && npm run build`. For UI work run `npm run dev` in `web/`. It serves on
 localhost:5173 and proxies `/api` to the service on localhost:8080. Without Cloudflare Access in front,
 `/api` calls need a valid Access JWT, so the dev server only shows data from a service set up for it.
@@ -60,9 +44,8 @@ Build from the repo root, because the image needs `templates/` and `web/`:
 ```
 docker build -f service/Dockerfile -t jflow:dev .
 docker run --rm -p 8080:8080 \
-  -e JFLOW_CONFIG=/config.json -v $PWD/service/config.local.json:/config.json \
-  -e DATABASE_URL=... -e JFLOW_SETTINGS_KEY=... -e JFLOW_GATE_SECRET=... \
-  -e MCP_TOKEN=... \
+  -e DATABASE_URL=... -e JFLOW_SETTINGS_KEY=... \
+  -e JFLOW_ACCESS_TEAM_DOMAIN=... -e JFLOW_ACCESS_AUD=... \
   jflow:dev
 ```
 
@@ -73,9 +56,18 @@ For a real deployment (network, health check, Docker and Kubernetes examples) se
 | Route | Use |
 | --- | --- |
 | `GET /healthz` | Returns `ok`. |
-| `POST /mcp` | MCP endpoint for agents. Needs a bearer token from `mcpClients`. |
-| `GET /settings`, `GET /gate/<project>/<gate>` | The web app (`index.html` from `webDir`). |
+| `GET /` | Redirects to `/settings`. |
+| `POST /mcp` | MCP endpoint for agents. Needs the bearer token of a live chat token. |
+| `GET /settings`, `GET /gate/<project>/<gate>` | The web app (`index.html` from the built web app). |
 | `GET /assets/<file>` | The web app's built files. |
 | `GET`, `POST /api/settings` | Settings for the web app. Engineers only. |
+| `GET /api/setup` | The checklist: Linear, Jitera, Chats. Engineers only. |
+| `GET /api/agent-prompt` | The Flow agent prompt for the Jitera copy block. Engineers only. |
+| `GET /api/linear/teams` | The teams the saved Linear key can see. Engineers only. |
+| `GET`, `POST /api/linear/labels` | Check the `flow:*` labels (GET), create the missing ones (POST). Engineers only. |
+| `GET`, `POST /api/chats` | List chat tokens, create one. The token is shown once, in the answer to POST. POST answers 409 `no_public_url` until the jflow address is set. Engineers only. |
+| `DELETE /api/chats/<id>` | Revoke a chat token. It stops working at once. Engineers only. |
 | `GET`, `POST /api/gate/<project>/<gate>` | A gate for the web app, and the decision on it. |
 | `POST /webhooks/gate` | Signed callback from a chat host. See [docs/gate-callback.md](../docs/gate-callback.md). |
+
+Every `/api/*` call needs a valid Cloudflare Access JWT. Calls that change data also check the request origin.

@@ -1,11 +1,13 @@
 import { ApiError } from './ApiError';
 
-export async function fetchJson<T>(path: string, init: { method?: 'GET' | 'POST'; body?: unknown } = {}): Promise<T> {
+export async function fetchJson<T>(path: string, init: { method?: 'GET' | 'POST' | 'DELETE'; body?: unknown } = {}): Promise<T> {
+  const method = init.method ?? 'GET';
   const hasBody = init.body !== undefined;
   const res = await fetch(path, {
-    method: init.method ?? 'GET',
+    method,
     credentials: 'same-origin',
-    headers: hasBody ? { accept: 'application/json', 'content-type': 'application/json' } : { accept: 'application/json' },
+    // Every write says JSON, so a cross-site form can never send one without a CORS preflight.
+    headers: method !== 'GET' ? { accept: 'application/json', 'content-type': 'application/json' } : { accept: 'application/json' },
     body: hasBody ? JSON.stringify(init.body) : undefined,
   });
   const data = await res.json().catch(() => ({}));

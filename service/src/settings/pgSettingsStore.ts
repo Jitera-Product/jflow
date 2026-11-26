@@ -15,5 +15,13 @@ export function pgSettingsStore(db: pg.Pool): SettingsStore {
         [JSON.stringify(value), by, at],
       );
     },
+    async claimFirstEngineer(email, at) {
+      const r = await db.query(
+        `update settings set value = jsonb_set(value, '{engineers}', jsonb_build_array($1::text)), updated_by = $1, updated_at = $2
+         where id = 1 and jsonb_array_length(value->'engineers') = 0 returning id`,
+        [email, at],
+      );
+      return (r.rowCount ?? 0) > 0;
+    },
   };
 }

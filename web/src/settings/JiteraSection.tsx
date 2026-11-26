@@ -21,10 +21,11 @@ export function JiteraSection({ tokenSet, footer }: Props) {
     setTesting(false);
   };
 
-  const field = (id: keyof SettingsFormInput, label: string) => (
+  const field = (id: keyof SettingsFormInput, label: string, hint?: string) => (
     <div className="grid gap-2">
       <Label htmlFor={id}>{label}</Label>
-      <Input id={id} spellCheck={false} {...register(id)} />
+      <Input id={id} spellCheck={false} aria-describedby={hint ? `${id}-hint` : undefined} {...register(id)} />
+      {hint && <p id={`${id}-hint`} className="text-muted-foreground">{hint}</p>}
     </div>
   );
 
@@ -48,6 +49,7 @@ export function JiteraSection({ tokenSet, footer }: Props) {
         )}
       </div>
       {field('tdrFolder', 'TDR folder')}
+      {field('flowAgentUrl', 'Flow agent link', 'Open a chat with the Flow agent in Studio and paste its address.')}
       {footer}
     </SettingsSection>
   );

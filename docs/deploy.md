@@ -65,6 +65,11 @@ The checklist on top shows what is left. Each item links to its section:
    token as Client Secret (a secret without a client ID is a bearer token). A chat needs no redeploy. "Revoke" stops a token at once, for MCP calls and for
    [gate callbacks](gate-callback.md).
 
+For the "Open in Jitera chat" link on each feature, set the Flow agent link in the Jitera section: open a chat
+with the Flow agent in Studio and paste its address. In Studio, make the jflow connector "shared", so every
+member's chat with the Flow agent can use the jflow tools; a private connector only works for its creator. Each
+person's chat stays private.
+
 The Chats item is done when any token was used once. Until the jflow address is set, only `open_gate`
 answers `not_configured`, and the chat token is shown without the copy blocks.
 

@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { getFeaturePanel } from '@/api/getFeaturePanel';
+import { getMe } from '@/api/getMe';
 import type { FeaturePanelView } from '@/api/types';
 import { Button } from '@/components/ui/Button';
 import { StatePanel } from '@/shell/StatePanel';
@@ -9,6 +10,7 @@ const LINK = 'text-primary underline underline-offset-4';
 
 export function FeaturePanel({ featureKey, onClose }: { featureKey: string; onClose: () => void }) {
   const [view, setView] = useState<FeaturePanelView | null>(null);
+  const [agentUrl, setAgentUrl] = useState('');
   const [failed, setFailed] = useState<unknown>(null);
   const close = useRef<HTMLButtonElement>(null);
 
@@ -34,8 +36,13 @@ export function FeaturePanel({ featureKey, onClose }: { featureKey: string; onCl
     let live = true;
     setView(null);
     setFailed(null);
-    getFeaturePanel(featureKey).then(
-      (v) => live && setView(v),
+    // Shown together, so the chat link does not pop in after the panel. Without /api/me there is just no link.
+    Promise.all([getFeaturePanel(featureKey), getMe().then((m) => m.flowAgentUrl, () => '')]).then(
+      ([v, url]) => {
+        if (!live) return;
+        setView(v);
+        setAgentUrl(url);
+      },
       (e) => live && setFailed(e),
     );
     return () => {
@@ -69,6 +76,7 @@ export function FeaturePanel({ featureKey, onClose }: { featureKey: string; onCl
             <dt className="text-muted-foreground">Owner</dt>
             <dd>{c.owner?.name ?? 'No owner'}</dd>
           </dl>
+          {view.notice && <p className="rounded-md bg-secondary px-3 py-2">{view.notice}</p>}
           {c.notStarted && <p className="rounded-md bg-secondary px-3 py-2">Not started in jflow</p>}
           {view.behind && <p className="rounded-md bg-secondary px-3 py-2">{`The status file is behind: Linear says ${c.stage}.`}</p>}
           {view.gate && (
@@ -111,6 +119,9 @@ export function FeaturePanel({ featureKey, onClose }: { featureKey: string; onCl
                 {view.files.map((f) => <li key={f} className="wrap-anywhere">{f}</li>)}
               </ul>
             </section>
+          )}
+          {view.folder && agentUrl && (
+            <a className={LINK} href={`${agentUrl}&folder=${encodeURIComponent(view.folder)}`} target="_blank" rel="noopener">Open in Jitera chat</a>
           )}
           <a className={LINK} href={view.linearUrl} target="_blank" rel="noopener">Open in Linear</a>
         </>

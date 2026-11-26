@@ -13,6 +13,7 @@ import type { SettingsInput, StoredValue } from '../src/settings/types.js';
 const KEY = 'k'.repeat(32);
 const now = () => new Date('2026-11-25T00:00:00Z');
 const ken = 'ken@jitera.com';
+const AGENT = 'https://studio.jitera.app/p/core/chat?a=agent-1';
 const input = (over: Partial<SettingsInput> = {}): SettingsInput => ({
   docsUrl: 'https://docs.example.com',
   teams: ['CORE'],
@@ -38,7 +39,7 @@ describe('openSettings', () => {
   it('a fresh store has no engineers, a random gate secret and no publicUrl', async () => {
     const store = memorySettingsStore();
     const s = await openSettings(store, KEY, {}, now);
-    expect(s.get()).toMatchObject({ engineers: [], publicUrl: '', tdrFolder: '' });
+    expect(s.get()).toMatchObject({ engineers: [], publicUrl: '', tdrFolder: '', flowAgentUrl: '' });
     expect(s.get().gateSecret.length).toBeGreaterThanOrEqual(32);
     expect(JSON.stringify(store.row)).not.toContain(s.get().gateSecret);
     let saves = 0;
@@ -113,7 +114,7 @@ describe('openSettings', () => {
     const s = await openSettings(store, KEY, { engineers: ['mika@x.com'], publicUrl: 'https://flow.example.com', gateSecret: 'g'.repeat(32) }, now);
     expect(s.get()).toMatchObject({
       engineers: [ken], docsToken: 'tok-1', teams: ['CORE'], publicUrl: 'https://flow.example.com', gateSecret: 'g'.repeat(32),
-      tdrFolder: '', updatedBy: ken, legacyChatsImported: false,
+      tdrFolder: '', flowAgentUrl: '', updatedBy: ken, legacyChatsImported: false,
     });
     expect(openSecret(KEY, store.row!.value.gateSecret)).toBe('g'.repeat(32));
     const fresh = memorySettingsStore();
@@ -146,6 +147,16 @@ describe('openSettings', () => {
     await s.save(input(), ken);
     expect(s.get().publicUrl).toBe('https://flow.example.com');
     expect(s.get().gateSecret).toBe(secret);
+  });
+
+  it('saves the Flow agent link, keeps it when not sent, and clears it with an empty value', async () => {
+    const s = await openSettings(memorySettingsStore(), KEY, { engineers: [ken] }, now);
+    await s.save(input({ flowAgentUrl: AGENT }), ken);
+    expect(s.get().flowAgentUrl).toBe(AGENT);
+    await s.save(input(), ken);
+    expect(s.get().flowAgentUrl).toBe(AGENT);
+    await s.save(input({ flowAgentUrl: '' }), ken);
+    expect(s.get().flowAgentUrl).toBe('');
   });
 
   it('the legacy chat marker is set once and kept by a save', async () => {
@@ -234,6 +245,11 @@ describe('checkSettings', () => {
     [{ publicUrl: 'https://flow.example.com/app' }, 'publicUrl must be a bare origin like https://flow.example.com, with no path, query or hash'],
     [{ publicUrl: 'https://flow.example.com/?a=1' }, 'publicUrl must be a bare origin like https://flow.example.com, with no path, query or hash'],
     [{ publicUrl: 'ftp://flow.example.com' }, 'publicUrl must be a bare origin like https://flow.example.com, with no path, query or hash'],
+    [{ flowAgentUrl: 'http://studio.jitera.app/p/core/chat?a=agent-1' }, 'flowAgentUrl must be the Studio chat address of the Flow agent, like https://studio.jitera.app/p/<project>/chat?a=<agent>'],
+    [{ flowAgentUrl: 'https://studio.jitera.app/p/core/chat' }, 'flowAgentUrl must be the Studio chat address of the Flow agent, like https://studio.jitera.app/p/<project>/chat?a=<agent>'],
+    [{ flowAgentUrl: 'https://studio.jitera.app/p/core/chat?b=1' }, 'flowAgentUrl must be the Studio chat address of the Flow agent, like https://studio.jitera.app/p/<project>/chat?a=<agent>'],
+    [{ flowAgentUrl: 'https://studio.jitera.app/p/core/docs?a=agent-1' }, 'flowAgentUrl must be the Studio chat address of the Flow agent, like https://studio.jitera.app/p/<project>/chat?a=<agent>'],
+    [{ flowAgentUrl: 'nope' }, 'flowAgentUrl must be the Studio chat address of the Flow agent, like https://studio.jitera.app/p/<project>/chat?a=<agent>'],
   ])('%j -> %s', (over, problem) => {
     expect(checkSettings(input(over), ken)).toContain(problem);
   });
@@ -245,5 +261,7 @@ describe('checkSettings', () => {
     expect(checkSettings(input({ docsUrl: 'http://127.0.0.1:3000' }), ken)).toEqual([]);
     expect(checkSettings(input({ publicUrl: 'https://flow.example.com/' }), ken)).toEqual([]);
     expect(checkSettings(input({ publicUrl: 'http://localhost:8080' }), ken)).toEqual([]);
+    expect(checkSettings(input({ flowAgentUrl: '' }), ken)).toEqual([]);
+    expect(checkSettings(input({ flowAgentUrl: AGENT }), ken)).toEqual([]);
   });
 });

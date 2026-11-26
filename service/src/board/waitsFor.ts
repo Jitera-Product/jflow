@@ -14,7 +14,7 @@ export function waitsFor(
   return kinds.map((kind) => ({
     kind,
     names: kind === 'owner' ? [lead?.name ?? 'an owner']
-      : kind === 'engineer' ? (engineers.length ? engineers : ['an engineer'])
+      : kind === 'engineer' ? (engineers.length && engineers.length <= 2 ? engineers : ['an engineer'])
       : ['the agent'],
   }));
 }

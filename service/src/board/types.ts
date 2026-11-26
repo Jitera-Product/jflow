@@ -2,7 +2,7 @@ import type { FlowProject } from '../linear/types.js';
 import type { Role } from '../gates/types.js';
 import type { GateRow, StageName } from '../status/stages.js';
 
-export type LogLine = { date: string; stage: string; who: string; text: string };
+export type LogLine = { date: string; what: string; stage: string; who: string; text: string };
 export type StatusFile = { gates: GateRow[]; log: LogLine[]; stage: StageName | null };
 export type Waiting = { kind: 'owner' | 'engineer' | 'agent'; names: string[] };
 export type Card = {
@@ -26,4 +26,5 @@ export type FeaturePanel = {
   card: Card; stages: StageRow[]; log: LogLine[];
   gate: { url: string; from: string; to: string; missing: Role[] } | null;
   files: string[]; linearUrl: string; behind: boolean;
+  folder: string | null; notice: string | null;
 };

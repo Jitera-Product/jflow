@@ -1,8 +1,11 @@
-import type { StageName } from '../status/stages.js';
-import type { StatusFile } from './types.js';
+import type { LogLine, StatusFile } from './types.js';
 import { wholeDaysSince } from './wholeDaysSince.js';
 
-export function daysInStage(file: StatusFile | null, stage: StageName, updatedAt: string, now: Date): number {
-  const dates = (file?.log ?? []).filter((l) => l.stage === stage).map((l) => l.date).sort();
-  return wholeDaysSince(dates.at(-1) ?? updatedAt, now);
+// Stages only go forward, so the newest move is the one into the current stage.
+// A gate line names the stage it left ("Spec review approved"), so match the move, not the stage.
+const isMove = (l: LogLine) => l.what.endsWith(' approved') || l.text.startsWith('stage set to') || l.text.startsWith('folder created');
+
+export function daysInStage(file: StatusFile | null, updatedAt: string, now: Date): number {
+  const moves = (file?.log ?? []).filter(isMove).map((l) => l.date).sort();
+  return wholeDaysSince(moves.at(-1) ?? updatedAt, now);
 }

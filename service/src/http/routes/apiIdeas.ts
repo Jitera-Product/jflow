@@ -20,8 +20,9 @@ export async function apiIdeas(ctx: HttpContext, req: IncomingMessage, res: Serv
       const team = new URL(req.url ?? '/', 'http://localhost').searchParams.get('team') ?? '';
       if (!teams.includes(team)) return json(res, 400, { error: 'invalid', message: 'Pick a team.' });
       const [owners, me] = await Promise.all([listTeamMembers(f, linearApiKey, team), findUserByEmail(f, linearApiKey, email).catch(() => null)]);
-      return json(res, 200, { owners, defaultOwnerId: me?.id ?? null });
+      return json(res, 200, { owners, defaultOwnerId: owners.some((o) => o.id === me?.id) ? me!.id : null });
     }
+    if (!ctx.origin()) return json(res, 409, { error: 'no_public_url', message: 'An engineer has to set the jflow address on /settings first.' });
     const read = await readJson(req, res);
     if (!read) return;
     const body = ideaBody.safeParse(read.body);
@@ -36,7 +37,13 @@ export async function apiIdeas(ctx: HttpContext, req: IncomingMessage, res: Serv
       return json(res, 400, { error: 'invalid', message: 'Pick an owner from this team.', problems: ['owner: not a member of this team'] });
     }
     const content = `## Problem\n\n${problem}\n\n## Who it is for\n\n${audience}\n`;
-    json(res, 200, await createFlowProject(f, linearApiKey, { teamKey: team, name: title, summary: problem, content, leadId: ownerId }));
+    let created;
+    try {
+      created = await createFlowProject(f, linearApiKey, { teamKey: team, name: title, summary: problem, content, leadId: ownerId });
+    } catch {
+      return json(res, 502, { error: 'linear', message: 'Linear refused the project. Try again or check the title and owner.' });
+    }
+    json(res, 200, created);
   } catch {
     json(res, 502, { error: 'linear', message: 'Linear did not answer. Check the key and try again.' });
   }

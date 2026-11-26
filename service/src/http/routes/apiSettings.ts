@@ -20,6 +20,7 @@ const settingsBody = z.object({
   linearApiKey: secret,
   publicUrl: z.string().trim().optional(),
   tdrFolder: z.string().trim().optional(), // missing = keep the stored value
+  flowAgentUrl: z.string().trim().optional(), // missing = keep the stored value
 });
 
 export async function apiSettings(ctx: HttpContext, req: IncomingMessage, res: ServerResponse, email: string) {

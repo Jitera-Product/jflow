@@ -46,8 +46,8 @@ describe('readStatusFile', () => {
     expect(f.stage).toBe('Spec');
     expect(f.gates).toHaveLength(1);
     expect(f.log).toEqual([
-      { date: '2026-11-20', stage: 'Spec', who: 'Flow agent', text: 'drafted - with a dash' },
-      { date: '2026-11-23', stage: 'Spec review', who: 'mika@x.com via jitera', text: '' },
+      { date: '2026-11-20', what: 'Spec', stage: 'Spec', who: 'Flow agent', text: 'drafted - with a dash' },
+      { date: '2026-11-23', what: 'Spec review approved', stage: 'Spec review', who: 'mika@x.com via jitera', text: '' },
     ]);
   });
   it('gives null stage when nothing is in progress', () => {
@@ -74,13 +74,33 @@ describe('buildStageBoard', () => {
     expect(c).toMatchObject({ stage: 'Plan', behind: true, notStarted: false });
   });
 
-  it('counts days from the last log line of the card stage', () => {
+  const line = (date: string, what: string, text = '') => ({ date, what, stage: what.replace(/ (approved|changes requested)$/, ''), who: 'a', text });
+  it('counts days from the newest move line: a gate approval, a set_stage or the folder created line', () => {
+    const at = (log: ReturnType<typeof line>[], o: Partial<FlowProject> = {}) => cards(run([proj(o)], [['s1', file({ log })]]))[0]!.days;
+    expect(at([line('2026-11-10', 'Intent', 'folder created')], { flowLabel: 'flow:intent' })).toBe(16);
+    expect(at([line('2026-11-10', 'Intent', 'folder created'), line('2026-11-23', 'Intent approved')], { flowLabel: 'flow:spec' })).toBe(3);
+    expect(at([line('2026-11-10', 'Intent', 'folder created'), line('2026-11-22', 'Spec review', 'stage set to flow:spec-review')], { flowLabel: 'flow:spec-review' })).toBe(4);
+  });
+
+  it('a later changes requested or log_stage line does not reset the count', () => {
     const log = [
-      { date: '2026-11-10', stage: 'Plan', who: 'a', text: '' },
-      { date: '2026-11-23', stage: 'Plan', who: 'a', text: '' },
-      { date: '2026-11-25', stage: 'Build', who: 'a', text: '' },
+      line('2026-11-20', 'Intent approved'),
+      line('2026-11-24', 'Spec', 'drafted'),
+      line('2026-11-25', 'Spec changes requested'),
     ];
-    expect(cards(run([proj()], [['s1', file({ log })]]))[0]!.days).toBe(3);
+    expect(cards(run([proj({ flowLabel: 'flow:spec' })], [['s1', file({ log })]]))[0]!.days).toBe(6);
+  });
+
+  it('counts from updatedAt when there is no move line or the card is behind', () => {
+    expect(cards(run([proj()], [['s1', file({ log: [line('2026-11-25', 'Plan', 'drafted')] })]]))[0]!.days).toBe(5);
+    const behind = file({ stage: 'Spec review', log: [line('2026-11-25', 'Spec', 'stage set to flow:spec-review')] });
+    expect(cards(run([proj()], [['s1', behind]]))[0]!).toMatchObject({ behind: true, days: 5 });
+  });
+
+  it('puts a flow:verify project in Verify, waiting for the owner', () => {
+    const b = run([proj({ flowLabel: 'flow:verify' })]);
+    expect(b.columns.find((c) => c.stage === 'Verify')!.cards.map((c) => c.slugId)).toEqual(['s1']);
+    expect(cards(b)[0]!.waitsFor).toEqual([{ kind: 'owner', names: ['Mika'] }]);
   });
 
   it('computes open gate, missing roles and waitsFor from it', () => {
@@ -90,6 +110,10 @@ describe('buildStageBoard', () => {
     expect(c.waitsFor).toEqual([{ kind: 'engineer', names: ['eng@x.com'] }]);
     const none = cards(run([proj()], [['s1', file({ gates: [g] })]], { engineers: [] }))[0]!;
     expect(none.waitsFor[0]!.names).toEqual(['an engineer']);
+    const two = cards(run([proj()], [['s1', file({ gates: [g] })]], { engineers: ['a@x.com', 'b@x.com'] }))[0]!;
+    expect(two.waitsFor[0]!.names).toEqual(['a@x.com', 'b@x.com']);
+    const three = cards(run([proj()], [['s1', file({ gates: [g] })]], { engineers: ['a@x.com', 'b@x.com', 'c@x.com'] }))[0]!;
+    expect(three.waitsFor[0]!.names).toEqual(['an engineer']);
   });
 
   it('ignores closed and malformed gates', () => {
@@ -127,11 +151,11 @@ describe('buildStageBoard', () => {
     expect(cards(run(projects, [], { viewer: 'mika@x.com' })).map((c) => c.waitingForMe)).toEqual([true, false, false]);
   });
 
-  it('drops Done cards older than 14 days by the Done log line, else updatedAt', () => {
+  it('drops Done cards older than 14 days by the newest move line, else updatedAt', () => {
     const done = (o: Partial<FlowProject>) => proj({ flowLabel: 'flow:done', ...o });
     expect(cards(run([done({ updatedAt: daysAgo(15) })]))).toHaveLength(0);
     expect(cards(run([done({ updatedAt: daysAgo(13) })]))).toHaveLength(1);
-    const log = [{ date: '2026-11-11', stage: 'Done', who: 'a', text: '' }];
+    const log = [{ date: '2026-11-11', what: 'Verify approved', stage: 'Verify', who: 'a', text: '' }];
     expect(cards(run([done({ updatedAt: daysAgo(1) })], [['s1', file({ log })]]))).toHaveLength(0);
   });
 

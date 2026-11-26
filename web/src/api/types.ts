@@ -8,6 +8,7 @@ export type SettingsView = {
     engineers: string[];
     publicUrl: string;
     tdrFolder: string;
+    flowAgentUrl: string;
     updatedBy: string | null;
     updatedAt: string | null;
   };
@@ -18,6 +19,7 @@ export type SettingsInput = {
   teams: string[];
   engineers: string[];
   tdrFolder: string;
+  flowAgentUrl: string;
   publicUrl?: string; // blank or missing = keep the stored one
   docsToken?: string;
   linearApiKey?: string;
@@ -50,7 +52,7 @@ export type GateView = {
 
 export type Decision = { decision: 'approve' | 'changes'; to: string };
 
-export type Me = { email: string; engineer: boolean; teams: string[] };
+export type Me = { email: string; engineer: boolean; teams: string[]; flowAgentUrl: string };
 
 export type Waiting = { kind: 'owner' | 'engineer' | 'agent'; names: string[] };
 
@@ -87,6 +89,8 @@ export type FeaturePanelView = {
   files: string[];
   linearUrl: string;
   behind: boolean;
+  folder: string | null;
+  notice: string | null;
 };
 
 export type IdeaOwners = { owners: Array<{ id: string; name: string; email: string }>; defaultOwnerId: string | null };

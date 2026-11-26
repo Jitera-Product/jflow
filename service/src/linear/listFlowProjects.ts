@@ -24,6 +24,7 @@ type Node = {
 type Page = { projects: { pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: Node[] } };
 
 export async function listFlowProjects(fetchFn: typeof fetch, apiKey: string, teamKeys: string[]): Promise<FlowProject[]> {
+  if (!teamKeys.length) return [];
   const out: FlowProject[] = [];
   let after: string | null = null;
   do {

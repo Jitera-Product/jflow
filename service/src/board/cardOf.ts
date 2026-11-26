@@ -13,14 +13,15 @@ export function cardOf(
   const openGate = openGateOf(file);
   const waits = waitsFor(openGate?.missing ?? null, stage, p.lead, engineers);
   const me = viewer.toLowerCase();
+  const behind = !!file?.stage && file.stage !== stage;
   const waitingForMe =
     (!!p.lead && p.lead.email.toLowerCase() === me && waits.some((w) => w.kind === 'owner')) ||
     (engineers.includes(me) && waits.some((w) => w.kind === 'engineer'));
   return {
     key: p.identifier ?? p.slugId, slugId: p.slugId, id,
     name: p.name, url: p.url, team: p.team, owner: p.lead,
-    stage, days: daysInStage(file, stage, p.updatedAt, now), waitsFor: waits,
+    stage, days: daysInStage(behind ? null : file, p.updatedAt, now), waitsFor: waits,
     stuck: !!openGate && now.getTime() - Date.parse(openGate.opened) > STUCK_DAYS * 86_400_000,
-    waitingForMe, notStarted: !file, behind: !!file?.stage && file.stage !== stage, openGate,
+    waitingForMe, notStarted: !file, behind, openGate,
   };
 }

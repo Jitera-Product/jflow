@@ -23,6 +23,7 @@ const EVE = 'eve@jitera.com';
 const WEB = fileURLToPath(new URL('./fixtures/web', import.meta.url));
 const config = { flowFolder: 'documents/Flow', templatesDir: '', webDir: WEB, access: { teamDomain: TEAM, aud: AUD } } as Config;
 const NOW = new Date('2026-11-26T12:00:00.000Z');
+const AGENT = 'https://studio.jitera.app/p/core/chat?a=agent-1';
 
 const STATUS = `# Status - P-ENG-12 Export
 
@@ -131,8 +132,12 @@ describe('access', () => {
     expect((await get('/api/settings', EVE)).status).toBe(403);
   });
   it('/api/me says who you are, whether you are an engineer, and the picked teams', async () => {
-    expect(await (await get('/api/me')).json()).toEqual({ email: MIKA, engineer: true, teams: ['ENG', 'CORE'] });
-    expect(await (await get('/api/me', EVE)).json()).toEqual({ email: EVE, engineer: false, teams: ['ENG', 'CORE'] });
+    expect(await (await get('/api/me')).json()).toEqual({ email: MIKA, engineer: true, teams: ['ENG', 'CORE'], flowAgentUrl: '' });
+    expect(await (await get('/api/me', EVE)).json()).toEqual({ email: EVE, engineer: false, teams: ['ENG', 'CORE'], flowAgentUrl: '' });
+  });
+  it('/api/me carries the Flow agent link to every Access user', async () => {
+    await restart({ flowAgentUrl: AGENT });
+    expect((await (await get('/api/me', EVE)).json()).flowAgentUrl).toBe(AGENT);
   });
   it('board routes are GET only', async () => {
     const r = await fetch(base + '/api/board', { method: 'POST', headers: { 'cf-access-jwt-assertion': await sign(MIKA), origin: ORIGIN } });
@@ -146,7 +151,7 @@ describe('/api/board', () => {
     expect(b.notice).toBeNull();
     const all = cards(b);
     expect(all.map((c) => c.slugId)).toEqual(['s2', 's1']);
-    expect(all[1]).toMatchObject({ key: 'P-ENG-12', id: 'P-ENG-12', stage: 'Plan', notStarted: false, behind: true, days: 4 });
+    expect(all[1]).toMatchObject({ key: 'P-ENG-12', id: 'P-ENG-12', stage: 'Plan', notStarted: false, behind: true, days: 6 });
     expect(all[0]).toMatchObject({ key: 's2', id: null, stage: 'Intent', notStarted: true, days: 6 });
     expect(b.columns.map((c: { stage: string }) => c.stage)[0]).toBe('Intent');
   });
@@ -244,10 +249,37 @@ describe('/api/board/feature', () => {
     expect(p.gate).toEqual({ url: `${ORIGIN}/gate/P-ENG-12/g1`, from: 'Spec review', to: 'Plan', missing: ['engineer'] });
     expect(p.files).toEqual(['0-status.md', '1-intent.md']);
     expect(p.linearUrl).toBe('https://linear.app/x/project/n-s1');
+    expect(p.folder).toBe('documents/Flow/P-ENG-12 Export/');
+    expect(p.notice).toBeNull();
+  });
+  it('opens the panel of a flow:verify project, waiting for the owner', async () => {
+    nodes.push(node('s7', 'flow:verify'));
+    const r = await get('/api/board/feature/s7');
+    expect(r.status).toBe(200);
+    expect((await r.json()).card).toMatchObject({ stage: 'Verify', waitsFor: [{ kind: 'owner', names: ['Mika'] }] });
+    expect(cards(await (await get('/api/board')).json()).find((c) => c.slugId === 's7')).toMatchObject({ stage: 'Verify' });
+  });
+  it('a failing Jitera gives the Linear card with a notice', async () => {
+    nodes[0] = node('s1', 'flow:plan', { name: 'Export' }); // the slugId finds the folder by name, so read runs too
+    for (const broken of ['list', 'read'] as const) {
+      await restart({});
+      docs[broken] = async () => { throw new Error('down DOCS-TOKEN-AAA'); };
+      const r = await get('/api/board/feature/s1');
+      expect(r.status).toBe(200);
+      const text = await r.text();
+      expect(text).not.toMatch(/DOCS-TOKEN/);
+      expect(JSON.parse(text)).toMatchObject({
+        card: { key: 's1', stage: 'Plan', notStarted: true }, stages: [], log: [], gate: null, files: [], folder: null,
+        notice: 'jflow could not read the status file in Jitera.',
+      });
+    }
+    const byId = await get('/api/board/feature/P-ENG-12');
+    expect(byId.status).toBe(502);
+    expect(await byId.text()).not.toMatch(/DOCS-TOKEN/);
   });
   it('shows a not started project by slugId', async () => {
     const p = await (await get('/api/board/feature/s2')).json();
-    expect(p).toMatchObject({ card: { key: 's2', notStarted: true }, stages: [], log: [], gate: null, files: [], behind: false });
+    expect(p).toMatchObject({ card: { key: 's2', notStarted: true }, stages: [], log: [], gate: null, files: [], behind: false, folder: null, notice: null });
   });
   it('reads fresh', async () => {
     await get('/api/board/feature/P-ENG-12');

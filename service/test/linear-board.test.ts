@@ -34,6 +34,11 @@ it('queries sized for the live API', async () => {
 });
 
 describe('listFlowProjects', () => {
+  it('returns [] for no teams without asking Linear', async () => {
+    const bodies: Body[] = [];
+    expect(await listFlowProjects(fakeFetch({}, bodies), 'k', [])).toEqual([]);
+    expect(bodies).toEqual([]);
+  });
   it('maps fields, pages, drops unlabelled and canceled', async () => {
     const bodies: Body[] = [];
     const pages = [

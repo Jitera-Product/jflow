@@ -24,18 +24,22 @@ type Body = { query: string; variables: any };
 let bodies: Body[];
 let linearFails: boolean;
 let userLookupFails: boolean;
+let createFails: boolean;
+const ANN = 'ann@jitera.com';
 const fakeLinear = (async (_url: unknown, init: { body: string }) => {
   const body = JSON.parse(init.body) as Body;
   bodies.push(body);
   if (linearFails) return new Response(JSON.stringify({ errors: [{ message: 'bad key LIN-KEY-BBB' }] }), { status: 401 });
   const op = /(?:query|mutation)\s+(\w+)/.exec(body.query)![1];
   if (userLookupFails && body.query.includes('BoardUserByEmail')) return new Response('{}', { status: 500 });
+  if (createFails && op === 'BoardProjectCreate') return new Response(JSON.stringify({ errors: [{ message: 'lead invalid' }] }), { status: 200 });
+  const users: Record<string, object> = { [MIKA]: { id: 'u-mika', name: 'Mika', email: MIKA, active: true }, [ANN]: { id: 'u-ann', name: 'Ann', email: ANN, active: true } };
   const data = {
     BoardTeamMembers: { teams: { nodes: [{ members: { nodes: [
       { id: 'u-mika', name: 'Mika', email: 'Mika@Jitera.com', active: true },
       { id: 'u-bo', name: 'Bo', email: 'bo@jitera.com', active: true },
     ] } }] } },
-    BoardUserByEmail: { users: { nodes: body.variables.email === MIKA ? [{ id: 'u-mika', name: 'Mika', email: MIKA, active: true }] : [] } },
+    BoardUserByEmail: { users: { nodes: users[body.variables.email] ? [users[body.variables.email]] : [] } },
     BoardCreateLookup: { teams: { nodes: [{ id: 't-core' }] }, projectLabels: { nodes: [{ id: 'l-intent', name: 'flow:intent' }] } },
     BoardProjectCreate: { projectCreate: { success: true, project: { id: 'u-new', slugId: 'new-1', url: 'https://linear.app/x/project/new-1' } } },
   }[op as string];
@@ -53,17 +57,21 @@ beforeAll(async () => {
 
 let server: Server;
 let base: string;
-beforeEach(async () => {
-  bodies = [];
-  linearFails = false;
-  userLookupFails = false;
-  const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: [MIKA], publicUrl: ORIGIN }, () => NOW);
+async function start(publicUrl: string) {
+  const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: [MIKA], publicUrl }, () => NOW);
   await settings.save({ docsUrl: 'https://d.example.com', docsToken: 'DOCS-TOKEN-AAA', linearApiKey: 'LIN-KEY-BBB', teams: ['ENG', 'CORE'], engineers: [MIKA] }, MIKA);
   const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [], () => NOW);
   const deps = { config, settings, chats, docs: memoryDocuments({}), tracker: {} as never, now: () => NOW };
   server = createHttpServer(deps, { jwks, fetch: fakeLinear });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+}
+beforeEach(async () => {
+  bodies = [];
+  linearFails = false;
+  userLookupFails = false;
+  createFails = false;
+  await start(ORIGIN);
 });
 afterEach(() => new Promise<void>((r) => server.close(() => r())));
 
@@ -92,6 +100,11 @@ describe('GET /api/ideas/owners', () => {
   });
   it('has no default when the viewer is not a Linear user (Review Focus 4)', async () => {
     const r = await get('/api/ideas/owners?team=CORE', EVE);
+    expect(r.status).toBe(200);
+    expect((await r.json()).defaultOwnerId).toBeNull();
+  });
+  it('has no default when the viewer is a Linear user but not in the team', async () => {
+    const r = await get('/api/ideas/owners?team=CORE', ANN);
     expect(r.status).toBe(200);
     expect((await r.json()).defaultOwnerId).toBeNull();
   });
@@ -159,5 +172,19 @@ describe('POST /api/ideas', () => {
     const r = await post(idea);
     expect(r.status).toBe(502);
     expect(await r.text()).not.toMatch(/LIN-KEY/);
+  });
+  it('a refused project create is a 502 that says so', async () => {
+    createFails = true;
+    const r = await post(idea);
+    expect(r.status).toBe(502);
+    expect(await r.json()).toEqual({ error: 'linear', message: 'Linear refused the project. Try again or check the title and owner.' });
+  });
+  it('409 no_public_url while the jflow address is not set, and Linear is not called', async () => {
+    await new Promise<void>((r) => server.close(() => r()));
+    await start('');
+    const r = await post(idea);
+    expect(r.status).toBe(409);
+    expect((await r.json()).error).toBe('no_public_url');
+    expect(bodies).toEqual([]);
   });
 });

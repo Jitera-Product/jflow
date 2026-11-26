@@ -26,6 +26,7 @@ const toForm = (s: SettingsView['settings']): SettingsFormInput => ({
   linearApiKey: '',
   teams: s.teams,
   tdrFolder: s.tdrFolder,
+  flowAgentUrl: s.flowAgentUrl,
   publicUrl: s.publicUrl,
   engineers: s.engineers.join('\n'),
 });

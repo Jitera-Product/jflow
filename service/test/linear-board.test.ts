@@ -23,6 +23,16 @@ const node = (o: any) => ({
   teams: { nodes: [{ key: 'CORE' }] }, labels: { nodes: [{ name: 'flow:spec' }] }, ...o,
 });
 
+it('queries sized for the live API', async () => {
+  const bodies: Body[] = [];
+  await listFlowProjects(fakeFetch({ BoardProjects: { data: { projects: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: [] } } } }, bodies), 'k', ['CORE']);
+  await listTeamMembers(fakeFetch({ BoardTeamMembers: { data: { teams: { nodes: [] } } } }, bodies), 'k', 'CORE');
+  expect(bodies[0]!.query).toContain('projects(first: 50');
+  expect(bodies[0]!.query).toContain('teams(first: 5)');
+  expect(bodies[0]!.query).toContain('labels(first: 10)');
+  expect(bodies[1]!.query).toContain('members(first: 100)');
+});
+
 describe('listFlowProjects', () => {
   it('maps fields, pages, drops unlabelled and canceled', async () => {
     const bodies: Body[] = [];
@@ -58,7 +68,7 @@ describe('findUserByEmail', () => {
 });
 
 describe('createFlowProject', () => {
-  const input = { teamKey: 'CORE', name: 'Idea', description: 'd', leadId: 'lead1' };
+  const input = { teamKey: 'CORE', name: 'Idea', summary: 'd', content: '# Md', leadId: 'lead1' };
   const created = { data: { projectCreate: { project: { id: 'u9', slugId: 's9', url: 'https://linear.app/p' } } } };
   it('sends team, name, description, lead and the intent label id', async () => {
     const bodies: Body[] = [];
@@ -67,7 +77,20 @@ describe('createFlowProject', () => {
       BoardProjectCreate: created,
     }, bodies);
     expect(await createFlowProject(f, 'k', input)).toEqual({ uuid: 'u9', slugId: 's9', url: 'https://linear.app/p' });
-    expect(bodies.at(-1)!.variables.input).toEqual({ name: 'Idea', description: 'd', teamIds: ['t1'], leadId: 'lead1', labelIds: ['l1'] });
+    expect(bodies.at(-1)!.variables.input).toEqual({ name: 'Idea', description: 'd', content: '# Md', teamIds: ['t1'], leadId: 'lead1', labelIds: ['l1'] });
+  });
+  it('cuts the summary to 255 characters on one line, content stays Markdown', async () => {
+    const bodies: Body[] = [];
+    const f = fakeFetch({
+      BoardCreateLookup: { data: { teams: { nodes: [{ id: 't1' }] }, projectLabels: { nodes: [{ id: 'l1', name: 'flow:intent' }] } } },
+      BoardProjectCreate: created,
+    }, bodies);
+    await createFlowProject(f, 'k', { ...input, summary: 'a\n\nb ' + 'x'.repeat(400), content: 'line1\n\nline2' });
+    const sent = bodies.at(-1)!.variables.input;
+    expect(sent.description).toHaveLength(255);
+    expect(sent.description).not.toContain('\n');
+    expect(sent.description.startsWith('a b x')).toBe(true);
+    expect(sent.content).toBe('line1\n\nline2');
   });
   it('creates the label in the flow group first when missing', async () => {
     const bodies: Body[] = [];

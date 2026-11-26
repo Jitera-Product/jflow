@@ -13,7 +13,7 @@ const CREATE = `mutation BoardProjectCreate($input: ProjectCreateInput!) {
 
 export async function createFlowProject(
   fetchFn: typeof fetch, apiKey: string,
-  input: { teamKey: string; name: string; description: string; leadId: string },
+  input: { teamKey: string; name: string; summary: string; content: string; leadId: string },
 ): Promise<{ uuid: string; slugId: string; url: string }> {
   const found = await gql<{ teams: { nodes: Array<{ id: string }> }; projectLabels: { nodes: Array<{ id: string; name: string }> } }>(
     fetchFn, apiKey, LOOKUP, { key: input.teamKey, label: INTENT });
@@ -25,7 +25,7 @@ export async function createFlowProject(
     labelId = await createFlowLabel(fetchFn, apiKey, INTENT, parentId);
   }
   const data = await gql<{ projectCreate: { project: { id: string; slugId: string; url: string } } }>(fetchFn, apiKey, CREATE, {
-    input: { name: input.name, description: input.description, teamIds: [teamId], leadId: input.leadId, labelIds: [labelId] },
+    input: { name: input.name, description: input.summary.replace(/\s+/g, ' ').trim().slice(0, 255), content: input.content, teamIds: [teamId], leadId: input.leadId, labelIds: [labelId] },
   });
   const p = data.projectCreate.project;
   return { uuid: p.id, slugId: p.slugId, url: p.url };

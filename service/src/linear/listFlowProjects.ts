@@ -2,14 +2,14 @@ import { gql } from './gql.js';
 import type { FlowProject } from './types.js';
 
 const QUERY = `query BoardProjects($teams: [String!], $after: String) {
-  projects(first: 100, after: $after, filter: { accessibleTeams: { some: { key: { in: $teams } } } }) {
+  projects(first: 50, after: $after, filter: { accessibleTeams: { some: { key: { in: $teams } } } }) {
     pageInfo { hasNextPage endCursor }
     nodes {
       id slugId name url updatedAt
       status { type }
       lead { name email }
-      teams { nodes { key } }
-      labels { nodes { name } }
+      teams(first: 5) { nodes { key } }
+      labels(first: 10) { nodes { name } }
     }
   }
 }`;

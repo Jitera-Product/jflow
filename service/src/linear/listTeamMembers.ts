@@ -1,7 +1,7 @@
 import { gql } from './gql.js';
 
 const QUERY = `query BoardTeamMembers($key: String!) {
-  teams(filter: { key: { eq: $key } }) { nodes { members(first: 250) { nodes { id name email active } } } }
+  teams(filter: { key: { eq: $key } }) { nodes { members(first: 100) { nodes { id name email active } } } }
 }`;
 
 export async function listTeamMembers(fetchFn: typeof fetch, apiKey: string, teamKey: string): Promise<Array<{ id: string; name: string; email: string }>> {

@@ -21,23 +21,30 @@ export async function openSettings(
   // A row from an older jflow lacks the newer fields; legacy values fill only what is still empty.
   const value: StoredValue = { ...EMPTY, ...loaded?.value };
   let changed = !loaded || Object.keys(EMPTY).some((k) => !(k in loaded.value));
+  const fromFile: string[] = [];
+  let gateSecretImported = false;
   if (value.engineers.length === 0 && legacy.engineers?.length) {
     value.engineers = legacy.engineers.map((e) => e.toLowerCase());
+    fromFile.push('engineers');
     changed = true;
   }
   if (value.publicUrl === '' && legacy.publicUrl) {
     const origin = bareOrigin(legacy.publicUrl);
     if (origin) {
       value.publicUrl = origin;
+      fromFile.push('publicUrl');
       changed = true;
     } else console.warn(`jflow: settings: the old publicUrl ${legacy.publicUrl} is not a bare origin; set it on /settings`);
   }
   if (value.gateSecret === '') {
     value.gateSecret = sealSecret(key, legacy.gateSecret || randomBytes(32).toString('base64url'));
+    gateSecretImported = Boolean(legacy.gateSecret);
     changed = true;
   }
   // Only write when something changed: a blind write at start could undo a save made meanwhile by another replica.
   if (changed) await store.save(value, loaded?.updatedBy ?? 'jflow', loaded?.updatedAt ?? now());
+  if (fromFile.length) console.warn(`jflow: imported ${fromFile.join(' and ')} from JFLOW_CONFIG`);
+  if (gateSecretImported) console.warn('jflow: imported the gate secret from JFLOW_GATE_SECRET; you can remove JFLOW_GATE_SECRET now');
   let row = (await store.load()) as StoredRow;
 
   const read = (r: StoredRow, field: 'docsToken' | 'linearApiKey'): string => {

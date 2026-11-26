@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair, type JWTVerifyGetKey } from 'jose';
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { memoryChatTokenStore } from '../src/chats/memoryChatTokenStore.js';
+import { openChatTokens } from '../src/chats/openChatTokens.js';
 import type { Config } from '../src/config/types.js';
 import { memoryDocuments } from '../src/documents/memoryDocuments.js';
 import type { Documents } from '../src/documents/types.js';
@@ -35,7 +37,6 @@ const MCP_TOKEN_B = 'b'.repeat(32);
 const config = {
   flowFolder: 'documents/Flow', templatesDir: TEMPLATES, webDir: WEB,
   access: { teamDomain: TEAM, aud: AUD },
-  mcpClients: [{ name: 'test', token: MCP_TOKEN }, { name: 'second-agent', token: MCP_TOKEN_B }],
 } as Config;
 const ENGINEERS = ['mika@jitera.com', 'ken@jitera.com'];
 let settings: LiveSettings;
@@ -82,7 +83,10 @@ async function setup(project: TrackerProject = PROJECT, publicUrl = ORIGIN) {
   await settings.save({ docsUrl: 'https://docs.example.com', jiteraProject: 'proj-1', tdrFolder: '', productDocs: '', compliance: '', docsToken: 'DOCS-TOKEN-AAA', linearApiKey: 'LIN-KEY-BBB', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
   docs = memoryDocuments({ [STATUS]: statusMd, [`${FOLDER}/2-spec.md`]: SPEC_DONE });
   tracker = fakeTracker(project);
-  deps = { config, settings, docs, tracker, now: () => new Date() };
+  const quiet = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [{ name: 'test', token: MCP_TOKEN }, { name: 'second-agent', token: MCP_TOKEN_B }], () => new Date());
+  quiet.mockRestore();
+  deps = { config, settings, chats, docs, tracker, now: () => new Date() };
   gate = (await openGate(deps, 'P-ENG-12', 'flow:plan')).gate;
   gatePath = `/gate/P-ENG-12/${gate}`;
   server = createHttpServer(deps, { jwks });
@@ -163,6 +167,14 @@ describe('/mcp', () => {
     expect(r.isError).toBeFalsy();
     expect(await docs.read(STATUS)).toContain('- Spec - Flow agent (second-agent) - hello');
     await client.close();
+  });
+  it('a token created on /settings works at once, and a revoked one is 401 at once', async () => {
+    const { chat, token } = await deps.chats.create('fresh', 'mika@jitera.com');
+    const h = { 'content-type': 'application/json', accept: 'application/json, text/event-stream', authorization: `Bearer ${token}` };
+    expect((await post('/mcp', initBody, h)).status).toBe(200);
+    expect(deps.chats.list().find((c) => c.id === chat.id)?.lastUsedAt).not.toBeNull();
+    expect(await deps.chats.revoke(chat.id)).toBe(true);
+    expect((await post('/mcp', initBody, h)).status).toBe(401);
   });
 });
 
@@ -324,6 +336,13 @@ describe('gate webhook', () => {
     const r = await hook(body);
     expect(r.status).toBe(409); // closed now
     expect(await r.json()).toEqual({ error: 'closed' });
+  });
+  it('a revoked token no longer signs; a live one does', async () => {
+    const revoked = await deps.chats.create('gone', 'mika@jitera.com');
+    await deps.chats.revoke(revoked.chat.id);
+    expect((await hook(bodyOf({}), { secret: revoked.token })).status).toBe(401);
+    const live = await deps.chats.create('live', 'mika@jitera.com');
+    expect((await hook(bodyOf({}), { secret: live.token })).status).toBe(200);
   });
   it('a partial approval answers open with the missing role', async () => {
     const tdr = (await openGate(deps, 'P-ENG-12', 'flow:tdr')).gate;

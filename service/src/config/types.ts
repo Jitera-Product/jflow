@@ -22,5 +22,4 @@ export type Config = {
   databaseUrl: string;
   settingsKey: string;
   legacy: LegacyFile | null;
-  mcpClients: Array<{ name: string; token: string }>;
 };

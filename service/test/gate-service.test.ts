@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { memoryChatTokenStore } from '../src/chats/memoryChatTokenStore.js';
+import { openChatTokens } from '../src/chats/openChatTokens.js';
 import type { Config } from '../src/config/types.js';
 import { memoryDocuments } from '../src/documents/memoryDocuments.js';
 import type { Documents } from '../src/documents/types.js';
@@ -27,6 +29,7 @@ const config = { flowFolder: 'documents/Flow', templatesDir: TEMPLATES } as Conf
 const ENGINEERS = ['mika@jitera.com', 'ken@jitera.com'];
 const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS, publicUrl: 'https://flow.example.com' }, () => new Date());
 await settings.save({ docsUrl: '', jiteraProject: '', tdrFolder: '', productDocs: '', compliance: '', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
+const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [], () => new Date());
 
 const PROJECT: TrackerProject = {
   id: 'uuid-12', identifier: 'P-ENG-12', name: 'Export', url: 'https://linear.app/x/project/export-abc',
@@ -54,7 +57,7 @@ let deps: Deps;
 function setup(project: TrackerProject = PROJECT, spec = SPEC_DONE) {
   docs = memoryDocuments({ [STATUS]: statusMd, [`${FOLDER}/2-spec.md`]: spec, 'documents/Flow/P-ENG-1 Other/0-status.md': 'x' });
   tracker = fakeTracker(project);
-  deps = { config, settings, docs, tracker, now: () => new Date('2026-11-23T10:00:00Z') };
+  deps = { config, settings, chats, docs, tracker, now: () => new Date('2026-11-23T10:00:00Z') };
 }
 beforeEach(() => setup());
 

@@ -1,5 +1,9 @@
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
+import { importLegacyTokens } from './chats/importLegacyTokens.js';
+import { openChatTokens } from './chats/openChatTokens.js';
+import { pgChatTokenStore } from './chats/pgChatTokenStore.js';
+import { legacyFileHint } from './config/legacyFileHint.js';
 import { loadConfig } from './config/loadConfig.js';
 import { migrate } from './db/migrate.js';
 import { liveDocuments } from './documents/liveDocuments.js';
@@ -14,9 +18,13 @@ const pool = new pg.Pool({ connectionString: config.databaseUrl, max: 4, connect
 pool.on('error', (e) => console.error(`jflow: db: ${e.message}`));
 await migrate(pool, fileURLToPath(new URL('../migrations', import.meta.url)));
 const settings = await openSettings(pgSettingsStore(pool), config.settingsKey, importLegacySettings(config, process.env), () => new Date());
+const chats = await openChatTokens(pgChatTokenStore(pool), config.settingsKey, importLegacyTokens(config, process.env), () => new Date());
+const hint = legacyFileHint(config, process.env);
+if (hint) console.warn(hint);
 const server = createHttpServer({
   config,
   settings,
+  chats,
   docs: liveDocuments(settings, config.documents),
   tracker: liveTracker(settings),
   now: () => new Date(),

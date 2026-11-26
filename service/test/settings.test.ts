@@ -80,6 +80,27 @@ describe('openSettings', () => {
     expect(again.get().engineers).toEqual(['ken@x.com']);
   });
 
+  it('says it imported a value only when it copied it into the store', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const store = memorySettingsStore();
+    const legacy = { engineers: ['Ken@x.com'], publicUrl: 'https://flow.example.com', gateSecret: 'g'.repeat(32) };
+    await openSettings(store, KEY, legacy, now);
+    expect(warn.mock.calls.map((a) => a[0])).toEqual([
+      'jflow: imported engineers and publicUrl from JFLOW_CONFIG',
+      'jflow: imported the gate secret from JFLOW_GATE_SECRET; you can remove JFLOW_GATE_SECRET now',
+    ]);
+    expect(JSON.stringify(warn.mock.calls)).not.toContain('g'.repeat(32));
+    warn.mockClear();
+    await openSettings(store, KEY, legacy, now);
+    expect(warn).not.toHaveBeenCalled();
+    const half = memorySettingsStore();
+    await openSettings(half, KEY, { engineers: [ken] }, now);
+    warn.mockClear();
+    await openSettings(half, KEY, legacy, now);
+    expect(warn.mock.calls.map((a) => a[0])).toEqual(['jflow: imported publicUrl from JFLOW_CONFIG']);
+    warn.mockRestore();
+  });
+
   it('skips a legacy publicUrl that is not a bare origin', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const s = await openSettings(memorySettingsStore(), KEY, { publicUrl: 'https://flow.example.com/app' }, now);
@@ -165,15 +186,11 @@ describe('openSettings', () => {
 describe('importLegacySettings', () => {
   const config = (legacy: Config['legacy']) => ({ legacy }) as Config;
 
-  it('takes engineers and publicUrl from the old file and the gate secret from the env, with one warning per source', () => {
+  it('takes engineers and publicUrl from the old file and the gate secret from the env, and says nothing yet', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const got = importLegacySettings(config({ engineers: ['Ken@x.com'], publicUrl: 'https://flow.example.com/' }), { JFLOW_GATE_SECRET: 'g'.repeat(32) });
     expect(got).toEqual({ engineers: ['Ken@x.com'], publicUrl: 'https://flow.example.com/', gateSecret: 'g'.repeat(32) });
-    expect(warn.mock.calls.map((a) => a[0])).toEqual([
-      'jflow: imported engineers and publicUrl from JFLOW_CONFIG; you can remove JFLOW_CONFIG now',
-      'jflow: imported the gate secret from JFLOW_GATE_SECRET; you can remove JFLOW_GATE_SECRET now',
-    ]);
-    expect(JSON.stringify(warn.mock.calls)).not.toContain('g'.repeat(32));
+    expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
   });
 

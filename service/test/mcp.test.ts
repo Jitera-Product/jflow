@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { memoryChatTokenStore } from '../src/chats/memoryChatTokenStore.js';
+import { openChatTokens } from '../src/chats/openChatTokens.js';
 import type { Config } from '../src/config/types.js';
 import { memoryDocuments } from '../src/documents/memoryDocuments.js';
 import type { Documents } from '../src/documents/types.js';
@@ -26,6 +28,7 @@ const NOW = () => new Date('2026-11-23T10:00:00Z');
 const ENGINEERS = ['mika@jitera.com', 'ken@jitera.com'];
 const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS, publicUrl: 'https://flow.example.com' }, NOW);
 await settings.save({ docsUrl: '', jiteraProject: '', tdrFolder: '', productDocs: '', compliance: '', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
+const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [], NOW);
 
 const PROJECT: TrackerProject = {
   id: 'uuid-12', identifier: 'P-ENG-12', name: 'Export', url: 'https://linear.app/x/project/export-abc',
@@ -53,7 +56,7 @@ let client: Client;
 async function setup(project: TrackerProject = PROJECT) {
   docs = memoryDocuments({ [STATUS]: statusMd, [`${FOLDER}/2-spec.md`]: SPEC_DONE });
   tracker = fakeTracker(project);
-  await connect({ config, settings, docs, tracker, now: NOW });
+  await connect({ config, settings, chats, docs, tracker, now: NOW });
 }
 async function connect(deps: Deps) {
   const [a, b] = InMemoryTransport.createLinkedPair();
@@ -184,7 +187,7 @@ describe('mcp tools', () => {
   it('a tool returns not_configured when settings are empty', async () => {
     const blank = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, NOW);
     await connect({
-      config, settings: blank, docs: liveDocuments(blank, config.documents), tracker: liveTracker(blank), now: NOW,
+      config, settings: blank, chats, docs: liveDocuments(blank, config.documents), tracker: liveTracker(blank), now: NOW,
     });
     const r = await call('read_feature', {});
     expect(r.isError).toBe(true);
@@ -192,7 +195,7 @@ describe('mcp tools', () => {
   });
   it('open_gate returns not_configured with the settings path until publicUrl is set', async () => {
     const noUrl = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, NOW);
-    await connect({ config, settings: noUrl, docs, tracker, now: NOW });
+    await connect({ config, settings: noUrl, chats, docs, tracker, now: NOW });
     const r = await call('open_gate', { to: 'flow:plan' });
     expect(r.isError).toBe(true);
     expect(r.content[0]!.text).toMatch(/^not_configured: .*\/settings/);

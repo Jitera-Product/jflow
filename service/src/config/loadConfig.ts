@@ -26,13 +26,6 @@ export function loadConfig(
   const aud = need('JFLOW_ACCESS_AUD', legacy?.access?.aud);
   if (problems.length) throw new Error(`Bad config: ${problems.join('; ')}`);
 
-  const mcpClients = (legacy?.mcpClients ?? []).flatMap((c) => {
-    const token = env[c.tokenEnv];
-    if (token && token.length >= MIN_SECRET) return [{ name: c.name, token }];
-    console.warn(`jflow: ${c.tokenEnv} is missing or shorter than ${MIN_SECRET} characters; chat client ${c.name} is skipped`);
-    return [];
-  });
-
   return {
     port: Number(env.PORT || 8080),
     flowFolder: 'documents/Flow',
@@ -43,6 +36,5 @@ export function loadConfig(
     databaseUrl,
     settingsKey,
     legacy,
-    mcpClients,
   };
 }

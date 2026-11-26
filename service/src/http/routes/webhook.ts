@@ -24,7 +24,7 @@ export async function webhook(deps: Deps, req: IncomingMessage, res: ServerRespo
   if (!raw) return tooLarge(res);
   const ts = header(req, 'x-jflow-timestamp') ?? '';
   const got = header(req, 'x-jflow-signature') ?? '';
-  const signed = deps.config.mcpClients.some((c) => same(got, `sha256=${hmac(c.token, `${ts}.`, raw)}`));
+  const signed = deps.chats.tokens().some((t) => same(got, `sha256=${hmac(t, `${ts}.`, raw)}`));
   const fresh = /^\d+$/.test(ts) && Math.abs(deps.now().getTime() / 1000 - Number(ts)) <= MAX_SKEW_SECONDS;
   if (!fresh || !signed) return json(res, 401, { error: 'unauthorized' });
   let parsed: unknown;

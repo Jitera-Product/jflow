@@ -1,4 +1,5 @@
-import { expect, it, vi } from 'vitest';
+import { expect, it } from 'vitest';
+import { legacyFileHint } from '../src/config/legacyFileHint.js';
 import { loadConfig } from '../src/config/loadConfig.js';
 
 const KEY = 'k'.repeat(32);
@@ -10,7 +11,7 @@ it('starts with the four env values and nothing else', () => {
   expect(c.flowFolder).toBe('documents/Flow');
   expect(c.documents.verbs.read).toEqual({ tool: 'resource_read', args: { path: '{path}', line_number: '100000' } });
   expect(c.legacy).toBeNull();
-  expect(c.mcpClients).toEqual([]);
+  expect(c).not.toHaveProperty('mcpClients');
   expect(c.databaseUrl).toBe('postgres://x');
   expect(c.settingsKey).toBe(KEY);
   expect(c.access).toEqual({ teamDomain: 't.cloudflareaccess.com', aud: 'a' });
@@ -36,15 +37,14 @@ it('the env wins over the access values in the old file', () => {
   const file = JSON.stringify({ access: { teamDomain: 'file', aud: 'file' } });
   expect(loadConfig({ ...env, JFLOW_CONFIG: '/c.json' }, () => file).access).toEqual({ teamDomain: 't.cloudflareaccess.com', aud: 'a' });
 });
-it('resolves the legacy mcpClients from their env tokens and skips a missing or short one with a warning', () => {
-  const file = JSON.stringify({ mcpClients: [{ name: 'agent', tokenEnv: 'MCP_TOKEN' }, { name: 'gone', tokenEnv: 'MCP_GONE' }, { name: 'short', tokenEnv: 'MCP_SHORT' }] });
-  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-  const c = loadConfig({ ...env, JFLOW_CONFIG: '/c.json', MCP_TOKEN: 'm'.repeat(32), MCP_SHORT: 'x' }, () => file);
-  expect(c.mcpClients).toEqual([{ name: 'agent', token: 'm'.repeat(32) }]);
-  expect(warn.mock.calls.map((a) => a[0])).toEqual([
-    expect.stringContaining('MCP_GONE'),
-    expect.stringContaining('MCP_SHORT'),
-  ]);
-  expect(JSON.stringify(warn.mock.calls)).not.toContain('m'.repeat(32));
-  warn.mockRestore();
+it('tells when JFLOW_CONFIG can be removed, and what must be set first', () => {
+  expect(legacyFileHint(loadConfig(env), env)).toBeNull();
+  const file = JSON.stringify({ mcpClients: [{ name: 'agent', tokenEnv: 'MCP_TOKEN' }], access: { teamDomain: 'file', aud: 'file' } });
+  const withFile = { ...env, JFLOW_CONFIG: '/c.json' };
+  expect(legacyFileHint(loadConfig(withFile, () => file), withFile)).toBe('jflow: you can remove JFLOW_CONFIG and MCP_TOKEN now');
+  const accessFromFile = { DATABASE_URL: 'p', JFLOW_SETTINGS_KEY: KEY, JFLOW_ACCESS_AUD: 'a', JFLOW_CONFIG: '/c.json' };
+  expect(legacyFileHint(loadConfig(accessFromFile, () => file), accessFromFile)).toBe(
+    'jflow: JFLOW_CONFIG still gives the Access values; set JFLOW_ACCESS_TEAM_DOMAIN and JFLOW_ACCESS_AUD before you remove JFLOW_CONFIG and MCP_TOKEN',
+  );
+  expect(legacyFileHint(loadConfig(withFile, () => '{}'), withFile)).toBe('jflow: you can remove JFLOW_CONFIG now');
 });

@@ -8,8 +8,6 @@ export const settingsFormSchema = z.object({
   linearApiKey: z.string().trim(),
   teams: z.array(z.string()),
   tdrFolder: z.string().trim(),
-  productDocs: z.string().trim(),
-  compliance: z.string().trim(),
   publicUrl: z.string().trim(),
   engineers: z.string().transform((s) => words(s.toLowerCase())),
 });

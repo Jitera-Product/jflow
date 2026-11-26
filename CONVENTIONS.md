@@ -55,9 +55,7 @@ lines override the defaults:
 | --- | --- |
 | Jitera project for flow documents | Flow |
 | TDR folder | Technical Design Record (TDR) |
-| Product docs to search for context | none |
 | Model route | none |
-| Compliance to check in specs and TDRs | none |
 
 ## Finding the project
 
@@ -104,7 +102,7 @@ outlives the project. Most projects need no TDR. The `spec` skill checks these t
 
 - a new service, new infrastructure or a new external vendor
 - a data model change or migration that touches more than one service
-- security: auth, tenancy and RLS, encryption and BYOK, anything your compliance regime looks at (setting)
+- security: auth, tenancy and RLS, encryption and BYOK, anything your compliance regime (for example ISMAP) looks at
 - a contract change between services (API, events, Hasura schema)
 - a decision that is expensive or impossible to undo
 - a visible change in infrastructure cost

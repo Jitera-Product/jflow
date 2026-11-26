@@ -48,8 +48,6 @@ export function JiteraSection({ tokenSet, test, footer }: Props) {
         )}
       </div>
       {field('tdrFolder', 'TDR folder')}
-      {field('productDocs', 'Product docs to search for context')}
-      {field('compliance', 'Compliance to check in specs and TDRs')}
       {footer}
     </SettingsSection>
   );

@@ -27,7 +27,7 @@ With the jflow tools (see "With the jflow service" in the conventions), use `rea
    - Requirements - numbered and testable.
    - Design - one part per repo. Name real files, tables, endpoints.
    - Security and compliance - tenancy and RLS, secrets, encryption and BYOK, audit log,
-     anything the compliance setting names. Write "none" explicitly if nothing applies.
+     anything your compliance regime (for example ISMAP) cares about. Write "none" explicitly if nothing applies.
    - Rollout and rollback - deploy order across repos, feature flags, how to undo.
    - TDR - go through "When a TDR is needed" in the conventions. Write "Not needed" or
      "Needed for <decision>, because <trigger>". Link existing TDRs in the same area.

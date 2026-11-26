@@ -28,7 +28,7 @@ const SPEC_OPEN = '**Flagged concerns.**\n\n1. Format - Decide: Mika\n';
 const config = { flowFolder: 'documents/Flow', templatesDir: TEMPLATES } as Config;
 const ENGINEERS = ['mika@jitera.com', 'ken@jitera.com'];
 const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS, publicUrl: 'https://flow.example.com' }, () => new Date());
-await settings.save({ docsUrl: '', tdrFolder: '', productDocs: '', compliance: '', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
+await settings.save({ docsUrl: '', tdrFolder: '', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
 const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [], () => new Date());
 
 const PROJECT: TrackerProject = {

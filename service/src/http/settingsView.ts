@@ -9,8 +9,6 @@ export const settingsView = (email: string, s: Settings) => ({
     teams: s.teams,
     publicUrl: s.publicUrl,
     tdrFolder: s.tdrFolder,
-    productDocs: s.productDocs,
-    compliance: s.compliance,
     engineers: s.engineers,
     updatedBy: s.updatedBy,
     updatedAt: s.updatedAt,

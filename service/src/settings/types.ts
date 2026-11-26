@@ -6,8 +6,6 @@ export type Settings = {
   engineers: string[];
   publicUrl: string; // bare origin, no trailing slash; '' until set
   tdrFolder: string;
-  productDocs: string;
-  compliance: string;
   gateSecret: string;
   legacyChatsImported: boolean;
   updatedBy: string | null;
@@ -20,8 +18,6 @@ export type SettingsInput = {
   engineers: string[];
   publicUrl?: string; // undefined or '' = keep the stored value
   tdrFolder?: string; // undefined = keep the stored value; '' clears it
-  productDocs?: string;
-  compliance?: string;
   docsToken?: string;
   linearApiKey?: string;
 };
@@ -34,8 +30,6 @@ export type StoredValue = {
   engineers: string[];
   publicUrl: string;
   tdrFolder: string;
-  productDocs: string;
-  compliance: string;
   gateSecret: string;
   legacyChatsImported: boolean; // the JFLOW_CONFIG chat clients are imported once, so a revoked one stays revoked
 };

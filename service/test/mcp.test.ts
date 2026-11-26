@@ -27,7 +27,7 @@ const config = {
 const NOW = () => new Date('2026-11-23T10:00:00Z');
 const ENGINEERS = ['mika@jitera.com', 'ken@jitera.com'];
 const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS, publicUrl: 'https://flow.example.com' }, NOW);
-await settings.save({ docsUrl: '', tdrFolder: '', productDocs: '', compliance: '', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
+await settings.save({ docsUrl: '', tdrFolder: '', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
 const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [], NOW);
 
 const PROJECT: TrackerProject = {
@@ -186,11 +186,11 @@ describe('mcp tools', () => {
   });
   it('read_settings returns the four team settings, with no Linear key set', async () => {
     const s = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, NOW);
-    await s.save({ docsUrl: '', tdrFolder: 'TDRs', productDocs: 'Specs', compliance: 'ISMAP', teams: [], engineers: ENGINEERS }, 'mika@jitera.com');
+    await s.save({ docsUrl: '', tdrFolder: 'TDRs', teams: [], engineers: ENGINEERS }, 'mika@jitera.com');
     await connect({ config, settings: s, chats, docs, tracker, now: NOW });
     const r = await call('read_settings', {});
     expect(r.isError).toBeUndefined();
-    expect(json(r)).toEqual({ tdrFolder: 'TDRs', productDocs: 'Specs', compliance: 'ISMAP' });
+    expect(json(r)).toEqual({ tdrFolder: 'TDRs' });
   });
   it('a tool returns not_configured when settings are empty', async () => {
     const blank = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, NOW);

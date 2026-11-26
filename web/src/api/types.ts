@@ -8,8 +8,6 @@ export type SettingsView = {
     engineers: string[];
     publicUrl: string;
     tdrFolder: string;
-    productDocs: string;
-    compliance: string;
     updatedBy: string | null;
     updatedAt: string | null;
   };
@@ -20,8 +18,6 @@ export type SettingsInput = {
   teams: string[];
   engineers: string[];
   tdrFolder: string;
-  productDocs: string;
-  compliance: string;
   publicUrl?: string; // blank or missing = keep the stored one
   docsToken?: string;
   linearApiKey?: string;

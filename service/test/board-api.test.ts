@@ -130,9 +130,9 @@ describe('access', () => {
     expect((await get('/api/board/feature/P-ENG-12', EVE)).status).toBe(200);
     expect((await get('/api/settings', EVE)).status).toBe(403);
   });
-  it('/api/me says who you are and whether you are an engineer', async () => {
-    expect(await (await get('/api/me')).json()).toEqual({ email: MIKA, engineer: true });
-    expect(await (await get('/api/me', EVE)).json()).toEqual({ email: EVE, engineer: false });
+  it('/api/me says who you are, whether you are an engineer, and the picked teams', async () => {
+    expect(await (await get('/api/me')).json()).toEqual({ email: MIKA, engineer: true, teams: ['ENG', 'CORE'] });
+    expect(await (await get('/api/me', EVE)).json()).toEqual({ email: EVE, engineer: false, teams: ['ENG', 'CORE'] });
   });
   it('board routes are GET only', async () => {
     const r = await fetch(base + '/api/board', { method: 'POST', headers: { 'cf-access-jwt-assertion': await sign(MIKA), origin: ORIGIN } });

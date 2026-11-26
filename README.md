@@ -115,6 +115,9 @@ project or repo level) with any of these lines:
 
 Requirements: `gh` logged in, Linear MCP and Jitera MCP connected.
 
+With a jflow service, an engineer connects each chat from `/settings` -> Chats: "New token", then copy the
+block for Jitera, Claude Code or another MCP chat. The service setup is in [docs/deploy.md](docs/deploy.md).
+
 ### Claude Code
 
 ```
@@ -122,7 +125,7 @@ Requirements: `gh` logged in, Linear MCP and Jitera MCP connected.
 /plugin install flow@jflow
 ```
 
-Update later with `/plugin marketplace update jflow`. For local work on the plugin itself:
+With a jflow service, also run the `claude mcp add` line from the Claude Code block in Chats. Update later with `/plugin marketplace update jflow`. For local work on the plugin itself:
 `claude --plugin-dir <path to jflow>`.
 
 ### Codex

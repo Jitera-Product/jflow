@@ -17,6 +17,7 @@ export type Config = {
   flowFolder: string;
   templatesDir: string;
   webDir: string;
+  agentFile: string;
   access: { teamDomain: string; aud: string };
   documents: Pick<DocumentsConnection, 'kind' | 'verbs'>; // url, project and token come from the settings
   databaseUrl: string;

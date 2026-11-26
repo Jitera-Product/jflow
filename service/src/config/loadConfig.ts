@@ -30,6 +30,7 @@ export function loadConfig(
     flowFolder: 'documents/Flow',
     templatesDir: fileURLToPath(new URL('../../../templates', import.meta.url)),
     webDir: fileURLToPath(new URL('../../../web/dist', import.meta.url)),
+    agentFile: fileURLToPath(new URL('../../agent/flow-agent.md', import.meta.url)),
     access: { teamDomain, aud },
     documents: { kind: 'jitera', verbs: DEFAULT_VERBS },
     databaseUrl,

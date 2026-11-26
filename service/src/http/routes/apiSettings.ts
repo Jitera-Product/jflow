@@ -25,12 +25,6 @@ const settingsBody = z.object({
 
 export async function apiSettings(ctx: HttpContext, req: IncomingMessage, res: ServerResponse, email: string) {
   const live = ctx.deps.settings;
-  if (live.get().engineers.length === 0 && (await live.claimFirstEngineer(email))) {
-    console.log(`jflow: ${email} is the first engineer`);
-  }
-  if (!live.get().engineers.includes(email)) {
-    return json(res, 403, { error: 'not_allowed', message: 'Only jflow engineers can open settings. Ask an engineer to add you.' });
-  }
   if (req.method === 'GET') return json(res, 200, settingsView(email, live.get()));
 
   const read = await readJson(req, res);

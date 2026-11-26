@@ -12,6 +12,7 @@ import { apiBoard } from './apiBoard.js';
 import { apiChats } from './apiChats.js';
 import { apiFeaturePanel } from './apiFeaturePanel.js';
 import { apiGate } from './apiGate.js';
+import { apiIdeas } from './apiIdeas.js';
 import { apiLinear } from './apiLinear.js';
 import { apiMe } from './apiMe.js';
 import { apiSettings } from './apiSettings.js';
@@ -37,6 +38,17 @@ export async function handle(ctx: HttpContext, req: IncomingMessage, res: Server
       return json(res, 409, { error: 'not_configured', message: 'An engineer has to finish setup on /settings first.' });
     }
     return board[2] ? apiFeaturePanel(ctx, res, email, board[2]) : apiBoard(ctx, req, res, email);
+  }
+
+  const idea = path === '/api/ideas/owners' ? 'GET' : path === '/api/ideas' ? 'POST' : null;
+  if (idea && req.method === idea) {
+    if (idea === 'POST' && !sameOrigin(ctx, req)) return json(res, 403, { error: 'refused' });
+    const email = await verifyAccess(header(req, 'cf-access-jwt-assertion'), { ...ctx.deps.config.access, jwks: ctx.opts.jwks });
+    if (!email) return json(res, 401, { error: 'sign_in' });
+    if (!isConfigured(ctx.deps.settings.get())) {
+      return json(res, 409, { error: 'not_configured', message: 'An engineer has to finish setup on /settings first.' });
+    }
+    return apiIdeas(ctx, req, res, email);
   }
 
   const api = /^\/api\/(?:(settings|setup|setup\/jitera|agent-prompt|chats|linear\/(?:teams|labels))|chats\/([^/]+)|gate\/([^/]+)\/([^/]+))$/.exec(path);

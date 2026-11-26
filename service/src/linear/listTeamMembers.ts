@@ -8,5 +8,5 @@ export async function listTeamMembers(fetchFn: typeof fetch, apiKey: string, tea
   const data = await gql<{ teams: { nodes: Array<{ members: { nodes: Array<{ id: string; name: string; email: string; active: boolean }> } }> } }>(
     fetchFn, apiKey, QUERY, { key: teamKey });
   const members = data.teams.nodes[0]?.members.nodes ?? [];
-  return members.filter((m) => m.active).map((m) => ({ id: m.id, name: m.name, email: m.email }));
+  return members.filter((m) => m.active).map((m) => ({ id: m.id, name: m.name, email: m.email.toLowerCase() }));
 }

@@ -57,10 +57,18 @@ it('listTeamMembers drops inactive users', async () => {
   expect(out).toEqual([{ id: 'a', name: 'a', email: 'a@x.com' }]);
 });
 
+it('listTeamMembers lowercases emails', async () => {
+  const out = await listTeamMembers(fakeFetch({ BoardTeamMembers: { data: { teams: { nodes: [{ members: { nodes: [{ id: 'a', name: 'A', email: 'A@X.com', active: true }] } }] } } } }), 'k', 'CORE');
+  expect(out[0]!.email).toBe('a@x.com');
+});
+
 describe('findUserByEmail', () => {
   const f = (nodes: any[]) => fakeFetch({ BoardUserByEmail: { data: { users: { nodes } } } });
   it('matches case-insensitively', async () => {
-    expect(await findUserByEmail(f([{ id: 'k', name: 'Ken', email: 'ken@x.com' }]), 'k', 'Ken@X.com')).toEqual({ id: 'k', name: 'Ken' });
+    expect(await findUserByEmail(f([{ id: 'k', name: 'Ken', email: 'ken@x.com', active: true }]), 'k', 'Ken@X.com')).toEqual({ id: 'k', name: 'Ken' });
+  });
+  it('skips a deactivated user', async () => {
+    expect(await findUserByEmail(f([{ id: 'k', name: 'Ken', email: 'ken@x.com', active: false }]), 'k', 'ken@x.com')).toBeNull();
   });
   it('returns null for none', async () => {
     expect(await findUserByEmail(f([]), 'k', 'no@x.com')).toBeNull();
@@ -69,7 +77,7 @@ describe('findUserByEmail', () => {
 
 describe('createFlowProject', () => {
   const input = { teamKey: 'CORE', name: 'Idea', summary: 'd', content: '# Md', leadId: 'lead1' };
-  const created = { data: { projectCreate: { project: { id: 'u9', slugId: 's9', url: 'https://linear.app/p' } } } };
+  const created = { data: { projectCreate: { success: true, project: { id: 'u9', slugId: 's9', url: 'https://linear.app/p' } } } };
   it('sends team, name, description, lead and the intent label id', async () => {
     const bodies: Body[] = [];
     const f = fakeFetch({
@@ -91,6 +99,13 @@ describe('createFlowProject', () => {
     expect(sent.description).not.toContain('\n');
     expect(sent.description.startsWith('a b x')).toBe(true);
     expect(sent.content).toBe('line1\n\nline2');
+  });
+  it.each([{ success: false, project: null }, { success: true, project: null }])('throws a clear error when Linear does not create it (%j)', async (projectCreate) => {
+    const f = fakeFetch({
+      BoardCreateLookup: { data: { teams: { nodes: [{ id: 't1' }] }, projectLabels: { nodes: [{ id: 'l1', name: 'flow:intent' }] } } },
+      BoardProjectCreate: { data: { projectCreate } },
+    });
+    await expect(createFlowProject(f, 'k', input)).rejects.toThrow('Linear: could not create the project');
   });
   it('creates the label in the flow group first when missing', async () => {
     const bodies: Body[] = [];

@@ -24,9 +24,10 @@ export async function createFlowProject(
     const { parentId } = await readFlowLabels(fetchFn, apiKey);
     labelId = await createFlowLabel(fetchFn, apiKey, INTENT, parentId);
   }
-  const data = await gql<{ projectCreate: { project: { id: string; slugId: string; url: string } } }>(fetchFn, apiKey, CREATE, {
+  const data = await gql<{ projectCreate: { success: boolean; project: { id: string; slugId: string; url: string } | null } }>(fetchFn, apiKey, CREATE, {
     input: { name: input.name, description: input.summary.replace(/\s+/g, ' ').trim().slice(0, 255), content: input.content, teamIds: [teamId], leadId: input.leadId, labelIds: [labelId] },
   });
   const p = data.projectCreate.project;
+  if (!data.projectCreate.success || !p) throw new Error('Linear: could not create the project');
   return { uuid: p.id, slugId: p.slugId, url: p.url };
 }

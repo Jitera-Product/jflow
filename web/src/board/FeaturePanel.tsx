@@ -5,6 +5,7 @@ import { getMe } from '@/api/getMe';
 import type { FeaturePanelView } from '@/api/types';
 import { Button } from '@/components/ui/Button';
 import { StatePanel } from '@/shell/StatePanel';
+import { chatLink } from './chatLink';
 
 const LINK = 'text-primary underline underline-offset-4';
 
@@ -51,6 +52,7 @@ export function FeaturePanel({ featureKey, onClose }: { featureKey: string; onCl
   }, [featureKey]);
 
   const c = view?.card;
+  const chat = view?.folder && agentUrl ? chatLink(agentUrl, view.folder) : null;
   const title = c ? (c.id ? `${c.id} ${c.name}` : c.name) : featureKey;
   return (
     <aside
@@ -120,10 +122,8 @@ export function FeaturePanel({ featureKey, onClose }: { featureKey: string; onCl
               </ul>
             </section>
           )}
-          {view.folder && agentUrl && (
-            <a className={LINK} href={`${agentUrl}&folder=${encodeURIComponent(view.folder)}`} target="_blank" rel="noopener">Open in Jitera chat</a>
-          )}
-          <a className={LINK} href={view.linearUrl} target="_blank" rel="noopener">Open in Linear</a>
+          {chat && <a className={LINK} href={chat} target="_blank" rel="noopener noreferrer">Open in Jitera chat</a>}
+          <a className={LINK} href={view.linearUrl} target="_blank" rel="noopener noreferrer">Open in Linear</a>
         </>
       )}
     </aside>

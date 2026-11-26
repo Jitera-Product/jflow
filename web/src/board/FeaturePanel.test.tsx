@@ -114,8 +114,20 @@ test('Open in Jitera chat links to the Flow agent chat bound to the feature fold
   renderAt('/f/P-ENG-12');
   const dialog = await screen.findByRole('dialog', { name: 'P-ENG-12 Search filters' });
   const link = await within(dialog).findByRole('link', { name: 'Open in Jitera chat' });
-  expect(link.getAttribute('href')).toBe(`${AGENT}&folder=documents%2FFlow%2FP-ENG-12%20Search%20filters%2F`);
+  expect(link.getAttribute('href')).toBe(`${AGENT}&folder=documents%2FFlow%2FP-ENG-12+Search+filters%2F`);
   expect(link.getAttribute('target')).toBe('_blank');
+  expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+  expect(within(dialog).getByRole('link', { name: 'Open in Linear' }).getAttribute('rel')).toBe('noopener noreferrer');
+});
+
+test.each([
+  [`${AGENT}#top`, `${AGENT}&folder=documents%2FFlow%2FP-ENG-12+Search+filters%2F#top`],
+  [`${AGENT}&folder=old`, `${AGENT}&folder=documents%2FFlow%2FP-ENG-12+Search+filters%2F`],
+])('the chat link from %s keeps one folder parameter before the fragment', async (agent, href) => {
+  routeFetch(routes({ 'GET /api/me': reply(200, me({ flowAgentUrl: agent })) }));
+  renderAt('/f/P-ENG-12');
+  const dialog = await screen.findByRole('dialog', { name: 'P-ENG-12 Search filters' });
+  expect((await within(dialog).findByRole('link', { name: 'Open in Jitera chat' })).getAttribute('href')).toBe(href);
 });
 
 test('no Jitera chat link without a folder', async () => {

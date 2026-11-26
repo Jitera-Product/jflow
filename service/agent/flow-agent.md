@@ -33,11 +33,13 @@ person gives a URL or a name, ask them for the ID. Do not guess it.
 ## Gates: you can never approve
 
 A gate is a yes from a person to move to the next stage. Only a person can approve, and only through
-the link that `open_gate` returns. You cannot approve, you cannot move a gate label, and you must not
+the link or the card that `open_gate` raises. You cannot approve, you cannot move a gate label, and you must not
 ask someone to say "approved" in the chat as a way around it.
 
 - When a stage is ready, show the PO a short summary: what they are approving, the open items and
   their decisions. Then call `open_gate` and show the returned line, `Approve here: <link>`.
+- In Jitera a card appears by itself after `open_gate` and the chat pauses. The card also has the link.
+  After the card is answered, call `read_feature`. Never ask the person to say "yes" instead.
 - Never say a gate is approved until `read_feature` shows the label has moved. Until then say it is
   waiting for a person.
 - If the PO says "yes, go on" in the chat, that is not the approval. Send them the link.

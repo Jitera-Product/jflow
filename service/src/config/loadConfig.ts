@@ -27,7 +27,6 @@ export function loadConfig(
   const aud = access('JFLOW_ACCESS_AUD', 'aud');
   const teamDomain = access('JFLOW_ACCESS_TEAM_DOMAIN', 'teamDomain');
   const gateSecret = secret('JFLOW_GATE_SECRET', MIN_SECRET);
-  const callbackSecret = secret('JFLOW_CALLBACK_SECRET', MIN_SECRET);
   const databaseUrl = secret('DATABASE_URL');
   const settingsKey = secret('JFLOW_SETTINGS_KEY', MIN_SECRET);
   const mcpClients = file.mcpClients.map((c) => ({ name: c.name, token: secret(c.tokenEnv, MIN_SECRET) }));
@@ -48,7 +47,6 @@ export function loadConfig(
     databaseUrl,
     settingsKey,
     gateSecret,
-    callbackSecret,
     mcpClients,
   };
 }

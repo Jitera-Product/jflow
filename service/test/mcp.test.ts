@@ -146,11 +146,14 @@ describe('mcp tools', () => {
     expect(tracker.labels).toEqual(['flow:spec-review']);
   });
   it('open_gate returns the line to show', async () => {
-    const g = json(await call('open_gate', { to: 'flow:plan' }));
+    const r = await call('open_gate', { to: 'flow:plan' });
+    const g = json(r);
+    expect(r._meta).toEqual({ 'jflow/gate': { project: 'P-ENG-12', gate: g.gate, url: g.url, from: 'flow:spec-review', to: 'flow:plan' } });
     expect(g.say).toBe(`Approve here: ${g.url}`);
     expect(g).toMatchObject({ project: 'P-ENG-12', from: 'flow:spec-review', to: 'flow:plan' }); // what a chat host renders the card from
     expect(g.url).toBe(`https://flow.example.com/gate/P-ENG-12/${g.gate}`);
     const bad = await call('open_gate', { to: 'flow:build' });
+    expect(bad._meta).toBeUndefined();
     expect(bad.isError).toBe(true);
     expect(bad.content[0]!.text).toMatch(/^not_allowed: /);
   });

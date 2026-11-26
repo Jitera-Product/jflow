@@ -6,7 +6,6 @@ const example = JSON.parse(readFileSync(new URL('../config.example.json', import
 const env = {
   JFLOW_CONFIG: 'x',
   JFLOW_GATE_SECRET: 'g'.repeat(32),
-  JFLOW_CALLBACK_SECRET: 'c'.repeat(32),
   MCP_TOKEN: 'm'.repeat(32),
   DATABASE_URL: 'postgres://u:p@db.example.com/jflow',
   JFLOW_SETTINGS_KEY: 'k'.repeat(32),
@@ -25,7 +24,7 @@ it('reads the file and the secrets', () => {
 });
 it('names every missing secret in one error', () => {
   expect(() => loadConfig({ JFLOW_CONFIG: 'x' }, () => JSON.stringify(example)))
-    .toThrow(/JFLOW_GATE_SECRET.*JFLOW_CALLBACK_SECRET.*DATABASE_URL.*JFLOW_SETTINGS_KEY.*MCP_TOKEN/s);
+    .toThrow(/JFLOW_GATE_SECRET.*DATABASE_URL.*JFLOW_SETTINGS_KEY.*MCP_TOKEN/s);
 });
 it('DATABASE_URL is required', () => {
   expect(() => loadConfig({ ...env, DATABASE_URL: undefined }, () => JSON.stringify(example))).toThrow(/DATABASE_URL is missing/);

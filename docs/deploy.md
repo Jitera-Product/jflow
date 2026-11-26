@@ -25,10 +25,9 @@ The service listens on `PORT` (default `8080`).
 | --- | --- |
 | `JFLOW_CONFIG` | Path of the config file. |
 | `JFLOW_GATE_SECRET` | At least 32 characters. |
-| `JFLOW_CALLBACK_SECRET` | At least 32 characters. Shared with the chat host that sends [gate callbacks](gate-callback.md). |
 | `DATABASE_URL` | Postgres 14 or newer, for example `postgres://jflow:pass@db.example.com:5432/jflow`. jflow runs its migrations at start. |
 | `JFLOW_SETTINGS_KEY` | At least 32 characters. Encrypts the docs token and the Linear key in the database. If you change it, type the two keys again on `/settings`. |
-| `MCP_TOKEN` | One per `mcpClients` entry, named by its `tokenEnv`. At least 32 characters, and each one unique. |
+| `MCP_TOKEN` | One per `mcpClients` entry, named by its `tokenEnv`. At least 32 characters, and each one unique. The client also signs [gate callbacks](gate-callback.md) with it. |
 | `JFLOW_ACCESS_AUD` | Optional. Overrides `access.aud` in the file. |
 | `JFLOW_ACCESS_TEAM_DOMAIN` | Optional. Overrides `access.teamDomain` in the file. |
 

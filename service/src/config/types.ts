@@ -39,6 +39,5 @@ export type Config = {
   databaseUrl: string;
   settingsKey: string;
   gateSecret: string;
-  callbackSecret: string;
   mcpClients: Array<{ name: string; token: string }>;
 };

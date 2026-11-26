@@ -23,7 +23,6 @@ Set `JFLOW_CONFIG` to the path of a JSON file. See `config.example.json` for a f
 
 - `JFLOW_CONFIG`: path to the config file.
 - `JFLOW_GATE_SECRET`: at least 32 characters.
-- `JFLOW_CALLBACK_SECRET`: at least 32 characters.
 - `DATABASE_URL`: Postgres 14 or newer. jflow runs its migrations at start.
 - `JFLOW_SETTINGS_KEY`: at least 32 characters. Encrypts the docs token and the Linear key in the database. If you change it, type the two keys again on `/settings`.
 - One variable per entry in `mcpClients`, named by its `tokenEnv` (the example uses `MCP_TOKEN`). At least 32 characters, and each one different.
@@ -42,7 +41,7 @@ npm ci
 npm run build
 cp config.example.json config.local.json   # then edit it
 export JFLOW_CONFIG=$PWD/config.local.json
-export DATABASE_URL=... JFLOW_SETTINGS_KEY=... JFLOW_GATE_SECRET=... JFLOW_CALLBACK_SECRET=... MCP_TOKEN=...
+export DATABASE_URL=... JFLOW_SETTINGS_KEY=... JFLOW_GATE_SECRET=... MCP_TOKEN=...
 npm start
 curl localhost:8080/healthz
 ```
@@ -62,7 +61,7 @@ Build from the repo root, because the image needs `templates/` and `web/`:
 docker build -f service/Dockerfile -t jflow:dev .
 docker run --rm -p 8080:8080 \
   -e JFLOW_CONFIG=/config.json -v $PWD/service/config.local.json:/config.json \
-  -e DATABASE_URL=... -e JFLOW_SETTINGS_KEY=... -e JFLOW_GATE_SECRET=... -e JFLOW_CALLBACK_SECRET=... \
+  -e DATABASE_URL=... -e JFLOW_SETTINGS_KEY=... -e JFLOW_GATE_SECRET=... \
   -e MCP_TOKEN=... \
   jflow:dev
 ```

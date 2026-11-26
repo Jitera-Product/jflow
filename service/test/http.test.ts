@@ -31,12 +31,11 @@ const TEAM = 'team.cloudflareaccess.com';
 const AUD = 'aud-1';
 const MCP_TOKEN = 't'.repeat(32);
 const MCP_TOKEN_B = 'b'.repeat(32);
-const CALLBACK = 'c'.repeat(32);
 
 const config = {
   publicUrl: ORIGIN, flowFolder: 'documents/Flow', templatesDir: TEMPLATES, webDir: WEB,
   access: { teamDomain: TEAM, aud: AUD },
-  gateSecret: 's'.repeat(32), callbackSecret: CALLBACK,
+  gateSecret: 's'.repeat(32),
   mcpClients: [{ name: 'test', token: MCP_TOKEN }, { name: 'second-agent', token: MCP_TOKEN_B }],
 } as Config;
 const ENGINEERS = ['mika@jitera.com', 'ken@jitera.com'];
@@ -293,7 +292,7 @@ describe('gate webhook', () => {
   const now = () => Math.floor(Date.now() / 1000);
   const hook = (body: string, o: { secret?: string; ts?: number | string } = {}) => {
     const ts = String(o.ts ?? now());
-    const sig = createHmac('sha256', o.secret ?? CALLBACK).update(`${ts}.${body}`).digest('hex');
+    const sig = createHmac('sha256', o.secret ?? MCP_TOKEN).update(`${ts}.${body}`).digest('hex');
     return post('/webhooks/gate', body, { 'content-type': 'application/json', 'x-jflow-timestamp': ts, 'x-jflow-signature': `sha256=${sig}` });
   };
   const bodyOf = (v: Record<string, string>) =>
@@ -301,17 +300,38 @@ describe('gate webhook', () => {
 
   it('the gate webhook checks the signature and the clock', async () => {
     const body = bodyOf({});
-    expect((await hook(body, { secret: 'wrong' })).status).toBe(401);
+    expect((await hook(body, { secret: 'w'.repeat(32) })).status).toBe(401);
     expect((await hook(body, { ts: now() - 301 })).status).toBe(401);
     expect((await hook(body, { ts: now() + 301 })).status).toBe(401);
     expect((await hook(body, { ts: 'soon' })).status).toBe(401);
     expect(tracker.labels).toEqual(['flow:spec-review']);
-    expect((await hook(body)).status).toBe(204);
+    const ok = await hook(body, { secret: MCP_TOKEN_B }); // any MCP client's token signs
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toEqual({ status: 'approved', missing: [] });
     expect(tracker.labels).toEqual(['flow:plan']);
     expect(await docs.read(STATUS)).toContain('Spec review approved - mika@jitera.com via chat');
     const r = await hook(body);
     expect(r.status).toBe(409); // closed now
     expect(await r.json()).toEqual({ error: 'closed' });
+  });
+  it('a partial approval answers open with the missing role', async () => {
+    const tdr = (await openGate(deps, 'P-ENG-12', 'flow:tdr')).gate;
+    const send = (email: string) => hook(bodyOf({ gate: tdr, to: 'flow:tdr', email }));
+    for (const _ of [1, 2]) {
+      const r = await send('ken@jitera.com');
+      expect(r.status).toBe(200);
+      expect(await r.json()).toEqual({ status: 'open', missing: ['owner'] });
+      expect(tracker.labels).toEqual(['flow:spec-review']);
+    }
+    const done = await send(MIKA);
+    expect(done.status).toBe(200);
+    expect(await done.json()).toEqual({ status: 'approved', missing: [] });
+    expect(tracker.labels).toEqual(['flow:tdr']);
+  });
+  it('request changes answers changes requested', async () => {
+    const r = await hook(bodyOf({ decision: 'changes', email: MIKA }));
+    expect(r.status).toBe(200);
+    expect(await r.json()).toEqual({ status: 'changes requested', missing: ['owner'] });
   });
   it('a signed bad body is 400', async () => {
     const r = await hook(bodyOf({ decision: 'maybe' }));

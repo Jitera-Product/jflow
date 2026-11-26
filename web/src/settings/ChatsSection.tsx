@@ -24,6 +24,7 @@ export function ChatsSection({ publicUrl }: { publicUrl: string }) {
   const [asking, setAsking] = useState(false);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState<string | null>(null); // 'create' or the id being revoked
+  const [confirming, setConfirming] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   // The token lives only here, until Done. It is never stored or read again.
   const [created, setCreated] = useState<(CreatedChat & { publicUrl: string }) | null>(null);
@@ -54,6 +55,7 @@ export function ChatsSection({ publicUrl }: { publicUrl: string }) {
   const revoke = async (id: string) => {
     setBusy(id);
     setProblem(null);
+    setConfirming(null);
     try {
       await revokeChat(id);
       await load();
@@ -81,9 +83,23 @@ export function ChatsSection({ publicUrl }: { publicUrl: string }) {
                 <span className="text-muted-foreground wrap-anywhere">{`Created by ${c.createdBy}, ${when.format(new Date(c.createdAt))}`}</span>
                 <span className="text-muted-foreground">{`Last used ${c.lastUsedAt ? when.format(new Date(c.lastUsedAt)) : 'never'}`}</span>
               </div>
-              <Button type="button" variant="outline" size="sm" loading={busy === c.id} onClick={() => revoke(c.id)}>
-                Revoke
-              </Button>
+              {confirming === c.id ? (
+                <div className="grid justify-items-end gap-2">
+                  <p>{`Revoke ${c.name}? The chat that uses it stops working.`}</p>
+                  <div className="flex gap-2">
+                    <Button type="button" size="sm" onClick={() => revoke(c.id)}>
+                      Revoke
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setConfirming(null)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button type="button" variant="outline" size="sm" loading={busy === c.id} onClick={() => setConfirming(c.id)}>
+                  Revoke
+                </Button>
+              )}
             </li>
           ))}
         </ul>

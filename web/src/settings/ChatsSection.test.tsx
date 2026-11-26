@@ -38,6 +38,12 @@ test('the list shows name, created by, created at, last used and Revoke', async 
   expect(screen.getByText('Claude Code').closest('li')!.textContent).toContain('Last used never');
 
   await user.click(within(row).getByRole('button', { name: 'Revoke' }));
+  expect(callsTo(f, 'DELETE', '/api/chats/c1')).toHaveLength(0);
+  expect(within(row).getByText('Revoke Jitera? The chat that uses it stops working.')).toBeTruthy();
+  await user.click(within(row).getByRole('button', { name: 'Cancel' }));
+  expect(callsTo(f, 'DELETE', '/api/chats/c1')).toHaveLength(0);
+  await user.click(within(row).getByRole('button', { name: 'Revoke' }));
+  await user.click(within(row).getByRole('button', { name: 'Revoke' }));
   await vi.waitFor(() => expect(screen.queryByText('Jitera')).toBeNull());
   expect(callsTo(f, 'DELETE', '/api/chats/c1')[0]![1]).toMatchObject({ credentials: 'same-origin', headers: { 'content-type': 'application/json' } });
 });

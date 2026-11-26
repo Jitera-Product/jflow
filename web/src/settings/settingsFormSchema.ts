@@ -4,7 +4,6 @@ const words = (s: string) => s.split(/\s+/).filter(Boolean);
 
 export const settingsFormSchema = z.object({
   docsUrl: z.string().trim(),
-  jiteraProject: z.string().trim(),
   docsToken: z.string().trim(),
   linearApiKey: z.string().trim(),
   teams: z.array(z.string()),

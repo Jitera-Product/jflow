@@ -58,7 +58,7 @@ const fakeLinear = (async (_url: any, init: any) => {
 
 async function start(publicUrl = ORIGIN, linearApiKey = 'LIN-KEY-BBB', docs?: Documents) {
   settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: [MIKA], publicUrl }, () => new Date());
-  await settings.save({ docsUrl: 'https://d.example.com', jiteraProject: 'p', teams: ['ENG'], engineers: [MIKA], linearApiKey }, MIKA);
+  await settings.save({ docsUrl: 'https://d.example.com', teams: ['ENG'], engineers: [MIKA], linearApiKey }, MIKA);
   const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [], () => new Date());
   deps = { config, settings, chats, docs: docs ?? memoryDocuments({}), tracker: {} as never, now: () => new Date() };
   server = createHttpServer(deps, { jwks, fetch: fakeLinear });
@@ -119,7 +119,7 @@ describe('/api/setup', () => {
     await server.close();
     await start(ORIGIN, '');
     expect((await setup()).linear).toEqual({ ok: false, message: 'Add a Linear API key.' });
-    await settings.save({ docsUrl: 'https://d.example.com', jiteraProject: 'p', teams: [], engineers: [MIKA], linearApiKey: 'LIN-KEY-BBB' }, MIKA);
+    await settings.save({ docsUrl: 'https://d.example.com', teams: [], engineers: [MIKA], linearApiKey: 'LIN-KEY-BBB' }, MIKA);
     expect((await setup()).linear).toEqual({ ok: false, message: 'Pick at least one Linear team.' });
   });
   it('a failing Linear or Jitera is reported, never thrown, and leaks no secret', async () => {
@@ -152,13 +152,13 @@ describe('/api/linear', () => {
     expect((await call('POST', '/api/linear/labels')).status).toBe(404);
   });
   it('saving settings creates the missing flow labels', async () => {
-    const r = await call('POST', '/api/settings', MIKA, { docsUrl: 'https://docs.example.com', jiteraProject: 'proj-1', teams: ['ENG'], engineers: [MIKA] });
+    const r = await call('POST', '/api/settings', MIKA, { docsUrl: 'https://docs.example.com', teams: ['ENG'], engineers: [MIKA] });
     expect(r.status).toBe(200);
     expect(linearCalls.filter((c) => c.startsWith('create:'))).toEqual(flowLabels().slice(1).map((l) => 'create:' + l));
   });
   it('a save still succeeds when Linear cannot create the labels', async () => {
     linearFails = true;
-    const r = await call('POST', '/api/settings', MIKA, { docsUrl: 'https://docs.example.com', jiteraProject: 'proj-1', teams: ['ENG'], engineers: [MIKA] });
+    const r = await call('POST', '/api/settings', MIKA, { docsUrl: 'https://docs.example.com', teams: ['ENG'], engineers: [MIKA] });
     expect(r.status).toBe(200);
   });
   it('a Linear failure is a 502 with a message', async () => {

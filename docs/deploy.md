@@ -56,7 +56,8 @@ the chat copy blocks are built from it. jflow never takes it from the `Host` hea
 The checklist on top shows what is left. Each item links to its section:
 
 1. **Linear.** Paste an API key and pick the teams. On save, jflow creates the `flow:*` project labels that are missing.
-2. **Jitera.** Set the MCP URL, the token and the project for flow documents. "Test" lists the flow folder.
+2. **Jitera.** Set the MCP URL and a token tied to the project that holds the flow documents (for example the key of
+   an agent in that project). "Test" lists the flow folder.
    The TDR folder, the product docs and the compliance list are here too.
 3. **People.** Check the jflow address. List the engineers, one email per line.
 4. **Chats.** "New token" asks for a name and shows the token once, with copy blocks for Jitera, Claude Code

@@ -67,12 +67,14 @@ it('swaps flow labels and keeps the others', async () => {
   expect(bodies.find((b) => b.query.includes('projectLabels'))!.variables.name).toBe('flow:plan');
 });
 
-it('throws when the label does not exist in the workspace', async () => {
+it('creates the label when it does not exist in the workspace, then sets it', async () => {
   const bodies: Body[] = [];
-  await expect(linearTracker('k', fakeFetch({
+  await linearTracker('k', fakeFetch({
     ProjectLabelIds: withLabels([]), FlowLabel: labelLookup([]), SetProjectLabels: updated,
-  }, bodies)).setFlowLabel('p1', 'flow:ui')).rejects.toThrow(/flow:ui/);
-  expect(bodies.some((b) => b.query.includes('projectUpdate'))).toBe(false);
+    CreateFlowLabel: { data: { projectLabelCreate: { success: true, projectLabel: { id: 'label-flow-ui' } } } },
+  }, bodies)).setFlowLabel('p1', 'flow:ui');
+  expect(bodies.find((b) => b.query.includes('projectLabelCreate'))!.variables).toEqual({ name: 'flow:ui' });
+  expect(bodies.at(-1)!.variables.input.labelIds).toEqual(['label-flow-ui']);
 });
 
 describe('setup helpers', () => {
@@ -94,8 +96,8 @@ describe('setup helpers', () => {
   it('createFlowLabels sends one projectLabelCreate per missing label', async () => {
     const bodies: Body[] = [];
     const have = ['flow:intent', 'flow:spec', 'flow:spec-review', 'flow:tdr', 'flow:ui'];
-    await createFlowLabels(fakeFetch({ FlowProjectLabels: labelsAnswer(have), CreateFlowLabel: { data: { projectLabelCreate: { success: true } } } }, bodies), 'k');
-    const created = bodies.filter((b) => b.query.includes('projectLabelCreate')).map((b) => b.variables.name);
+    const created = await createFlowLabels(fakeFetch({ FlowProjectLabels: labelsAnswer(have), CreateFlowLabel: { data: { projectLabelCreate: { success: true } } } }, bodies), 'k');
+    expect(bodies.filter((b) => b.query.includes('projectLabelCreate')).map((b) => b.variables.name)).toEqual(['flow:plan', 'flow:build']);
     expect(created).toEqual(['flow:plan', 'flow:build']);
   });
 });

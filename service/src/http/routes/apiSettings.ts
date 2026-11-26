@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { z } from 'zod';
+import { createFlowLabels } from '../../linear/createFlowLabels.js';
 import { bareOrigin } from '../../settings/bareOrigin.js';
 import { SettingsError } from '../../settings/SettingsError.js';
 import { header } from '../header.js';
@@ -46,5 +47,14 @@ export async function apiSettings(ctx: HttpContext, req: IncomingMessage, res: S
     throw e;
   }
   console.log(`jflow: settings saved by ${email}`);
+  const key = live.get().linearApiKey;
+  if (key) {
+    try {
+      const created = await createFlowLabels(ctx.opts.fetch ?? fetch, key);
+      if (created.length) console.log(`jflow: created Linear project labels ${created.join(', ')}`);
+    } catch {
+      console.warn('jflow: could not create the Linear flow labels; check that the key can create project labels');
+    }
+  }
   json(res, 200, settingsView(email, live.get()));
 }

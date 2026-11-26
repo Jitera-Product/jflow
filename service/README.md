@@ -64,7 +64,7 @@ For a real deployment (network, health check, Docker and Kubernetes examples) se
 | `GET /api/setup` | The checklist: Linear, Jitera, Chats. Engineers only. |
 | `GET /api/agent-prompt` | The Flow agent prompt for the Jitera copy block. Engineers only. |
 | `GET /api/linear/teams` | The teams the saved Linear key can see. Engineers only. |
-| `GET`, `POST /api/linear/labels` | Check the `flow:*` labels (GET), create the missing ones (POST). Engineers only. |
+| `GET /api/linear/labels` | The `flow:*` labels Linear still lacks. jflow creates them on each settings save and when it sets a stage. Engineers only. |
 | `GET`, `POST /api/chats` | List chat tokens, create one. The token is shown once, in the answer to POST. POST answers 409 `no_public_url` until the jflow address is set. Engineers only. |
 | `DELETE /api/chats/<id>` | Revoke a chat token. It stops working at once. Engineers only. |
 | `GET`, `POST /api/gate/<project>/<gate>` | A gate for the web app, and the decision on it. |

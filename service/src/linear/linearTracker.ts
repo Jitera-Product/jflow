@@ -18,6 +18,9 @@ const LABEL_IDS_QUERY = `query ProjectLabelIds($id: String!) {
 const LABEL_LOOKUP_QUERY = `query FlowLabel($name: String!) {
   projectLabels(first: 1, filter: { name: { eq: $name } }) { nodes { id } }
 }`;
+const LABEL_CREATE_MUTATION = `mutation CreateFlowLabel($name: String!) {
+  projectLabelCreate(input: { name: $name }) { success projectLabel { id } }
+}`;
 const UPDATE_MUTATION = `mutation SetProjectLabels($id: String!, $input: ProjectUpdateInput!) {
   projectUpdate(id: $id, input: $input) { success }
 }`;
@@ -47,8 +50,8 @@ export function linearTracker(apiKey: string, fetchFn: typeof fetch = fetch): Tr
 
     async setFlowLabel(projectId, label) {
       const found = await gql<{ projectLabels: { nodes: Array<{ id: string }> } }>(fetchFn, apiKey, LABEL_LOOKUP_QUERY, { name: label });
-      const target = found.projectLabels.nodes[0];
-      if (!target) throw new Error(`Linear: project label "${label}" does not exist in the workspace`);
+      const target = found.projectLabels.nodes[0]
+        ?? (await gql<{ projectLabelCreate: { projectLabel: { id: string } } }>(fetchFn, apiKey, LABEL_CREATE_MUTATION, { name: label })).projectLabelCreate.projectLabel;
       const cur = await gql<{ project: { labels: { nodes: Label[] } } }>(fetchFn, apiKey, LABEL_IDS_QUERY, { id: projectId });
       const keep = cur.project.labels.nodes.filter((l) => !isFlow(l.name)).map((l) => l.id);
       await gql(fetchFn, apiKey, UPDATE_MUTATION, { id: projectId, input: { labelIds: [...keep, target.id] } });

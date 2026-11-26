@@ -87,7 +87,7 @@ const call = async (method: string, path: string, email: string | null = MIKA, b
 
 describe('access', () => {
   const routes: Array<[string, string, unknown?]> = [
-    ['GET', '/api/setup'], ['GET', '/api/linear/teams'], ['GET', '/api/linear/labels'], ['POST', '/api/linear/labels'],
+    ['GET', '/api/setup'], ['GET', '/api/linear/teams'], ['GET', '/api/linear/labels'],
     ['GET', '/api/chats'], ['POST', '/api/chats', { name: 'x' }], ['DELETE', '/api/chats/abc'], ['GET', '/api/agent-prompt'],
   ];
   it.each(routes)('%s %s: 401 without Access, 403 for a non-engineer', async (method, path, body) => {
@@ -146,10 +146,20 @@ describe('/api/linear', () => {
       expect((await r.json()).error).toBe('no_key');
     }
   });
-  it('labels: GET lists the missing ones, POST creates them', async () => {
+  it('labels: GET lists the missing ones and creates nothing', async () => {
     expect((await (await call('GET', '/api/linear/labels')).json()).missing).toEqual(flowLabels().slice(1));
-    expect(await (await call('POST', '/api/linear/labels')).json()).toEqual({ missing: [] });
+    expect(linearCalls.filter((c) => c.startsWith('create:'))).toEqual([]);
+    expect((await call('POST', '/api/linear/labels')).status).toBe(404);
+  });
+  it('saving settings creates the missing flow labels', async () => {
+    const r = await call('POST', '/api/settings', MIKA, { docsUrl: 'https://docs.example.com', jiteraProject: 'proj-1', teams: ['ENG'], engineers: [MIKA] });
+    expect(r.status).toBe(200);
     expect(linearCalls.filter((c) => c.startsWith('create:'))).toEqual(flowLabels().slice(1).map((l) => 'create:' + l));
+  });
+  it('a save still succeeds when Linear cannot create the labels', async () => {
+    linearFails = true;
+    const r = await call('POST', '/api/settings', MIKA, { docsUrl: 'https://docs.example.com', jiteraProject: 'proj-1', teams: ['ENG'], engineers: [MIKA] });
+    expect(r.status).toBe(200);
   });
   it('a Linear failure is a 502 with a message', async () => {
     linearFails = true;

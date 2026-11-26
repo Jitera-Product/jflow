@@ -74,13 +74,12 @@ test('loaded values show, secrets only as "Set"', async () => {
   expect(document.body.innerHTML).not.toContain('tok-secret-1');
 });
 
-test('Linear: without a key it asks for one; after the key is saved, teams are checkboxes and missing labels can be created', async () => {
+test('Linear: without a key it asks for one; after the key is saved, teams are checkboxes and labels jflow could not create are named', async () => {
   const f = routeFetch({
     ...base,
     'POST /api/settings': reply(200, withKey),
     'GET /api/linear/teams': reply(200, { teams: [{ key: 'CORE', name: 'Core' }, { key: 'OPS', name: 'Operations' }] }),
     'GET /api/linear/labels': reply(200, { missing: ['flow:tdr', 'flow:spec'] }),
-    'POST /api/linear/labels': reply(200, { missing: [] }),
   });
   const user = userEvent.setup();
   render(<SettingsPage />);
@@ -97,10 +96,11 @@ test('Linear: without a key it asks for one; after the key is saved, teams are c
   expect(ops.checked).toBe(false);
   expect(within(linear).queryByText('Save the Linear key first.')).toBeNull();
 
-  await user.click(await within(linear).findByRole('button', { name: 'Create 2 labels' }));
-  expect(await within(linear).findByText('All flow labels exist.')).toBeTruthy();
-  expect(callsTo(f, 'POST', '/api/linear/labels')[0]![1]).toMatchObject({ credentials: 'same-origin', headers: { 'content-type': 'application/json' } });
+  expect((await within(linear).findByRole('alert')).textContent).toBe(
+    'jflow could not create the project labels flow:tdr, flow:spec. Check that the Linear key can create project labels, then save again.',
+  );
   expect(within(linear).queryByRole('button', { name: /Create/ })).toBeNull();
+  expect(callsTo(f, 'POST', '/api/linear/labels')).toHaveLength(0);
 
   await user.click(ops);
   await user.click(within(linear).getByRole('button', { name: 'Save' }));

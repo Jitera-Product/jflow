@@ -16,6 +16,7 @@ import type { Deps } from '../src/feature/types.js';
 import { openGate } from '../src/gates/openGate.js';
 import { verifyAccess } from '../src/http/verifyAccess.js';
 import { createHttpServer } from '../src/http/createHttpServer.js';
+import { flowLabels } from '../src/linear/flowLabels.js';
 import type { TrackerProject } from '../src/linear/types.js';
 import { memorySettingsStore } from '../src/settings/memorySettingsStore.js';
 import type { LegacySettings, LiveSettings } from '../src/settings/types.js';
@@ -60,6 +61,8 @@ function fakeTracker(project: TrackerProject) {
 const statusMd = readFileSync(`${TEMPLATES}/0-status.md`, 'utf8')
   .replaceAll('<PROJECT-ID>', 'P-ENG-12').replaceAll('<Project name>', 'Export').replaceAll('<project URL>', PROJECT.url);
 
+const linearHasAllLabels = (async () =>
+  new Response(JSON.stringify({ data: { projectLabels: { nodes: flowLabels().map((name) => ({ name })) } } }))) as unknown as typeof fetch;
 let jwks: JWTVerifyGetKey;
 let sign: (claims: Record<string, unknown>, opts?: { aud?: string; exp?: string | number }) => Promise<string>;
 beforeAll(async () => {
@@ -89,7 +92,7 @@ async function setup(project: TrackerProject = PROJECT, publicUrl = ORIGIN) {
   deps = { config, settings, chats, docs, tracker, now: () => new Date() };
   gate = (await openGate(deps, 'P-ENG-12', 'flow:plan')).gate;
   gatePath = `/gate/P-ENG-12/${gate}`;
-  server = createHttpServer(deps, { jwks });
+  server = createHttpServer(deps, { jwks, fetch: linearHasAllLabels });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 }
@@ -99,7 +102,7 @@ afterEach(() => new Promise<void>((r) => server.close(() => r())));
 async function serve(legacy: LegacySettings) {
   await new Promise<void>((r) => server.close(() => r()));
   settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), legacy, () => new Date());
-  server = createHttpServer({ ...deps, settings }, { jwks });
+  server = createHttpServer({ ...deps, settings }, { jwks, fetch: linearHasAllLabels });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 }

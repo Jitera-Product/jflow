@@ -55,7 +55,7 @@ the chat copy blocks are built from it. jflow never takes it from the `Host` hea
 
 The checklist on top shows what is left. Each item links to its section:
 
-1. **Linear.** Paste an API key, pick the teams, and create the missing `flow:*` labels with the button.
+1. **Linear.** Paste an API key and pick the teams. On save, jflow creates the `flow:*` project labels that are missing.
 2. **Jitera.** Set the MCP URL, the token and the project for flow documents. "Test" lists the flow folder.
    The TDR folder, the product docs and the compliance list are here too.
 3. **People.** Check the jflow address. List the engineers, one email per line.

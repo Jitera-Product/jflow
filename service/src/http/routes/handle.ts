@@ -30,7 +30,6 @@ export async function handle(ctx: HttpContext, req: IncomingMessage, res: Server
     const allowed = project ? m === 'GET' || m === 'POST'
       : chatId ? m === 'DELETE'
       : fixed === 'chats' ? m !== 'DELETE'
-      : fixed === 'linear/labels' ? m !== 'DELETE'
       : m === 'GET' || (m === 'POST' && fixed === 'settings');
     if (allowed) {
       if (m !== 'GET' && !sameOrigin(ctx, req)) return json(res, 403, { error: 'refused' });
@@ -41,7 +40,7 @@ export async function handle(ctx: HttpContext, req: IncomingMessage, res: Server
       if (fixed === 'settings') return apiSettings(ctx, req, res, email);
       if (fixed === 'setup') return apiSetup(ctx, res);
       if (fixed === 'agent-prompt') return apiAgentPrompt(ctx, res);
-      if (fixed?.startsWith('linear/')) return apiLinear(ctx, req, res, fixed.slice(7));
+      if (fixed?.startsWith('linear/')) return apiLinear(ctx, res, fixed.slice(7));
       return apiChats(ctx, req, res, email, chatId);
     }
   }

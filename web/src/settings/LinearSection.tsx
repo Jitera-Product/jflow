@@ -1,11 +1,9 @@
 import { type ReactNode, useEffect, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { ApiError } from '@/api/ApiError';
-import { createLinearLabels } from '@/api/createLinearLabels';
 import { getLinearLabels } from '@/api/getLinearLabels';
 import { getLinearTeams } from '@/api/getLinearTeams';
 import type { LinearTeam } from '@/api/types';
-import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import type { SettingsFormInput } from './settingsFormSchema';
@@ -20,8 +18,6 @@ export function LinearSection({ keySet, savedAt, footer }: Props) {
   const [teams, setTeams] = useState<LinearTeam[] | null>(null);
   const [teamsFailed, setTeamsFailed] = useState<unknown>(null);
   const [missing, setMissing] = useState<string[] | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [labelsProblem, setLabelsProblem] = useState<string | null>(null);
 
   // Read again after each save: the key may have changed.
   useEffect(() => {
@@ -30,24 +26,8 @@ export function LinearSection({ keySet, savedAt, footer }: Props) {
       setTeams(r.teams);
       setTeamsFailed(null);
     }, setTeamsFailed);
-    getLinearLabels().then(setMissingFrom, () => setMissing(null));
+    getLinearLabels().then((r) => setMissing(r.missing), () => setMissing(null));
   }, [keySet, savedAt]);
-
-  function setMissingFrom(r: { missing: string[] }) {
-    setMissing(r.missing);
-    setLabelsProblem(null);
-  }
-
-  const createLabels = async () => {
-    setCreating(true);
-    try {
-      setMissingFrom(await createLinearLabels());
-    } catch (e) {
-      setLabelsProblem(sayError(e, 'Could not create the labels.'));
-    } finally {
-      setCreating(false);
-    }
-  };
 
   const noKey = !keySet || (teamsFailed instanceof ApiError && teamsFailed.error === 'no_key');
 
@@ -87,26 +67,10 @@ export function LinearSection({ keySet, savedAt, footer }: Props) {
           />
         )}
       </fieldset>
-      {!noKey && missing && (
-        <div className="grid gap-2">
-          {missing.length === 0 ? (
-            <p className="text-muted-foreground">All flow labels exist.</p>
-          ) : (
-            <>
-              <p className="wrap-anywhere">{`Missing project labels: ${missing.join(', ')}`}</p>
-              <div>
-                <Button type="button" variant="outline" loading={creating} onClick={createLabels}>
-                  {`Create ${missing.length} ${missing.length === 1 ? 'label' : 'labels'}`}
-                </Button>
-              </div>
-            </>
-          )}
-          {labelsProblem && (
-            <p role="alert" className="text-error-text">
-              {labelsProblem}
-            </p>
-          )}
-        </div>
+      {!noKey && missing && missing.length > 0 && (
+        <p role="alert" className="wrap-anywhere text-error-text">
+          {`jflow could not create the project labels ${missing.join(', ')}. Check that the Linear key can create project labels, then save again.`}
+        </p>
       )}
       {footer}
     </SettingsSection>

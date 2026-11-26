@@ -6,10 +6,9 @@ for that callback.
 
 ## When to send
 
-Send one callback when the person the card was sent to answers it: Approve or Request changes.
-
-Only that person's own answer counts. Do not send an answer on behalf of someone else, and do not send one
-because a bot, a rule or a model chose it. jflow trusts the email in the callback as the person who decided.
+Send one callback when a person answers the card: Approve or Request changes. The host sends the answer
+of a person it has signed in and who may see the card. It does not send an answer that a bot, a rule or
+a model chose. jflow trusts the email in the callback as the person who decided.
 
 ## What the card shows
 
@@ -17,13 +16,26 @@ Render the card from the structured fields `project`, `from` and `to` that jflow
 opened (the result of `open_gate`). Do not build the card from text the model wrote: a model can describe
 one move and open another. Send back the `to` you showed, so jflow can check the click is for this gate.
 
+## Raising the card from open_gate
+
+`open_gate` returns its result with an MCP `_meta` object. The key is `jflow/gate`:
+
+```json
+{ "jflow/gate": { "project": "P-CORE-396", "gate": "gab23cd45ef", "url": "<jflow URL>/gate/P-CORE-396/gab23cd45ef", "from": "flow:spec-review", "to": "flow:plan" } }
+```
+
+- `project`, `gate`, `from`, `to`: the fields of the callback body below.
+- `url`: the confirm page. Use it as the fallback link on the card.
+
+Build the card from these fields only. The callback URL is `<origin of the MCP server URL>/webhooks/gate`.
+
 ## Request
 
 ```
 POST <jflow URL>/webhooks/gate
 Content-Type: application/json
 x-jflow-timestamp: <unix time in seconds>
-x-jflow-signature: sha256=<hex HMAC-SHA256(secret, timestamp + "." + body)>
+x-jflow-signature: sha256=<hex HMAC-SHA256(token, timestamp + "." + body)>
 ```
 
 Body:
@@ -52,11 +64,13 @@ The body is at most 1 MB.
 
 ## Signature
 
-You and jflow share one secret (`JFLOW_CALLBACK_SECRET` on the jflow side, at least 32 characters).
+The secret is the chat token your host uses for the jflow MCP server. An engineer creates it on
+`/settings` -> Chats and sees it once. jflow accepts a signature made with any live chat token. A revoked
+token stops signing at once.
 
 1. Take the current unix time in seconds as a string, for example `1795600000`.
 2. Take the exact bytes of the JSON body you send.
-3. Compute HMAC-SHA256 with the secret over `timestamp + "." + body`.
+3. Compute HMAC-SHA256 with the token over `timestamp + "." + body`.
 4. Send the hex digest as `x-jflow-signature: sha256=<hex>` and the time as `x-jflow-timestamp`.
 
 Sign the bytes you send. If you format the JSON again after signing, the signature does not match.
@@ -67,12 +81,18 @@ jflow refuses a timestamp more than 300 seconds away from its own clock, in eith
 
 | Status | Body | Meaning |
 | --- | --- | --- |
-| 204 | none | The answer counts. |
+| 200 | `{ "status": ..., "missing": [...] }` | The answer was taken. See below. |
 | 400 | `{ "error": "invalid_body" }` | The body is not JSON of the shape above, a field is empty, `to` is not a `flow:*` label, or `source` holds `\|` or a line break. |
 | 401 | `{ "error": "unauthorized" }` | Bad signature, or the timestamp is missing, not a whole number, or too old or too new. |
 | 404 | `{ "error": "not_found" }` | No such project or gate. |
 | 409 | `{ "error": "<code>" }` | The gate did not take the answer. See below. |
 | 413 | plain text | The body is over 1 MB. |
+
+`status` is one of:
+
+- `open`: the answer counted, or it is a replay. The gate still needs the roles in `missing`.
+- `approved`: the gate is approved and the label moved.
+- `changes requested`: the gate was sent back. `missing` lists the roles that had not approved.
 
 Codes on 409:
 
@@ -83,11 +103,12 @@ Codes on 409:
 - `not_allowed`: this person does not hold a role the gate still needs.
 - `mismatch`: the `to` in the body is not the gate's `to`. The card showed another move. Nothing changed.
 - `team_not_enabled` or `no_folder`: the project is not set up for jflow.
+- `not_configured`: jflow is not set up yet: open `<jflow URL>/settings`.
 
 Do not retry a 4xx. A 5xx or a network error may be retried with a new timestamp and signature.
 
 ## Replays
 
 A replay is harmless. One person fills one role once: the same approval sent again changes nothing and
-gives 204 while the gate is open, and 409 `closed` after it closed. A gate that needs two roles stays open
+gives 200 `open` while the gate is open, and 409 `closed` after it closed. A gate that needs two roles stays open
 until a second person approves.

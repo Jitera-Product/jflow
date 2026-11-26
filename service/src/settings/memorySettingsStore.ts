@@ -9,6 +9,11 @@ export function memorySettingsStore(): SettingsStore & { row: StoredRow | null }
     async save(value, updatedBy, updatedAt) {
       store.row = { value, updatedBy, updatedAt };
     },
+    async claimFirstEngineer(email, at) {
+      if (!store.row || store.row.value.engineers.length > 0) return false;
+      store.row = { value: { ...store.row.value, engineers: [email] }, updatedBy: email, updatedAt: at };
+      return true;
+    },
   };
   return store;
 }

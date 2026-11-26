@@ -5,56 +5,74 @@ Deployment. No ArgoCD, Helm or Terraform is needed.
 
 ## Image and run
 
-Build from the repo root, because the image needs `templates/`:
+Build from the repo root, because the image needs `templates/`, `web/` and `service/agent/`:
 
 ```
 docker build -f service/Dockerfile -t jflow:1 .
 ```
 
-Or run it without Docker: `cd service && npm ci && npm run build && node dist/main.js`. The built service needs
-the `templates/` folder at the repo root (the repo layout: `service/dist` sits two levels below it), or set `templatesDir` in the config.
+Or run it without Docker: `cd web && npm ci && npm run build`, then `cd ../service && npm ci && npm run build && node dist/main.js`.
+The built service needs the `templates/` and `web/dist` folders at the repo root (the repo layout: `service/dist`
+sits two levels below it).
 
 The service listens on `PORT` (default `8080`).
 
-## Config and env
+## The setup path
 
-`JFLOW_CONFIG` is the path of a JSON file. Start from `service/config.example.json`; the fields are in
-[service/README.md](../service/README.md). Secrets never go in the file. They are env vars:
+1. Run the image with Postgres and the env values below.
+2. Put Cloudflare Access in front of the site, with sign-in through any identity provider (Google, for example).
+3. Open the site. The first person to sign in becomes an engineer.
+4. Finish the checklist on `/settings`.
+
+## Env values
 
 | Env var | Notes |
 | --- | --- |
-| `JFLOW_CONFIG` | Path of the config file. |
-| `JFLOW_GATE_SECRET` | At least 32 characters. |
-| `JFLOW_CALLBACK_SECRET` | At least 32 characters. Shared with the chat host that sends [gate callbacks](gate-callback.md). |
 | `DATABASE_URL` | Postgres 14 or newer, for example `postgres://jflow:pass@db.example.com:5432/jflow`. jflow runs its migrations at start. |
-| `JFLOW_SETTINGS_KEY` | At least 32 characters. Encrypts the docs token and the Linear key in the database. If you change it, type the two keys again on `/settings`. |
-| `MCP_TOKEN` | One per `mcpClients` entry, named by its `tokenEnv`. At least 32 characters, and each one unique. |
-| `JFLOW_ACCESS_AUD` | Optional. Overrides `access.aud` in the file. |
-| `JFLOW_ACCESS_TEAM_DOMAIN` | Optional. Overrides `access.teamDomain` in the file. |
+| `JFLOW_SETTINGS_KEY` | At least 32 characters. Encrypts every secret in the database: the docs token, the Linear key, the gate secret and the chat tokens. Keep it. If you lose or change it, jflow refuses to start, because it cannot open the stored gate secret. |
+| `JFLOW_ACCESS_TEAM_DOMAIN` | The team domain of your Cloudflare Access, for example `yourteam.cloudflareaccess.com`. |
+| `JFLOW_ACCESS_AUD` | The audience (AUD) tag of the Access application that protects the site. |
+| `PORT` | Optional. Default `8080`. |
 
-jflow refuses to start when a value is missing or too short, and the error names the variable.
-Secrets are read at start, so restart jflow after you change them.
+Nothing else is required. jflow refuses to start when a value is missing or too short, and the error names
+the variable. Env values are read at start, so restart jflow after you change them.
 
-The docs URL, project, docs token, Linear API key, teams and engineers live in the database, not in env
-vars. Engineers change them on the `/settings` page while jflow runs.
+The two Access values are env vars and not settings because they guard `/settings` itself. jflow keeps no
+other setting in env. The folder for flow documents, the templates and the document tool calls have built-in defaults.
+Everything else is set on `/settings` while jflow runs.
 
-## First run
+jflow creates its gate secret on the first start and keeps it sealed in the database.
 
-1. Start jflow with the env vars above. It creates its tables and stores the `engineers` from the file as
-   the first engineers.
-2. Open `<publicUrl>/settings` as one of those engineers.
-3. Set the docs URL, the project, the docs token, the Linear API key and the teams, then save.
+## First visit
 
-Until then every MCP tool answers `not_configured` with a link to `/settings`. After the first run the
-`engineers` in the file are not read again; the list on `/settings` wins.
+Open `https://<your host>/settings`. Cloudflare Access asks you to sign in. When no engineer is stored yet, the
+first email that signs in becomes the first engineer. Two people at the same moment cannot both claim it.
+A second person who signs in later gets `not_allowed` until an engineer adds them.
+
+The first save on `/settings` fills in the jflow address (public URL) from the address in your browser. You
+can edit it in People. It is a bare origin: scheme, host and an optional port, with no path. Gate links and
+the chat copy blocks are built from it. jflow never takes it from the `Host` header of a request.
+
+The checklist on top shows what is left. Each item links to its section:
+
+1. **Linear.** Paste an API key, pick the teams, and create the missing `flow:*` labels with the button.
+2. **Jitera.** Set the MCP URL, the token and the project for flow documents. "Test" lists the flow folder.
+   The TDR folder, the product docs and the compliance list are here too.
+3. **People.** Check the jflow address. List the engineers, one email per line.
+4. **Chats.** "New token" asks for a name and shows the token once, with copy blocks for Jitera, Claude Code
+   and any other MCP chat. A chat needs no redeploy. "Revoke" stops a token at once, for MCP calls and for
+   [gate callbacks](gate-callback.md).
+
+The Chats item is done when any token was used once. Until the jflow address is set, only `open_gate`
+answers `not_configured`, and the chat token is shown without the copy blocks.
 
 ## Network
 
-- Put TLS in front with any reverse proxy. `publicUrl` in the config is the public origin, for example
+- Put TLS in front with any reverse proxy. The jflow address on `/settings` is the public origin, for example
   `https://flow.example.com`. Gate links are built from it.
 - `/gate/*`, `/settings` and `/api/*` must sit behind Cloudflare Access. The pages are a static app that
   jflow serves itself, and the app calls `/api/*`. Access sends the `Cf-Access-Jwt-Assertion` header, and
-  jflow verifies that JWT itself against `access.teamDomain` and `access.aud` on every `/api` call. Cloudflare
+  jflow verifies that JWT itself against `JFLOW_ACCESS_TEAM_DOMAIN` and `JFLOW_ACCESS_AUD` on every `/api` call. Cloudflare
   Access is the only SSO supported today. Do not route `/gate/*`, `/settings` or `/api/*` to jflow without it.
 - `/mcp` and `/webhooks/gate` must be reachable by the MCP client and by the chat host. They do their own
   auth (bearer token and signed body). Keep them off the open internet if you can, for example with an IP
@@ -63,25 +81,24 @@ Until then every MCP tool answers `not_configured` with a link to `/settings`. A
 ## Checks
 
 - Health check: `GET /healthz` returns `ok`.
-- Run one replica. Each instance keeps the settings in memory, and the gate table lives in the documents
-  store. Two replicas could race on the same gate.
+- Run one replica. Each instance keeps the settings and the chat tokens in memory, so a change or a revoke on
+  one replica would not reach another. The gate table lives in the documents store, and two replicas could
+  race on the same gate.
 
 ## Plain Docker
 
 ```
 docker run -d --name jflow --restart unless-stopped -p 127.0.0.1:8080:8080 \
-  -v /etc/jflow/config.json:/config/config.json:ro \
-  -e JFLOW_CONFIG=/config/config.json \
-  --env-file /etc/jflow/secrets.env \
+  --env-file /etc/jflow/jflow.env \
   jflow:1
 ```
 
-`secrets.env` holds the secret vars from the table, including `DATABASE_URL` and `JFLOW_SETTINGS_KEY`, one `NAME=value` per line. Point the reverse proxy at
-`127.0.0.1:8080`.
+`jflow.env` holds `DATABASE_URL`, `JFLOW_SETTINGS_KEY`, `JFLOW_ACCESS_TEAM_DOMAIN` and `JFLOW_ACCESS_AUD`, one
+`NAME=value` per line. Point the reverse proxy at `127.0.0.1:8080`.
 
 ## One Kubernetes Deployment
 
-Put `config.json` in a ConfigMap named `jflow-config` and the secret vars in a Secret named `jflow-secrets`.
+Put the four env values in a Secret named `jflow-secrets`.
 
 ```
 apiVersion: apps/v1
@@ -98,13 +115,39 @@ spec:
         - name: jflow
           image: registry.example.com/jflow:1
           ports: [{ containerPort: 8080 }]
-          env: [{ name: JFLOW_CONFIG, value: /config/config.json }]
           envFrom: [{ secretRef: { name: jflow-secrets } }]
-          volumeMounts: [{ name: config, mountPath: /config }]
           readinessProbe: { httpGet: { path: /healthz, port: 8080 } }
           livenessProbe: { httpGet: { path: /healthz, port: 8080 } }
-      volumes: [{ name: config, configMap: { name: jflow-config } }]
 ```
 
 Add a Service and an Ingress (or any proxy) for TLS, with Cloudflare Access in front of `/gate/*`,
-`/settings` and `/api/*`. Put `DATABASE_URL` and `JFLOW_SETTINGS_KEY` in `jflow-secrets` too.
+`/settings` and `/api/*`.
+
+## Upgrading from a config file
+
+Older versions took a JSON config file (`JFLOW_CONFIG`), `JFLOW_GATE_SECRET` and one token env var per
+`mcpClients` entry. A new version does not need them. For a running deploy, keep this order:
+
+1. Update the image and start it once with the old values still set: `JFLOW_CONFIG` (and the file), `JFLOW_GATE_SECRET`
+   and the token vars named by the `tokenEnv` of each `mcpClients` entry. Keep `DATABASE_URL` and `JFLOW_SETTINGS_KEY` as they are.
+2. On that start jflow copies, once and only where the database has no value yet:
+   - `JFLOW_GATE_SECRET` becomes the gate secret, so open gates keep their signature;
+   - each `mcpClients` entry with its env token becomes a chat token with the same name, so a connected chat
+     keeps working. A missing token, or one under 32 characters, is skipped with a warning;
+   - `engineers` and `publicUrl` from the file.
+
+   The log says which old values can go. A value already in the database, for example one an engineer changed
+   on `/settings`, is never overwritten.
+3. Only after that start, remove the old values: `JFLOW_CONFIG` and the file, `JFLOW_GATE_SECRET` and the token vars.
+
+Do not remove `JFLOW_GATE_SECRET` before that first start. The gate secret would then be created new, and every open gate
+would become invalid.
+
+If `JFLOW_ACCESS_TEAM_DOMAIN` and `JFLOW_ACCESS_AUD` are not set, jflow still takes the two Access values from the
+`access` part of the file. Set both env vars before you remove the file, or the next start fails.
+
+### Moving jflow to a new host
+
+The jflow address can only be changed from that address, so a new host cannot save its own address while the old one
+is stored. Clear the stored address with `update settings set value = value - 'publicUrl' where id = 1;`, then open
+`/settings` at the new address. The next save takes the page origin.

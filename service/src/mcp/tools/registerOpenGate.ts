@@ -12,5 +12,5 @@ export function registerOpenGate(server: McpServer, deps: Deps) {
   }, ({ project, to }) => run(async () => {
     const g = await openGate(deps, project, to);
     return { ...g, say: `Approve here: ${g.url}` };
-  }));
+  }, (g) => ({ 'jflow/gate': { project: g.project, gate: g.gate, url: g.url, from: g.from, to: g.to } })));
 }

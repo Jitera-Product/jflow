@@ -1,3 +1,4 @@
+import { bareOrigin } from './bareOrigin.js';
 import type { SettingsInput } from './types.js';
 
 export function checkSettings(input: SettingsInput, by: string): string[] {
@@ -11,6 +12,9 @@ export function checkSettings(input: SettingsInput, by: string): string[] {
       /* not a URL */
     }
     if (!ok) problems.push('docsUrl must be an https URL');
+  }
+  if (input.publicUrl && bareOrigin(input.publicUrl) === null) {
+    problems.push('publicUrl must be a bare origin like https://flow.example.com, with no path, query or hash');
   }
   for (const k of input.teams) {
     if (!/^[A-Z][A-Z0-9]*$/.test(k)) problems.push(`team key "${k}" must be letters and digits, like CORE`);

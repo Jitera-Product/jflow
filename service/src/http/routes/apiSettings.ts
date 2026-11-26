@@ -1,6 +1,8 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { z } from 'zod';
+import { bareOrigin } from '../../settings/bareOrigin.js';
 import { SettingsError } from '../../settings/SettingsError.js';
+import { header } from '../header.js';
 import { json } from '../json.js';
 import { readJson } from '../readJson.js';
 import { settingsView } from '../settingsView.js';
@@ -16,13 +18,14 @@ const settingsBody = z.object({
   engineers: list((s) => s.toLowerCase()),
   docsToken: secret,
   linearApiKey: secret,
+  publicUrl: z.string().trim().optional(),
+  tdrFolder: z.string().trim().optional(), // missing = keep the stored value
+  productDocs: z.string().trim().optional(),
+  compliance: z.string().trim().optional(),
 });
 
 export async function apiSettings(ctx: HttpContext, req: IncomingMessage, res: ServerResponse, email: string) {
   const live = ctx.deps.settings;
-  if (!live.get().engineers.includes(email)) {
-    return json(res, 403, { error: 'not_allowed', message: 'Only jflow engineers can open settings. Ask an engineer to add you.' });
-  }
   if (req.method === 'GET') return json(res, 200, settingsView(email, live.get()));
 
   const read = await readJson(req, res);
@@ -31,8 +34,13 @@ export async function apiSettings(ctx: HttpContext, req: IncomingMessage, res: S
   if (!body.success) {
     return json(res, 400, { error: 'invalid', problems: body.error.issues.map((i) => `${i.path.join('.') || 'body'}: ${i.message}`) });
   }
+  const from = header(req, 'origin');
+  if (body.data.publicUrl && bareOrigin(body.data.publicUrl) !== from) {
+    return json(res, 400, { error: 'invalid', problems: ['Open /settings at that address to set it.'] });
+  }
   try {
-    await live.save(body.data, email);
+    const publicUrl = body.data.publicUrl || (ctx.origin() === '' ? from : undefined);
+    await live.save({ ...body.data, publicUrl }, email);
   } catch (e) {
     if (e instanceof SettingsError) return json(res, 400, { error: 'invalid', problems: e.problems });
     throw e;

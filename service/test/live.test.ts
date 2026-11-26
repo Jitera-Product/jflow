@@ -14,9 +14,10 @@ const VERBS = {
 const BASE = { kind: 'jitera' as const, verbs: VERBS };
 
 let s: Settings;
-const settings: LiveSettings = { get: () => s, save: async () => s };
+const settings: LiveSettings = { get: () => s, save: async () => s, claimFirstEngineer: async () => false };
 const empty = (): Settings => ({
-  docsUrl: '', jiteraProject: '', docsToken: '', linearApiKey: '', teams: [], engineers: ['ken@example.com'], updatedBy: null, updatedAt: null,
+  docsUrl: '', jiteraProject: '', docsToken: '', linearApiKey: '', teams: [], engineers: ['ken@example.com'],
+  publicUrl: URL, tdrFolder: '', productDocs: '', compliance: '', gateSecret: 's'.repeat(32), updatedBy: null, updatedAt: null,
 });
 
 function fakeDocs(made: DocumentsConnection[]) {
@@ -29,7 +30,7 @@ function fakeDocs(made: DocumentsConnection[]) {
 describe('live documents', () => {
   it('docs refuse with not_configured until url, project and token are set', async () => {
     s = { ...empty(), docsUrl: 'https://docs.example.com/mcp', docsToken: 'secret-token' };
-    const docs = liveDocuments(settings, BASE, URL, fakeDocs([]));
+    const docs = liveDocuments(settings, BASE, fakeDocs([]));
     const err = await docs.list('x').catch((e: unknown) => e);
     expect(err).toBeInstanceOf(FeatureError);
     expect(err).toMatchObject({ code: 'not_configured', message: expect.stringContaining('https://flow.example.com/settings') });
@@ -40,7 +41,7 @@ describe('live documents', () => {
   it('docs reuse one client while settings stay the same', async () => {
     s = { ...empty(), docsUrl: 'https://docs.example.com/mcp', jiteraProject: 'p1', docsToken: 't1' };
     const made: DocumentsConnection[] = [];
-    const docs = liveDocuments(settings, BASE, URL, fakeDocs(made));
+    const docs = liveDocuments(settings, BASE, fakeDocs(made));
     await docs.list('x');
     await docs.read('y');
     expect(made).toHaveLength(1);
@@ -48,7 +49,7 @@ describe('live documents', () => {
   it('docs rebuild the client when the token, url or project changes', async () => {
     s = { ...empty(), docsUrl: 'https://docs.example.com/mcp', jiteraProject: 'p1', docsToken: 't1' };
     const made: DocumentsConnection[] = [];
-    const docs = liveDocuments(settings, BASE, URL, fakeDocs(made));
+    const docs = liveDocuments(settings, BASE, fakeDocs(made));
     await docs.list('x');
     s = { ...s, docsToken: 't2' };
     await docs.list('x');
@@ -75,7 +76,7 @@ describe('live tracker', () => {
       keys.push(key);
       return { getProject: async () => null, setFlowLabel: async () => {} };
     };
-    const tracker = liveTracker(settings, URL, make);
+    const tracker = liveTracker(settings, make);
     await expect(tracker.getProject('P-ENG-1')).rejects.toMatchObject({
       code: 'not_configured',
       message: 'jflow is not set up yet: the Linear API key is missing. An engineer sets it at https://flow.example.com/settings.',

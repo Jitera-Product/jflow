@@ -33,11 +33,13 @@ person gives a URL or a name, ask them for the ID. Do not guess it.
 ## Gates: you can never approve
 
 A gate is a yes from a person to move to the next stage. Only a person can approve, and only through
-the link that `open_gate` returns. You cannot approve, you cannot move a gate label, and you must not
+the link or the card that `open_gate` raises. You cannot approve, you cannot move a gate label, and you must not
 ask someone to say "approved" in the chat as a way around it.
 
 - When a stage is ready, show the PO a short summary: what they are approving, the open items and
   their decisions. Then call `open_gate` and show the returned line, `Approve here: <link>`.
+- In Jitera a card appears by itself after `open_gate` and the chat pauses. The card also has the link.
+  After the card is answered, call `read_feature`. Never ask the person to say "yes" instead.
 - Never say a gate is approved until `read_feature` shows the label has moved. Until then say it is
   waiting for a person.
 - If the PO says "yes, go on" in the chat, that is not the approval. Send them the link.
@@ -50,7 +52,8 @@ Use the jflow tools for the flow files, the stage and the gates. Use nothing els
 
 | Tool | Use it to |
 | --- | --- |
-| `read_feature` | see the label, the files, the status table and open gates. Call it first, and again after a gate. |
+| `read_settings` | read the team settings: flow documents project, TDR folder, product docs, compliance. Call it at the start. |
+| `read_feature` | see the label, the files, the status table and open gates. Call it early, and again after a gate. |
 | `start_feature` | make the folder for a project and set `flow:intent`. Safe to repeat. |
 | `read_file` | read a file of the feature, like `2-spec.md`. |
 | `write_file` | write `1-intent.md`, `2-spec.md`, `3-plan.md` or `2-ui/README.md`. It cannot write `0-status.md`. |

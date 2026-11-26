@@ -1,5 +1,9 @@
 import { readFileSync } from 'node:fs';
-import { it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
+import { createFlowLabels } from '../src/linear/createFlowLabels.js';
+import { flowLabels } from '../src/linear/flowLabels.js';
+import { listTeams } from '../src/linear/listTeams.js';
+import { missingFlowLabels } from '../src/linear/missingFlowLabels.js';
 import { linearTracker } from '../src/linear/linearTracker.js';
 
 const FIXTURE = JSON.parse(readFileSync(new URL('./fixtures/linear-project.json', import.meta.url), 'utf8'));
@@ -69,4 +73,29 @@ it('throws when the label does not exist in the workspace', async () => {
     ProjectLabelIds: withLabels([]), FlowLabel: labelLookup([]), SetProjectLabels: updated,
   }, bodies)).setFlowLabel('p1', 'flow:ui')).rejects.toThrow(/flow:ui/);
   expect(bodies.some((b) => b.query.includes('projectUpdate'))).toBe(false);
+});
+
+describe('setup helpers', () => {
+  const labelsAnswer = (names: string[]) => ({ data: { projectLabels: { nodes: names.map((name) => ({ name })) } } });
+
+  it('flowLabels has one flow: label per stage', () => {
+    expect(flowLabels()).toEqual(['flow:intent', 'flow:spec', 'flow:spec-review', 'flow:tdr', 'flow:ui', 'flow:plan', 'flow:build']);
+  });
+  it('listTeams maps teams.nodes', async () => {
+    const answer = { data: { teams: { nodes: [{ key: 'ENG', name: 'Engineering', id: 'x' }] } } };
+    expect(await listTeams(fakeFetch({ FlowTeams: answer }), 'k')).toEqual([{ key: 'ENG', name: 'Engineering' }]);
+  });
+  it('missingFlowLabels returns the labels Linear lacks', async () => {
+    const have = ['flow:intent', 'flow:spec', 'other'];
+    expect(await missingFlowLabels(fakeFetch({ FlowProjectLabels: labelsAnswer(have) }), 'k')).toEqual(
+      ['flow:spec-review', 'flow:tdr', 'flow:ui', 'flow:plan', 'flow:build'],
+    );
+  });
+  it('createFlowLabels sends one projectLabelCreate per missing label', async () => {
+    const bodies: Body[] = [];
+    const have = ['flow:intent', 'flow:spec', 'flow:spec-review', 'flow:tdr', 'flow:ui'];
+    await createFlowLabels(fakeFetch({ FlowProjectLabels: labelsAnswer(have), CreateFlowLabel: { data: { projectLabelCreate: { success: true } } } }, bodies), 'k');
+    const created = bodies.filter((b) => b.query.includes('projectLabelCreate')).map((b) => b.variables.name);
+    expect(created).toEqual(['flow:plan', 'flow:build']);
+  });
 });

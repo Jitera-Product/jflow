@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { memoryChatTokenStore } from '../src/chats/memoryChatTokenStore.js';
+import { openChatTokens } from '../src/chats/openChatTokens.js';
 import type { Config } from '../src/config/types.js';
 import { memoryDocuments } from '../src/documents/memoryDocuments.js';
 import type { Documents } from '../src/documents/types.js';
@@ -20,13 +22,13 @@ const STATUS = `${FOLDER}/0-status.md`;
 const SPEC_DONE = '**Flagged concerns.**\n\n1. Format - Decide: Mika\n   Decision: CSV - Mika, 2026-11-20\n';
 
 const config = {
-  publicUrl: 'https://flow.example.com', flowFolder: 'documents/Flow', templatesDir: TEMPLATES,
-  gateSecret: 's'.repeat(32),
+  flowFolder: 'documents/Flow', templatesDir: TEMPLATES,
 } as Config;
 const NOW = () => new Date('2026-11-23T10:00:00Z');
 const ENGINEERS = ['mika@jitera.com', 'ken@jitera.com'];
-const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), ENGINEERS, NOW);
-await settings.save({ docsUrl: '', jiteraProject: '', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
+const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS, publicUrl: 'https://flow.example.com' }, NOW);
+await settings.save({ docsUrl: '', jiteraProject: '', tdrFolder: '', productDocs: '', compliance: '', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
+const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [], NOW);
 
 const PROJECT: TrackerProject = {
   id: 'uuid-12', identifier: 'P-ENG-12', name: 'Export', url: 'https://linear.app/x/project/export-abc',
@@ -54,7 +56,7 @@ let client: Client;
 async function setup(project: TrackerProject = PROJECT) {
   docs = memoryDocuments({ [STATUS]: statusMd, [`${FOLDER}/2-spec.md`]: SPEC_DONE });
   tracker = fakeTracker(project);
-  await connect({ config, settings, docs, tracker, now: NOW });
+  await connect({ config, settings, chats, docs, tracker, now: NOW });
 }
 async function connect(deps: Deps) {
   const [a, b] = InMemoryTransport.createLinkedPair();
@@ -71,7 +73,7 @@ const json = (r: R) => JSON.parse(r.content[0]!.text);
 describe('mcp tools', () => {
   it('lists exactly the flow tools', async () => {
     expect((await client.listTools()).tools.map((t) => t.name).sort()).toEqual(
-      ['log_stage', 'open_gate', 'read_feature', 'read_file', 'save_ui_handoff', 'set_stage', 'start_feature', 'write_file']);
+      ['log_stage', 'open_gate', 'read_feature', 'read_file', 'read_settings', 'save_ui_handoff', 'set_stage', 'start_feature', 'write_file']);
   });
   it('read_feature hides signatures', async () => {
     await call('open_gate', { to: 'flow:plan' });
@@ -146,11 +148,14 @@ describe('mcp tools', () => {
     expect(tracker.labels).toEqual(['flow:spec-review']);
   });
   it('open_gate returns the line to show', async () => {
-    const g = json(await call('open_gate', { to: 'flow:plan' }));
+    const r = await call('open_gate', { to: 'flow:plan' });
+    const g = json(r);
+    expect(r._meta).toEqual({ 'jflow/gate': { project: 'P-ENG-12', gate: g.gate, url: g.url, from: 'flow:spec-review', to: 'flow:plan' } });
     expect(g.say).toBe(`Approve here: ${g.url}`);
     expect(g).toMatchObject({ project: 'P-ENG-12', from: 'flow:spec-review', to: 'flow:plan' }); // what a chat host renders the card from
     expect(g.url).toBe(`https://flow.example.com/gate/P-ENG-12/${g.gate}`);
     const bad = await call('open_gate', { to: 'flow:build' });
+    expect(bad._meta).toBeUndefined();
     expect(bad.isError).toBe(true);
     expect(bad.content[0]!.text).toMatch(/^not_allowed: /);
   });
@@ -179,14 +184,30 @@ describe('mcp tools', () => {
     await call('set_stage', { to: 'flow:spec-review' });
     expect(await docs.read(STATUS)).toContain('edited meanwhile');
   });
+  it('read_settings returns the four team settings, with no Linear key set', async () => {
+    const s = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, NOW);
+    await s.save({ docsUrl: '', jiteraProject: 'Flow', tdrFolder: 'TDRs', productDocs: 'Specs', compliance: 'ISMAP', teams: [], engineers: ENGINEERS }, 'mika@jitera.com');
+    await connect({ config, settings: s, chats, docs, tracker, now: NOW });
+    const r = await call('read_settings', {});
+    expect(r.isError).toBeUndefined();
+    expect(json(r)).toEqual({ jiteraProject: 'Flow', tdrFolder: 'TDRs', productDocs: 'Specs', compliance: 'ISMAP' });
+  });
   it('a tool returns not_configured when settings are empty', async () => {
-    const blank = await openSettings(memorySettingsStore(), 'k'.repeat(32), ENGINEERS, NOW);
+    const blank = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, NOW);
     await connect({
-      config, settings: blank, docs: liveDocuments(blank, config.documents, config.publicUrl), tracker: liveTracker(blank, config.publicUrl), now: NOW,
+      config, settings: blank, chats, docs: liveDocuments(blank, config.documents), tracker: liveTracker(blank), now: NOW,
     });
     const r = await call('read_feature', {});
     expect(r.isError).toBe(true);
     expect(r.content[0]!.text).toMatch(/^not_configured: /);
+  });
+  it('open_gate returns not_configured with the settings path until publicUrl is set', async () => {
+    const noUrl = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, NOW);
+    await connect({ config, settings: noUrl, chats, docs, tracker, now: NOW });
+    const r = await call('open_gate', { to: 'flow:plan' });
+    expect(r.isError).toBe(true);
+    expect(r.content[0]!.text).toMatch(/^not_configured: .*\/settings/);
+    expect(await docs.read(STATUS)).toBe(statusMd);
   });
   it('save_ui_handoff refuses a cell with a pipe', async () => {
     const r = await call('save_ui_handoff', { link: 'l', screens: [{ name: 'a|b', state: 's', file: 'f' }] });

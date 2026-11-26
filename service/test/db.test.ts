@@ -5,6 +5,7 @@ import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { pgChatTokenStore } from '../src/chats/pgChatTokenStore.js';
 import { migrate } from '../src/db/migrate.js';
 import { pgSettingsStore } from '../src/settings/pgSettingsStore.js';
 
@@ -78,5 +79,36 @@ describe.skipIf(!url)('migrate', () => {
     await store.save(next, 'b@x.com', new Date('2026-11-26T00:00:00Z'));
     expect((await store.load())?.value).toEqual(next);
     expect((await pool.query('select count(*)::int as n from settings')).rows[0].n).toBe(1);
+  });
+
+  it('pgSettingsStore claims the first engineer once, and never on a missing row', async () => {
+    await migrate(pool, fileURLToPath(new URL('../migrations', import.meta.url)));
+    const store = pgSettingsStore(pool);
+    const at = new Date('2026-11-26T00:00:00Z');
+    expect(await store.claimFirstEngineer('a@x.com', at)).toBe(false);
+    await store.save({ docsUrl: '', jiteraProject: '', docsToken: '', linearApiKey: '', teams: [], engineers: [], publicUrl: '', tdrFolder: '', productDocs: '', compliance: '', gateSecret: 'sealed' }, 'jflow', at);
+    const [first, second] = await Promise.all([store.claimFirstEngineer('a@x.com', at), store.claimFirstEngineer('b@x.com', at)]);
+    expect([first, second].filter(Boolean)).toHaveLength(1);
+    const row = await store.load();
+    expect(row?.value.engineers).toEqual([first ? 'a@x.com' : 'b@x.com']);
+    expect(row?.updatedBy).toBe(first ? 'a@x.com' : 'b@x.com');
+    expect(row?.value.gateSecret).toBe('sealed');
+  });
+
+  it('pgChatTokenStore inserts once per name, touches and removes', async () => {
+    await migrate(pool, fileURLToPath(new URL('../migrations', import.meta.url)));
+    const store = pgChatTokenStore(pool);
+    expect(await store.load()).toEqual([]);
+    const at = new Date('2026-11-26T00:00:00Z');
+    const row = { id: '6f1c1d8e-0000-4000-8000-000000000001', name: 'agent', token: 'sealed', createdBy: 'jflow', createdAt: at, lastUsedAt: null };
+    expect(await store.insert(row)).toBe(true);
+    expect(await store.insert({ ...row, id: '6f1c1d8e-0000-4000-8000-000000000002', token: 'other' })).toBe(false);
+    expect(await store.load()).toEqual([row]);
+    const used = new Date('2026-11-26T00:05:00Z');
+    await store.touch(row.id, used);
+    expect((await store.load())[0]?.lastUsedAt).toEqual(used);
+    expect(await store.remove(row.id)).toBe(true);
+    expect(await store.remove(row.id)).toBe(false);
+    expect(await store.load()).toEqual([]);
   });
 });

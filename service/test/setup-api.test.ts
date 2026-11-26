@@ -153,7 +153,11 @@ describe('/api/linear', () => {
   });
   it('a Linear failure is a 502 with a message', async () => {
     linearFails = true;
-    expect((await call('GET', '/api/linear/teams')).status).toBe(502);
+    const r = await call('GET', '/api/linear/teams');
+    expect(r.status).toBe(502);
+    const text = await r.text();
+    expect(text).toContain('Linear did not answer. Check the key and try again.');
+    expect(text).not.toMatch(/LIN-KEY/);
   });
 });
 
@@ -177,6 +181,17 @@ describe('/api/chats', () => {
     expect(r.status).toBe(409);
     expect((await r.json()).error).toBe('name_taken');
     expect((await call('POST', '/api/chats', MIKA, { name: ' ' })).status).toBe(400);
+  });
+  it('400 for a name with | or a line break, and nothing is created', async () => {
+    for (const name of ['Jitera | Flow', 'a\nb']) {
+      const r = await call('POST', '/api/chats', MIKA, { name });
+      expect(r.status).toBe(400);
+      expect((await r.json()).problems).toEqual(['name: no | or line breaks']);
+    }
+    expect(deps.chats.list()).toEqual([]);
+  });
+  it('DELETE with an id that is not a uuid is 404', async () => {
+    expect((await call('DELETE', '/api/chats/not-a-uuid')).status).toBe(404);
   });
   it('409 no_public_url while the public URL is empty', async () => {
     await server.close();

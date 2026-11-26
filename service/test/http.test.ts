@@ -450,15 +450,19 @@ describe('/api/settings', () => {
   it('POST saves publicUrl as a normalized origin and refuses a bad one', async () => {
     expect((await save({ publicUrl: 'https://flow.example.com/' })).status).toBe(200);
     expect(settings.get().publicUrl).toBe(ORIGIN);
-    const r = await save({ publicUrl: 'HTTPS://New.Example.com:443/' });
+    const r = await save({ publicUrl: 'HTTPS://Flow.Example.com:443/' });
     expect(r.status).toBe(200);
-    expect((await r.json()).settings.publicUrl).toBe('https://new.example.com');
+    expect((await r.json()).settings.publicUrl).toBe(ORIGIN);
   });
-  it('ctx.origin follows a publicUrl saved at runtime', async () => {
-    expect((await save({ publicUrl: 'https://new.example.com' })).status).toBe(200);
-    expect((await save({ docsUrl: 'https://x.example.com' })).status).toBe(403);
-    expect((await save({ docsUrl: 'https://x.example.com' }, MIKA, { origin: 'https://new.example.com' })).status).toBe(200);
-    expect(settings.get().docsUrl).toBe('https://x.example.com');
+  it('POST refuses a publicUrl that differs from the request origin, and the stored value stays', async () => {
+    const r = await save({ publicUrl: 'https://new.example.com' });
+    expect(r.status).toBe(400);
+    expect((await r.json()).problems).toEqual(['Open /settings at that address to set it.']);
+    expect(settings.get().publicUrl).toBe(ORIGIN);
+  });
+  it('POST accepts a publicUrl with the same origin as the request', async () => {
+    expect((await save({ publicUrl: ORIGIN + '/' })).status).toBe(200);
+    expect(settings.get().publicUrl).toBe(ORIGIN);
   });
   it('once publicUrl is set, a POST from another origin is refused', async () => {
     const r = await save({ publicUrl: 'https://other.example.com' }, MIKA, { origin: 'https://other.example.com' });

@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { z } from 'zod';
+import { bareOrigin } from '../../settings/bareOrigin.js';
 import { SettingsError } from '../../settings/SettingsError.js';
 import { header } from '../header.js';
 import { json } from '../json.js';
@@ -33,8 +34,12 @@ export async function apiSettings(ctx: HttpContext, req: IncomingMessage, res: S
   if (!body.success) {
     return json(res, 400, { error: 'invalid', problems: body.error.issues.map((i) => `${i.path.join('.') || 'body'}: ${i.message}`) });
   }
+  const from = header(req, 'origin');
+  if (body.data.publicUrl && bareOrigin(body.data.publicUrl) !== from) {
+    return json(res, 400, { error: 'invalid', problems: ['Open /settings at that address to set it.'] });
+  }
   try {
-    const publicUrl = body.data.publicUrl || (ctx.origin() === '' ? header(req, 'origin') : undefined);
+    const publicUrl = body.data.publicUrl || (ctx.origin() === '' ? from : undefined);
     await live.save({ ...body.data, publicUrl }, email);
   } catch (e) {
     if (e instanceof SettingsError) return json(res, 400, { error: 'invalid', problems: e.problems });

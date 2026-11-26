@@ -13,7 +13,7 @@ export async function apiLinear(ctx: HttpContext, req: IncomingMessage, res: Ser
     if (what === 'teams') return json(res, 200, { teams: await listTeams(f, key) });
     if (req.method === 'POST') await createFlowLabels(f, key);
     json(res, 200, { missing: await missingFlowLabels(f, key) });
-  } catch (e) {
-    json(res, 502, { error: 'linear', message: e instanceof Error ? e.message : 'Linear failed.' });
+  } catch {
+    json(res, 502, { error: 'linear', message: 'Linear did not answer. Check the key and try again.' });
   }
 }

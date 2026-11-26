@@ -48,3 +48,9 @@ it('tells when JFLOW_CONFIG can be removed, and what must be set first', () => {
   );
   expect(legacyFileHint(loadConfig(withFile, () => '{}'), withFile)).toBe('jflow: you can remove JFLOW_CONFIG now');
 });
+it('names JFLOW_CONFIG and the path when the old file cannot be read', () => {
+  const missing = () => { throw new Error('ENOENT: no such file'); };
+  expect(() => loadConfig({ ...env, JFLOW_CONFIG: '/config/config.json' }, missing)).toThrow('JFLOW_CONFIG: cannot read /config/config.json: ENOENT: no such file');
+  expect(() => loadConfig({ ...env, JFLOW_CONFIG: '/c.json' }, () => '{nope')).toThrow(/^JFLOW_CONFIG: cannot read \/c\.json: /);
+  expect(() => loadConfig({ ...env, JFLOW_CONFIG: '/c.json' }, () => '{"engineers":"x"}')).toThrow(/^JFLOW_CONFIG: cannot read \/c\.json: /);
+});

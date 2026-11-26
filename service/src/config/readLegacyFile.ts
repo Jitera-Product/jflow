@@ -10,5 +10,9 @@ const legacySchema = z.object({
 
 export function readLegacyFile(path: string | undefined, readFile: (p: string) => string): LegacyFile | null {
   if (!path) return null;
-  return legacySchema.parse(JSON.parse(readFile(path)));
+  try {
+    return legacySchema.parse(JSON.parse(readFile(path)));
+  } catch (e) {
+    throw new Error(`JFLOW_CONFIG: cannot read ${path}: ${e instanceof Error ? e.message : String(e)}`);
+  }
 }

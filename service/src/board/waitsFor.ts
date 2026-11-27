@@ -16,7 +16,7 @@ function kindOf(stage: StageName, build: BuildRow[], checked: boolean): Waiting[
 }
 
 export function waitsFor(
-  missing: Role[] | null, stage: StageName, lead: { name: string } | null, engineers: string[],
+  missing: Role[] | null, stage: StageName, lead: { name: string } | null,
   build: BuildRow[] = [], checked = false,
 ): Waiting[] {
   const kind = kindOf(stage, build, checked);
@@ -24,7 +24,7 @@ export function waitsFor(
   return kinds.map((kind) => ({
     kind,
     names: kind === 'owner' ? [lead?.name ?? 'an owner']
-      : kind === 'engineer' ? (engineers.length && engineers.length <= 2 ? engineers : ['an engineer'])
+      : kind === 'engineer' ? ['an engineer']
       : ['the agent'],
   }));
 }

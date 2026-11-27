@@ -82,7 +82,6 @@ export type BoardCard = {
   stuck: boolean;
   waitingForMe: boolean;
   notStarted: boolean;
-  behind: boolean;
   openGate: { id: string; from: string; to: string; opened: string; missing: Role[] } | null; // from, to: Linear labels
   build: BuildRow[];
   pilot: string | null;
@@ -105,7 +104,6 @@ export type FeaturePanelView = {
   gate: { url: string; from: string; to: string; missing: Role[] } | null;
   files: string[];
   linearUrl: string;
-  behind: boolean;
   folder: string | null;
   chatUrl: string | null;
   notice: string | null;

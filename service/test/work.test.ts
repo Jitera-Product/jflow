@@ -6,6 +6,7 @@ import { pilotOfLabels } from '../src/work/pilotOfLabels.js';
 import { prLinkOf } from '../src/work/prLinkOf.js';
 import { readBuildTable } from '../src/work/readBuildTable.js';
 import { reviewOf } from '../src/work/reviewOf.js';
+import { withGithub } from '../src/work/withGithub.js';
 import type { BuildRow, GithubPr } from '../src/work/types.js';
 
 describe('prLinkOf', () => {
@@ -147,5 +148,14 @@ describe('pilotOf: one feature, one pilot', () => {
   it('different pilots, or one on a pilot and one on none, is a mismatch', () => {
     expect(pilotOf([row('open', 'P5'), row('open', 'P7')])).toEqual({ pilot: null, mismatch: true });
     expect(pilotOf([row('open', 'P5'), row('open')])).toEqual({ pilot: null, mismatch: true });
+  });
+});
+
+describe('withGithub', () => {
+  it('a PR GitHub says is merged or closed takes that status over the Build table', async () => {
+    const pull = (n: string) => (n.endsWith('/1') ? { state: 'closed', merged: true } : { state: 'closed', merged: false });
+    const f = (async (url: string) => new Response(JSON.stringify({ draft: false, labels: [], head: { sha: 's' }, ...pull(String(url)) }))) as typeof fetch;
+    const row = (n: number): BuildRow => ({ issue: `I-${n}`, repo: 'r', pr: n, url: `https://github.com/o/r/pull/${n}`, status: 'in review', github: null });
+    expect((await withGithub(f, 't', [row(1), row(2)])).map((r) => r.status)).toEqual(['merged', 'closed']);
   });
 });

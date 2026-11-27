@@ -170,7 +170,7 @@ describe('/api/board', () => {
     expect(b.notice).toBeNull();
     const all = cards(b);
     expect(all.map((c) => c.slugId)).toEqual(['s2', 's1']);
-    expect(all[1]).toMatchObject({ key: 'P-ENG-12', id: 'P-ENG-12', stage: 'Plan', notStarted: false, behind: true, days: 6 });
+    expect(all[1]).toMatchObject({ key: 'P-ENG-12', id: 'P-ENG-12', stage: 'Spec', notStarted: false });
     expect(all[0]).toMatchObject({ key: 's2', id: null, stage: 'Intent', notStarted: true, days: 6 });
     expect(b.columns.map((c: { stage: string }) => c.stage)[0]).toBe('Intent');
   });
@@ -186,8 +186,8 @@ describe('/api/board', () => {
     expect(linearCalls).toHaveLength(1);
   });
   it('mine keeps only the cards waiting for me', async () => {
-    const b = await (await get('/api/board?mine=1')).json();
-    expect(cards(b).map((c) => c.slugId)).toEqual(['s1']);
+    const b = await (await get('/api/board?mine=1', 'bo@jitera.com')).json();
+    expect(cards(b).map((c) => c.slugId)).toEqual(['s2']);
   });
   it('caches 60 seconds per team set; refresh=1 skips the cache', async () => {
     const first = await (await get('/api/board')).json();
@@ -257,8 +257,7 @@ describe('/api/board/feature', () => {
     const text = await r.text();
     expect(text).not.toMatch(/LIN-KEY|DOCS-TOKEN/);
     const p = JSON.parse(text);
-    expect(p.card).toMatchObject({ key: 'P-ENG-12', slugId: 's1', stage: 'Plan' });
-    expect(p.behind).toBe(true);
+    expect(p.card).toMatchObject({ key: 'P-ENG-12', slugId: 's1', stage: 'Spec' });
     expect(p.stages).toEqual([
       { stage: 'Intent', status: 'done', date: '2026-11-20', file: '1-intent.md', by: 'mika@jitera.com' },
       { stage: 'Spec', status: 'in progress', date: '2026-11-21', file: '2-spec.md', by: 'Flow agent' },
@@ -298,7 +297,7 @@ describe('/api/board/feature', () => {
   });
   it('shows a not started project by slugId', async () => {
     const p = await (await get('/api/board/feature/s2')).json();
-    expect(p).toMatchObject({ card: { key: 's2', notStarted: true }, stages: [], log: [], gate: null, files: [], behind: false, folder: null, notice: null });
+    expect(p).toMatchObject({ card: { key: 's2', notStarted: true }, stages: [], log: [], gate: null, files: [], folder: null, notice: null });
   });
   it('links the feature folder with the Flow agent, and the chat the agent first worked in', async () => {
     expect((await (await get('/api/board/feature/P-ENG-12')).json()).chatUrl).toBeNull();
@@ -468,7 +467,7 @@ describe('Build table, GitHub, QA and agent activity', () => {
 
   it('every PR not merged in review waits for an engineer', async () => {
     deps.docs = memoryDocuments({ 'documents/Flow/P-ENG-20 Alerts/0-status.md': BUILD_STATUS.replace('| building |', '| in review |').replace('| waiting |', '| merged |') });
-    expect(await card('s20')).toMatchObject({ waitsFor: [{ kind: 'engineer', names: [MIKA] }], waitingForMe: true });
+    expect(await card('s20')).toMatchObject({ waitsFor: [{ kind: 'engineer', names: ['an engineer'] }], waitingForMe: false });
   });
 
   it('Verify reads 4-verification.md: the owner waits with the counts; the panel lists the checks', async () => {

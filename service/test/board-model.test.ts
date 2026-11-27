@@ -18,7 +18,7 @@ const gate = (o: Partial<GateRow> = {}): GateRow => ({
 const file = (o: Partial<StatusFile> = {}): StatusFile => ({ gates: [], log: [], stage: null, build: [], ...o });
 const run = (projects: FlowProject[], files: Array<[string, StatusFile | null]> = [], o: Record<string, unknown> = {}) =>
   buildStageBoard({
-    projects, files: new Map(files), ids: new Map(), engineers: ['eng@x.com'], viewer: 'nobody@x.com',
+    projects, files: new Map(files), ids: new Map(), viewer: 'nobody@x.com',
     mine: false, older: false, filesFailed: false, ...o,
   }, NOW);
 const cards = (b: ReturnType<typeof run>) => b.columns.flatMap((c) => c.cards);
@@ -50,8 +50,9 @@ describe('readStatusFile', () => {
       { date: '2026-11-23', what: 'Spec review approved', stage: 'Spec review', who: 'mika@x.com via jitera', text: '' },
     ]);
   });
-  it('gives null stage when nothing is in progress', () => {
+  it('gives null stage when nothing is in progress, Done when the Done row is done', () => {
     expect(readStatusFile('# x\n').stage).toBeNull();
+    expect(readStatusFile('| 9 | Done | done | - | 2026-11-20 | a |\n').stage).toBe('Done');
   });
 });
 
@@ -60,7 +61,7 @@ describe('buildStageBoard', () => {
     const b = run([proj()]);
     const plan = b.columns.find((c) => c.stage === 'Plan')!;
     expect(plan.cards).toHaveLength(1);
-    expect(plan.cards[0]).toMatchObject({ notStarted: true, behind: false, days: 5, key: 's1', id: null });
+    expect(plan.cards[0]).toMatchObject({ notStarted: true, days: 5, key: 's1', id: null });
     expect(run([proj()], [['s1', null]]).columns.find((c) => c.stage === 'Plan')!.cards[0]!.notStarted).toBe(true);
   });
 
@@ -69,9 +70,9 @@ describe('buildStageBoard', () => {
     expect(c).toMatchObject({ key: 'P-CORE-9', id: 'P-CORE-12', slugId: 's1' });
   });
 
-  it('puts a flow:plan project with a Spec review file in Plan and marks it behind', () => {
-    const c = cards(run([proj()], [['s1', file({ stage: 'Spec review' })]]))[0]!;
-    expect(c).toMatchObject({ stage: 'Plan', behind: true, notStarted: false });
+  it('puts a flow:plan project in the stage of its status file', () => {
+    const c = cards(run([proj()], [['s1', file({ stage: 'Verify' })]]))[0]!;
+    expect(c).toMatchObject({ stage: 'Verify', notStarted: false });
   });
 
   const line = (date: string, what: string, text = '') => ({ date, what, stage: what.replace(/ (approved|changes requested)$/, ''), who: 'a', text });
@@ -97,10 +98,8 @@ describe('buildStageBoard', () => {
     expect(cards(run([proj({ flowLabel: 'flow:spec' })], [['s1', file({ log })]]))[0]!.days).toBe(6);
   });
 
-  it('counts from updatedAt when there is no move line or the card is behind', () => {
+  it('counts from updatedAt when there is no move line', () => {
     expect(cards(run([proj()], [['s1', file({ log: [line('2026-11-25', 'Plan', 'drafted')] })]]))[0]!.days).toBe(5);
-    const behind = file({ stage: 'Spec review', log: [line('2026-11-25', 'Spec', 'stage set to flow:spec-review')] });
-    expect(cards(run([proj()], [['s1', behind]]))[0]!).toMatchObject({ behind: true, days: 5 });
   });
 
   it('puts a flow:verify project in Verify, waiting for the agent until it has checks, then for the owner', () => {
@@ -117,13 +116,7 @@ describe('buildStageBoard', () => {
     const g = gate({ approvals: [{ role: 'owner', email: 'mika@x.com' }] });
     const c = cards(run([proj()], [['s1', file({ gates: [g] })]]))[0]!;
     expect(c.openGate).toEqual({ id: 'g1', from: 'flow:spec-review', to: 'flow:tdr', opened: g.opened, missing: ['engineer'] });
-    expect(c.waitsFor).toEqual([{ kind: 'engineer', names: ['eng@x.com'] }]);
-    const none = cards(run([proj()], [['s1', file({ gates: [g] })]], { engineers: [] }))[0]!;
-    expect(none.waitsFor[0]!.names).toEqual(['an engineer']);
-    const two = cards(run([proj()], [['s1', file({ gates: [g] })]], { engineers: ['a@x.com', 'b@x.com'] }))[0]!;
-    expect(two.waitsFor[0]!.names).toEqual(['a@x.com', 'b@x.com']);
-    const three = cards(run([proj()], [['s1', file({ gates: [g] })]], { engineers: ['a@x.com', 'b@x.com', 'c@x.com'] }))[0]!;
-    expect(three.waitsFor[0]!.names).toEqual(['an engineer']);
+    expect(c.waitsFor).toEqual([{ kind: 'engineer', names: ['an engineer'] }]);
   });
 
   it('ignores closed and malformed gates', () => {
@@ -148,7 +141,7 @@ describe('buildStageBoard', () => {
     expect(b.stuck).toBe(1);
   });
 
-  it('filters with mine for an owner and for an engineer', () => {
+  it('filters with mine for the owner only', () => {
     const projects = [
       proj({ flowLabel: 'flow:intent' }),
       proj({ uuid: 'u2', slugId: 's2', flowLabel: 'flow:tdr', lead: { name: 'Bo', email: 'bo@x.com' } }),
@@ -156,7 +149,7 @@ describe('buildStageBoard', () => {
     ];
     const keys = (viewer: string) => cards(run(projects, [], { viewer, mine: true })).map((c) => c.slugId);
     expect(keys('MIKA@x.com')).toEqual(['s1']);
-    expect(keys('eng@x.com')).toEqual(['s2']);
+    expect(keys('bo@x.com')).toEqual([]);
     expect(keys('other@x.com')).toEqual([]);
     expect(cards(run(projects, [], { viewer: 'mika@x.com' })).map((c) => c.waitingForMe)).toEqual([true, false, false]);
   });
@@ -177,7 +170,7 @@ describe('buildStageBoard', () => {
   it('sets the notice and ignores files when filesFailed', () => {
     const b = run([proj()], [['s1', file({ stage: 'Spec review', gates: [gate()] })]], { filesFailed: true });
     expect(b.notice).toBe('jflow could not read the status files in Jitera. Stages come from Linear only.');
-    expect(cards(b)[0]).toMatchObject({ notStarted: true, behind: false, openGate: null });
+    expect(cards(b)[0]).toMatchObject({ notStarted: true, openGate: null });
     expect(run([proj()]).notice).toBeNull();
   });
 

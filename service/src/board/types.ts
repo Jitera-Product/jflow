@@ -14,7 +14,7 @@ export type Card = {
   name: string; url: string; team: string;
   owner: { name: string; email: string } | null;
   stage: StageName; days: number; since: string; waitsFor: Waiting[];
-  stuck: boolean; waitingForMe: boolean; notStarted: boolean; behind: boolean;
+  stuck: boolean; waitingForMe: boolean; notStarted: boolean;
   openGate: OpenGate | null;
   build: BuildRow[];
   pilot: string | null;
@@ -36,7 +36,7 @@ export type StageRow = { stage: StageName; status: string; date: string; file: s
 export type FeaturePanel = {
   card: Card; stages: StageRow[]; log: LogLine[];
   gate: { url: string; from: string; to: string; missing: Role[] } | null;
-  files: string[]; linearUrl: string; behind: boolean;
+  files: string[]; linearUrl: string;
   folder: string | null; chatUrl: string | null; notice: string | null;
   checks: QaCheck[];
   about: ProjectAbout | null;

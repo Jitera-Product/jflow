@@ -41,9 +41,10 @@ export async function loadFeaturePanel(
     notice = NOTICE;
   }
   const p = found?.p ?? bySlug;
-  const stage = p && stageOfLabel(p.flowLabel);
-  if (!p || !stage) return null;
+  const label = p && stageOfLabel(p.flowLabel);
+  if (!p || !label) return null;
   const file = found ? readStatusFile(found.md) : null;
+  const stage = file?.stage ?? label;
   const id = found?.id ?? null;
   const [about, verify, active] = await Promise.all([
     readProjectAbout(fetchFn, s.linearApiKey, p.uuid).catch((e: unknown) => {
@@ -55,7 +56,7 @@ export async function loadFeaturePanel(
   ]);
   if (file && id && WORK_STAGES.includes(stage) && file.build.length) file.build = await github(id, file.build);
   const checks = verify ? readChecks(verify) : [];
-  const card = cardOf({ ...p, identifier: id }, stage, file, id, s.engineers, viewer, deps.now(), {
+  const card = cardOf({ ...p, identifier: id }, stage, file, id, viewer, deps.now(), {
     checks: stage === 'Verify' ? checks : [], active: !!id && active.has(id.toUpperCase()),
   });
   const folder = found?.folder ?? null;
@@ -71,7 +72,6 @@ export async function loadFeaturePanel(
     } : null,
     files: found?.files ?? [],
     linearUrl: p.url,
-    behind: card.behind,
     folder,
     chatUrl,
     notice,

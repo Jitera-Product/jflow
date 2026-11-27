@@ -141,8 +141,8 @@ describe('readProjectAbout', () => {
     const bodies: Body[] = [];
     const out = await readProjectAbout(fakeFetch({ ProjectAbout: { data: { project } } }, bodies), 'k', 'u1');
     expect(bodies[0]!.variables).toEqual({ id: 'u1' });
-    expect(bodies[0]!.query).toContain('projectUpdates(first: 5');
-    expect(bodies[0]!.query).toContain('comments(first: 5');
+    expect(bodies[0]!.query).toContain('projectUpdates(first: 20');
+    expect(bodies[0]!.query).toContain('comments(first: 20');
     expect(out).toEqual({
       summary: 'Short summary', content: '# Goal\n\nShip it',
       updates: [

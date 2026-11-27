@@ -80,7 +80,7 @@ answers `not_configured`, and the chat token is shown without the copy blocks.
 
 - Put TLS in front with any reverse proxy. The jflow address on `/settings` is the public origin, for example
   `https://flow.example.com`. Gate links are built from it.
-- `/`, `/f/*`, `/workload`, `/gate/*`, `/settings` and `/api/*` must sit behind Cloudflare Access. The pages are a static app that
+- `/`, `/f/*`, `/waiting`, `/people`, `/workload`, `/gate/*`, `/settings` and `/api/*` must sit behind Cloudflare Access. The pages are a static app that
   jflow serves itself, and the app calls `/api/*`. Access sends the `Cf-Access-Jwt-Assertion` header, and
   jflow verifies that JWT itself against `JFLOW_ACCESS_TEAM_DOMAIN` and `JFLOW_ACCESS_AUD` on every `/api` call. Cloudflare
   Access is the only SSO supported today. Do not route those paths to jflow without it. The boards need nothing extra: they use the Linear key and teams from `/settings`. Anyone Access lets in can open them, and only `/settings` is limited to engineers.

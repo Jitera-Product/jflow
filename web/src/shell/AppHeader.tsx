@@ -4,6 +4,7 @@ import type { Me } from '@/api/types';
 import { NewIdeaDialog } from '@/board/NewIdeaDialog';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
+import { ThemeToggle } from './ThemeToggle';
 
 // Plain links: each page loads its own data, so a full page load costs nothing extra.
 const LINKS = [
@@ -42,7 +43,9 @@ export function AppHeader({ me: given, onIdeaCreated }: Props) {
               {l.label}
             </a>
           ))}
-          <Button ref={button} size="sm" className="ml-auto" disabled={!me?.teams.length} onClick={() => setAdding(true)}>
+          <span className="ml-auto" />
+          <ThemeToggle />
+          <Button ref={button} size="sm" disabled={!me?.teams.length} onClick={() => setAdding(true)}>
             New idea
           </Button>
         </nav>

@@ -1,10 +1,9 @@
-import type { Deps, Feature } from '../feature/types.js';
+import type { Feature } from '../feature/types.js';
 import type { Role } from './types.js';
 
-export function rolesOf(deps: Deps, f: Feature, email: string): Role[] {
-  const who = email.toLowerCase();
-  const roles: Role[] = [];
-  if (f.lead && f.lead.email.toLowerCase() === who) roles.push('owner');
-  if (deps.settings.get().engineers.includes(who)) roles.push('engineer');
-  return roles;
+// The confirm page sits behind Cloudflare Access and is linked only from the feature's chat,
+// so anyone who reaches it may approve as engineer; owner is the Linear lead.
+export function rolesOf(f: Feature, email: string): Role[] {
+  const isLead = !!f.lead && f.lead.email.toLowerCase() === email.toLowerCase();
+  return isLead ? ['owner', 'engineer'] : ['engineer'];
 }

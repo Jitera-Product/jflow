@@ -186,8 +186,8 @@ describe('/api/board', () => {
     expect(linearCalls).toHaveLength(1);
   });
   it('mine keeps only the cards waiting for me', async () => {
-    const b = await (await get('/api/board?mine=1')).json();
-    expect(cards(b).map((c) => c.slugId)).toEqual(['s1']);
+    const b = await (await get('/api/board?mine=1', 'bo@jitera.com')).json();
+    expect(cards(b).map((c) => c.slugId)).toEqual(['s2']);
   });
   it('caches 60 seconds per team set; refresh=1 skips the cache', async () => {
     const first = await (await get('/api/board')).json();
@@ -467,7 +467,7 @@ describe('Build table, GitHub, QA and agent activity', () => {
 
   it('every PR not merged in review waits for an engineer', async () => {
     deps.docs = memoryDocuments({ 'documents/Flow/P-ENG-20 Alerts/0-status.md': BUILD_STATUS.replace('| building |', '| in review |').replace('| waiting |', '| merged |') });
-    expect(await card('s20')).toMatchObject({ waitsFor: [{ kind: 'engineer', names: [MIKA] }], waitingForMe: true });
+    expect(await card('s20')).toMatchObject({ waitsFor: [{ kind: 'engineer', names: ['an engineer'] }], waitingForMe: false });
   });
 
   it('Verify reads 4-verification.md: the owner waits with the counts; the panel lists the checks', async () => {

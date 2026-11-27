@@ -41,7 +41,7 @@ export async function decideGate(
     throw new GateError('stale', `The project moved to ${f.flowLabel ?? 'no flow label'} after this gate opened. Open a new one.`);
   }
 
-  const qualifies = rolesOf(deps, f, who);
+  const qualifies = rolesOf(f, who);
   const missing = missingOf(row);
 
   if (input.decision === 'changes') {

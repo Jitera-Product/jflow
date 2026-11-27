@@ -66,7 +66,8 @@ The checklist on top shows what is left. Each item links to its section:
 3. **Jitera.** Set the MCP URL and a token tied to the project that holds the flow documents (for example the key of
    an agent in that project). "Test" lists the flow folder.
    The TDR folder is here too.
-4. **People.** List the engineers, one email per line.
+4. **People.** List the engineers, one email per line. Only they can open `/settings`. Gates do not use the list:
+   the owner is the Linear project lead, and anyone Access lets in approves as the engineer.
 5. **Chats.** "New token" asks for a name and shows the token once, with copy blocks for Jitera, Claude Code
    and any other MCP chat. In Jitera, add jflow as a custom connector: the MCP URL, Client ID empty, and the
    token as Client Secret (a secret without a client ID is a bearer token). A chat needs no redeploy. "Revoke" stops a token at once, for MCP calls and for

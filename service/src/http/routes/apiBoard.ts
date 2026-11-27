@@ -7,7 +7,7 @@ import type { HttpContext } from '../types.js';
 
 export async function apiBoard(ctx: HttpContext, req: IncomingMessage, res: ServerResponse, email: string) {
   const q = new URL(req.url ?? '/', 'http://localhost').searchParams;
-  const { teams: picked, engineers } = ctx.deps.settings.get();
+  const { teams: picked } = ctx.deps.settings.get();
   const asked = (q.get('team') ?? '').split(',').filter((t) => picked.includes(t));
   const teams = [...new Set(asked.length ? asked : picked)].sort();
   let data;
@@ -19,5 +19,5 @@ export async function apiBoard(ctx: HttpContext, req: IncomingMessage, res: Serv
   // The cache holds the loaded data; mine and older only shape the board built from it, so they share one cache entry.
   const shape = { mine: q.get('mine') === '1', older: q.get('older') === '1' };
   const active = await activeFeatures(ctx.deps);
-  json(res, 200, buildStageBoard({ ...data, active, engineers, viewer: email, ...shape }, new Date(data.at)));
+  json(res, 200, buildStageBoard({ ...data, active, viewer: email, ...shape }, new Date(data.at)));
 }

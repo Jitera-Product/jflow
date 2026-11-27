@@ -12,17 +12,15 @@ const NONE: CardData = { checks: [], active: false };
 
 export function cardOf(
   p: FlowProject, stage: StageName, file: StatusFile | null, id: string | null,
-  engineers: string[], viewer: string, now: Date, data: CardData = NONE,
+  viewer: string, now: Date, data: CardData = NONE,
 ): Card {
   const openGate = openGateOf(file);
   const { checks } = data;
   const build = file?.build ?? [];
-  const waits = waitsFor(openGate?.missing ?? null, stage, p.lead, engineers, build, checks.length > 0);
+  const waits = waitsFor(openGate?.missing ?? null, stage, p.lead, build, checks.length > 0);
   const me = viewer.toLowerCase();
   const since = stageSince(file, p.updatedAt);
-  const waitingForMe =
-    (!!p.lead && p.lead.email.toLowerCase() === me && waits.some((w) => w.kind === 'owner')) ||
-    (engineers.includes(me) && waits.some((w) => w.kind === 'engineer'));
+  const waitingForMe = !!p.lead && p.lead.email.toLowerCase() === me && waits.some((w) => w.kind === 'owner');
   const failed = checks.filter((c) => !c.passed).length;
   const pilot = pilotOf(build);
   return {

@@ -12,7 +12,7 @@ export async function gateData(deps: Deps, project: string, gate: string, email:
   const row = readGates(f.status ?? '').find((r) => r.id === gate);
   if (!row) throw new GateError('not_found', `No gate ${gate} on ${f.identifier}.`);
   const valid = rowIsValid(deps.settings.get().gateSecret, f.identifier, row);
-  const canDecide = valid && row.status === 'open' && nextApproval(row, email, rolesOf(deps, f, email)) !== null;
+  const canDecide = valid && row.status === 'open' && nextApproval(row, email, rolesOf(f, email)) !== null;
   const reason = canDecide ? null
     : !valid ? 'This gate was changed by hand. Open a new one.'
     : row.status !== 'open' ? `This gate is closed (${row.status}).`

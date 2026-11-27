@@ -218,18 +218,18 @@ describe('gates', () => {
     expect(tracker.labels).toEqual(['flow:spec-review']);
     expect(readGates((await docs.read(STATUS))!)[0]!.status).toBe('open');
   });
-  it('a person who is neither owner nor engineer is refused', async () => {
+  it('only the owner decides an owner gate', async () => {
     const g = await openGate(deps, 'P-ENG-12', 'flow:plan', ORIGIN);
     await expect(decide(g.gate, 'eve@jitera.com')).rejects.toMatchObject({ code: 'not_allowed' });
-    await expect(decide(g.gate, 'ken@jitera.com')).rejects.toMatchObject({ code: 'not_allowed' }); // engineer, but owner gate
+    await expect(decide(g.gate, 'ken@jitera.com')).rejects.toMatchObject({ code: 'not_allowed' });
     expect(tracker.labels).toEqual(['flow:spec-review']);
   });
-  it('spec to TDR needs two different people', async () => {
+  it('spec to TDR needs two different people; anyone with access approves as engineer', async () => {
     const g = await openGate(deps, 'P-ENG-12', 'flow:tdr', ORIGIN);
     expect(await decide(g.gate, 'mika@jitera.com')).toEqual({ status: 'open', missing: ['engineer'] });
     expect(await decide(g.gate, 'MIKA@jitera.com')).toEqual({ status: 'open', missing: ['engineer'] });
     expect(tracker.labels).toEqual(['flow:spec-review']);
-    expect(await decide(g.gate, 'ken@jitera.com')).toEqual({ status: 'approved', missing: [] });
+    expect(await decide(g.gate, 'eve@jitera.com')).toEqual({ status: 'approved', missing: [] });
     expect(tracker.labels).toEqual(['flow:tdr']);
   });
   it('a row that changes between the first read and the last approval is stale', async () => {

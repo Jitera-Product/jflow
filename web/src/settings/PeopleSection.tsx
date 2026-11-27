@@ -12,7 +12,7 @@ export function PeopleSection({ footer }: { footer: ReactNode }) {
       <div className="grid gap-2">
         <Label htmlFor="engineers">Engineers (one email per line)</Label>
         <Textarea id="engineers" spellCheck={false} {...register('engineers')} />
-        <p className="text-muted-foreground">Engineers can change these settings and approve gates as the engineer. The owner is the Linear project lead.</p>
+        <p className="text-muted-foreground">Engineers can change these settings. Gates do not use this list: the owner is the Linear project lead, and anyone who can open the gate page approves as the engineer.</p>
       </div>
       {footer}
     </SettingsSection>

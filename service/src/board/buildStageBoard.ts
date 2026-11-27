@@ -12,7 +12,7 @@ export function buildStageBoard(
   input: {
     projects: FlowProject[]; files: Map<string, StatusFile | null>; ids: Map<string, string>;
     checksBySlug?: Map<string, QaCheck[]>; active?: Set<string>;
-    engineers: string[]; viewer: string; mine: boolean; older: boolean; filesFailed: boolean;
+    viewer: string; mine: boolean; older: boolean; filesFailed: boolean;
   },
   now: Date,
 ): StageBoard {
@@ -23,7 +23,7 @@ export function buildStageBoard(
     const file = input.filesFailed ? null : input.files.get(p.slugId) ?? null;
     const stage = file?.stage ?? label;
     const id = input.ids.get(p.slugId) ?? null;
-    const c = cardOf(p, stage, file, id, input.engineers, input.viewer, now, {
+    const c = cardOf(p, stage, file, id, input.viewer, now, {
       checks: input.checksBySlug?.get(p.slugId) ?? [],
       active: !!id && !!input.active?.has(id.toUpperCase()),
     });

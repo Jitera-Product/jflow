@@ -56,7 +56,7 @@ export async function loadFeaturePanel(
   ]);
   if (file && id && WORK_STAGES.includes(stage) && file.build.length) file.build = await github(id, file.build);
   const checks = verify ? readChecks(verify) : [];
-  const card = cardOf({ ...p, identifier: id }, stage, file, id, s.engineers, viewer, deps.now(), {
+  const card = cardOf({ ...p, identifier: id }, stage, file, id, viewer, deps.now(), {
     checks: stage === 'Verify' ? checks : [], active: !!id && active.has(id.toUpperCase()),
   });
   const folder = found?.folder ?? null;

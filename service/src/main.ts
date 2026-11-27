@@ -10,6 +10,7 @@ import { pgFeatureChatStore } from './featureChats/pgFeatureChatStore.js';
 import { liveDocuments } from './documents/liveDocuments.js';
 import { createHttpServer } from './http/createHttpServer.js';
 import { liveTracker } from './linear/liveTracker.js';
+import { pgPersonalSettingsStore } from './personal/pgPersonalSettingsStore.js';
 import { importLegacySettings } from './settings/importLegacySettings.js';
 import { openSettings } from './settings/openSettings.js';
 import { pgSettingsStore } from './settings/pgSettingsStore.js';
@@ -28,6 +29,7 @@ const server = createHttpServer({
   chats,
   featureChats: pgFeatureChatStore(pool),
   activity: pgFeatureActivityStore(pool),
+  personal: pgPersonalSettingsStore(pool),
   docs: liveDocuments(settings, config.documents),
   tracker: liveTracker(settings),
   now: () => new Date(),

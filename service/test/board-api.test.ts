@@ -7,6 +7,7 @@ import { mapLimit } from '../src/board/mapLimit.js';
 import { memoryChatTokenStore } from '../src/chats/memoryChatTokenStore.js';
 import { openChatTokens } from '../src/chats/openChatTokens.js';
 import { memoryFeatureActivityStore } from '../src/activity/memoryFeatureActivityStore.js';
+import { memoryPersonalSettingsStore } from '../src/personal/memoryPersonalSettingsStore.js';
 import { memoryFeatureChatStore } from '../src/featureChats/memoryFeatureChatStore.js';
 import type { Config } from '../src/config/types.js';
 import { memoryDocuments } from '../src/documents/memoryDocuments.js';
@@ -116,7 +117,7 @@ async function start(input: Partial<SettingsInput> = {}) {
   docs = memoryDocuments(FILES);
   featureChats = memoryFeatureChatStore();
   activity = memoryFeatureActivityStore();
-  deps = { config, settings, chats, featureChats, activity, docs, tracker: {} as never, now: () => now };
+  deps = { config, settings, chats, featureChats, activity, personal: memoryPersonalSettingsStore(), docs, tracker: {} as never, now: () => now };
   server = createHttpServer(deps, { jwks, fetch: fakeLinear });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -155,8 +156,8 @@ describe('access', () => {
     expect((await get('/api/settings', EVE)).status).toBe(403);
   });
   it('/api/me says who you are, whether you are an engineer, and the picked teams', async () => {
-    expect(await (await get('/api/me')).json()).toEqual({ email: MIKA, engineer: true, teams: ['ENG', 'CORE'] });
-    expect(await (await get('/api/me', EVE)).json()).toEqual({ email: EVE, engineer: false, teams: ['ENG', 'CORE'] });
+    expect(await (await get('/api/me')).json()).toEqual({ email: MIKA, engineer: true, teams: ['ENG', 'CORE'], github: null });
+    expect(await (await get('/api/me', EVE)).json()).toEqual({ email: EVE, engineer: false, teams: ['ENG', 'CORE'], github: null });
   });
   it('board routes are GET only', async () => {
     const r = await fetch(base + '/api/board', { method: 'POST', headers: { 'cf-access-jwt-assertion': await sign(MIKA), origin: ORIGIN } });
@@ -498,8 +499,8 @@ describe('Build table, GitHub, QA and agent activity', () => {
 });
 
 describe('pages', () => {
-  it('/ serves the app when configured; /waiting, /people and /f/<ID> too', async () => {
-    for (const path of ['/', '/waiting', '/people', '/f/P-ENG-12']) {
+  it('/ serves the app when configured; /waiting, /people, /me and /f/<ID> too', async () => {
+    for (const path of ['/', '/waiting', '/people', '/me', '/f/P-ENG-12']) {
       const r = await get(path, null);
       expect(r.status).toBe(200);
       expect(await r.text()).toContain('jflow fixture');

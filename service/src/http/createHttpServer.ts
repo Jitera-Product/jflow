@@ -11,6 +11,7 @@ export function createHttpServer(deps: Deps, opts: HttpOptions = {}): http.Serve
     opts,
     board: boardCache(60_000, deps.now),
     workload: boardCache(600_000, deps.now),
+    tdrs: boardCache(300_000, deps.now),
   };
 
   return http.createServer((req, res) => {

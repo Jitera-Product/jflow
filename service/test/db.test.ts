@@ -9,6 +9,7 @@ import { pgChatTokenStore } from '../src/chats/pgChatTokenStore.js';
 import { migrate } from '../src/db/migrate.js';
 import { pgFeatureActivityStore } from '../src/activity/pgFeatureActivityStore.js';
 import { pgFeatureChatStore } from '../src/featureChats/pgFeatureChatStore.js';
+import { pgPersonalSettingsStore } from '../src/personal/pgPersonalSettingsStore.js';
 import { pgSettingsStore } from '../src/settings/pgSettingsStore.js';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -132,5 +133,16 @@ describe.skipIf(!url)('migrate', () => {
     await store.touch('P-ENG-13', new Date('2026-11-27T00:00:00Z'));
     expect(await store.since(new Date('2026-11-27T00:10:00Z'))).toEqual(['P-ENG-12']);
     expect((await store.since(new Date('2026-11-26T00:00:00Z'))).sort()).toEqual(['P-ENG-12', 'P-ENG-13']);
+  });
+
+  it('pgPersonalSettingsStore keeps one GitHub token per person, by lower case email', async () => {
+    await migrate(pool, fileURLToPath(new URL('../migrations', import.meta.url)));
+    const store = pgPersonalSettingsStore(pool);
+    expect(await store.github('ann@x.com')).toBeNull();
+    await store.saveGithub('Ann@X.com', { token: 'sealed-1', login: 'ann' }, new Date('2026-11-27T00:00:00Z'));
+    await store.saveGithub('ann@x.com', { token: 'sealed-2', login: 'ann2' }, new Date('2026-11-27T00:01:00Z'));
+    expect(await store.github('ANN@x.com')).toEqual({ token: 'sealed-2', login: 'ann2' });
+    await store.forgetGithub('ann@x.com');
+    expect(await store.github('ann@x.com')).toBeNull();
   });
 });

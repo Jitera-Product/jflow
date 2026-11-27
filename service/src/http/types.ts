@@ -10,4 +10,5 @@ export type HttpContext = {
   opts: HttpOptions;
   board: BoardCache;
   workload: BoardCache; // 10 minute cache for the workload page
+  tdrs: BoardCache;
 };

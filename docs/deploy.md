@@ -29,7 +29,7 @@ The service listens on `PORT` (default `8080`).
 | Env var | Notes |
 | --- | --- |
 | `DATABASE_URL` | Postgres 14 or newer, for example `postgres://jflow:pass@db.example.com:5432/jflow`. jflow runs its migrations at start. |
-| `JFLOW_SETTINGS_KEY` | At least 32 characters. Encrypts every secret in the database: the docs token, the Linear key, the gate secret and the chat tokens. Keep it. If you lose or change it, jflow refuses to start, because it cannot open the stored gate secret. |
+| `JFLOW_SETTINGS_KEY` | At least 32 characters. Encrypts every secret in the database: the docs token, the Linear key, the GitHub token, the gate secret and the chat tokens. Keep it. If you lose or change it, jflow refuses to start, because it cannot open the stored gate secret. |
 | `JFLOW_ACCESS_TEAM_DOMAIN` | The team domain of your Cloudflare Access, for example `yourteam.cloudflareaccess.com`. |
 | `JFLOW_ACCESS_AUD` | The audience (AUD) tag of the Access application that protects the site. |
 | `PORT` | Optional. Default `8080`. |
@@ -57,11 +57,17 @@ address of the `/settings` page. A write from the web app must come from a page 
 The checklist on top shows what is left. Each item links to its section:
 
 1. **Linear.** Paste an API key and pick the teams. On save, jflow creates the `flow:*` project labels that are missing.
-2. **Jitera.** Set the MCP URL and a token tied to the project that holds the flow documents (for example the key of
+2. **GitHub (optional).** A fine-grained token, read-only "Pull requests" on the product repos (add read-only
+   "Checks" to see the CI summary). "Test" reads `GET https://api.github.com/user`. With it, the board and the feature panel show what happened to each
+   PR in the Build table of `0-status.md`: draft, open, merged or closed, the latest review, the checks, and the
+   pilot from a `pilot-NN` label. One feature = one pilot: open PRs on different pilots, or some on none, show
+   "Pilot mismatch" and count as stuck. Without the token everything works, with the Build table only. jflow
+   never returns the token to the web app.
+3. **Jitera.** Set the MCP URL and a token tied to the project that holds the flow documents (for example the key of
    an agent in that project). "Test" lists the flow folder.
    The TDR folder is here too.
-3. **People.** List the engineers, one email per line.
-4. **Chats.** "New token" asks for a name and shows the token once, with copy blocks for Jitera, Claude Code
+4. **People.** List the engineers, one email per line.
+5. **Chats.** "New token" asks for a name and shows the token once, with copy blocks for Jitera, Claude Code
    and any other MCP chat. In Jitera, add jflow as a custom connector: the MCP URL, Client ID empty, and the
    token as Client Secret (a secret without a client ID is a bearer token). A chat needs no redeploy. "Revoke" stops a token at once, for MCP calls and for
    [gate callbacks](gate-callback.md).

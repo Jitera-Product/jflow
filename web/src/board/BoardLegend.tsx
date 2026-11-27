@@ -1,6 +1,7 @@
 const ITEMS = [
   { dot: 'bg-waits-dot', text: 'Waits for a person' },
-  { dot: 'bg-ring', text: 'Agent' },
+  { dot: 'bg-working-text', text: 'Agent is working' },
+  { dot: 'bg-ring', text: 'Agent idle' },
   { dot: 'bg-error-text', text: 'Stuck' },
 ];
 

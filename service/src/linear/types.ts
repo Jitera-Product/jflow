@@ -22,3 +22,6 @@ export type FlowProject = {
   lead: { name: string; email: string } | null;
   flowLabel: string; state: string; updatedAt: string;
 };
+
+export type ProjectPost = { author: string; createdAt: string; body: string; health: 'onTrack' | 'atRisk' | 'offTrack' | null };
+export type ProjectAbout = { summary: string; content: string; updates: ProjectPost[]; comments: ProjectPost[] };

@@ -3,6 +3,7 @@ import { listFlowProjects } from '../src/linear/listFlowProjects.js';
 import { listTeamMembers } from '../src/linear/listTeamMembers.js';
 import { findUserByEmail } from '../src/linear/findUserByEmail.js';
 import { createFlowProject } from '../src/linear/createFlowProject.js';
+import { readProjectAbout } from '../src/linear/readProjectAbout.js';
 
 type Body = { query: string; variables: any };
 type Answer = unknown | ((b: Body) => unknown);
@@ -124,4 +125,45 @@ describe('createFlowProject', () => {
     expect(bodies.find((b) => b.query.includes('CreateFlowLabel'))!.variables).toEqual({ name: 'flow:intent', parentId: 'g1' });
     expect(bodies.at(-1)!.variables.input.labelIds).toEqual(['new1']);
   });
+});
+
+describe('readProjectAbout', () => {
+  const user = (name: string, displayName: string) => ({ name, displayName });
+  const project = {
+    description: 'Short summary', content: '# Goal\n\nShip it',
+    projectUpdates: { nodes: [
+      { body: 'older', createdAt: '2026-11-20T00:00:00Z', health: 'atRisk', user: user('Ken', 'ken') },
+      { body: 'newer', createdAt: '2026-11-25T00:00:00Z', health: 'onTrack', user: user('mika@x.com', 'mika') },
+    ] },
+    comments: { nodes: [{ body: 'hi', createdAt: '2026-11-21T00:00:00Z', user: null }] },
+  };
+  it('maps the project, newest first, display names for email names', async () => {
+    const bodies: Body[] = [];
+    const out = await readProjectAbout(fakeFetch({ ProjectAbout: { data: { project } } }, bodies), 'k', 'u1');
+    expect(bodies[0]!.variables).toEqual({ id: 'u1' });
+    expect(bodies[0]!.query).toContain('projectUpdates(first: 20');
+    expect(bodies[0]!.query).toContain('comments(first: 20');
+    expect(out).toEqual({
+      summary: 'Short summary', content: '# Goal\n\nShip it',
+      updates: [
+        { author: 'mika', createdAt: '2026-11-25T00:00:00Z', body: 'newer', health: 'onTrack' },
+        { author: 'Ken', createdAt: '2026-11-20T00:00:00Z', body: 'older', health: 'atRisk' },
+      ],
+      comments: [{ author: 'Someone', createdAt: '2026-11-21T00:00:00Z', body: 'hi', health: null }],
+    });
+  });
+  it('empty fields become empty', async () => {
+    const empty = { description: '', content: null, projectUpdates: { nodes: [] }, comments: { nodes: [] } };
+    expect(await readProjectAbout(fakeFetch({ ProjectAbout: { data: { project: empty } } }), 'k', 'u1'))
+      .toEqual({ summary: '', content: '', updates: [], comments: [] });
+  });
+  it('throws when Linear has no such project', async () => {
+    await expect(readProjectAbout(fakeFetch({ ProjectAbout: { data: { project: null } } }), 'k', 'u1')).rejects.toThrow();
+  });
+});
+
+it('listFlowProjects shows the display name when the lead name is an email', async () => {
+  const page = { data: { projects: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: [node({ lead: { name: 'ken@x.com', displayName: 'ken', email: 'ken@x.com' } })] } } };
+  const out = await listFlowProjects(fakeFetch({ BoardProjects: page }), 'k', ['CORE']);
+  expect(out[0]!.lead).toEqual({ name: 'ken', email: 'ken@x.com' });
 });

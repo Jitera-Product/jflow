@@ -6,6 +6,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { mapLimit } from '../src/board/mapLimit.js';
 import { memoryChatTokenStore } from '../src/chats/memoryChatTokenStore.js';
 import { openChatTokens } from '../src/chats/openChatTokens.js';
+import { memoryFeatureActivityStore } from '../src/activity/memoryFeatureActivityStore.js';
 import { memoryFeatureChatStore } from '../src/featureChats/memoryFeatureChatStore.js';
 import type { Config } from '../src/config/types.js';
 import { memoryDocuments } from '../src/documents/memoryDocuments.js';
@@ -64,8 +65,21 @@ const node = (slugId: string, label: string | null, o: Node = {}): Node => ({
 let nodes: Node[];
 let linearCalls: Array<string[]>;
 let linearFails: boolean;
-const fakeLinear = (async (_url: unknown, init: { body: string }) => {
-  const { variables } = JSON.parse(init.body);
+let aboutFails: boolean;
+let github: Record<string, unknown>;
+let githubCalls: string[];
+const fakeLinear = (async (url: unknown, init: { body: string }) => {
+  if (String(url).startsWith('https://api.github.com/')) {
+    const path = String(url).slice('https://api.github.com'.length).replace(/\?.*$/, '');
+    githubCalls.push(path);
+    return path in github ? new Response(JSON.stringify(github[path]), { status: 200 }) : new Response('{}', { status: 404 });
+  }
+  const { query, variables } = JSON.parse(init.body);
+  if (query.includes('ProjectAbout')) {
+    if (aboutFails) return new Response(JSON.stringify({ errors: [{ message: 'too complex' }] }), { status: 400 });
+    const project = { description: `About ${variables.id}`, content: '# Goal', projectUpdates: { nodes: [] }, comments: { nodes: [] } };
+    return new Response(JSON.stringify({ data: { project } }), { status: 200 });
+  }
   linearCalls.push(variables.teams);
   if (linearFails) return new Response(JSON.stringify({ errors: [{ message: 'bad key LIN-KEY-BBB' }] }), { status: 401 });
   const inTeams = nodes.filter((n) => (n.teams as { nodes: Array<{ key: string }> }).nodes.some((t) => variables.teams.includes(t.key)));
@@ -88,6 +102,7 @@ let settings: LiveSettings;
 let docs: Documents;
 let deps: Deps;
 let featureChats: ReturnType<typeof memoryFeatureChatStore>;
+let activity: ReturnType<typeof memoryFeatureActivityStore>;
 let now: Date;
 const GOOD: SettingsInput = {
   docsUrl: 'https://d.example.com', docsToken: 'DOCS-TOKEN-AAA', linearApiKey: 'LIN-KEY-BBB',
@@ -100,7 +115,8 @@ async function start(input: Partial<SettingsInput> = {}) {
   const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [], () => NOW);
   docs = memoryDocuments(FILES);
   featureChats = memoryFeatureChatStore();
-  deps = { config, settings, chats, featureChats, docs, tracker: {} as never, now: () => now };
+  activity = memoryFeatureActivityStore();
+  deps = { config, settings, chats, featureChats, activity, docs, tracker: {} as never, now: () => now };
   server = createHttpServer(deps, { jwks, fetch: fakeLinear });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -110,9 +126,12 @@ const restart = async (input: Partial<SettingsInput>) => {
   await start(input);
 };
 beforeEach(async () => {
+  github = {};
+  githubCalls = [];
   now = NOW;
   linearCalls = [];
   linearFails = false;
+  aboutFails = false;
   nodes = [
     node('s1', 'flow:plan'),
     node('s2', 'flow:intent', { teams: { nodes: [{ key: 'CORE' }] }, lead: { name: 'Bo', email: 'bo@jitera.com' } }),
@@ -252,11 +271,11 @@ describe('/api/board/feature', () => {
     expect(p.folder).toBe('documents/Flow/P-ENG-12 Export/');
     expect(p.notice).toBeNull();
   });
-  it('opens the panel of a flow:verify project, waiting for the owner', async () => {
+  it('opens the panel of a flow:verify project, waiting for the agent until it has checks', async () => {
     nodes.push(node('s7', 'flow:verify'));
     const r = await get('/api/board/feature/s7');
     expect(r.status).toBe(200);
-    expect((await r.json()).card).toMatchObject({ stage: 'Verify', waitsFor: [{ kind: 'owner', names: ['Mika'] }] });
+    expect((await r.json()).card).toMatchObject({ stage: 'Verify', waitsFor: [{ kind: 'agent', names: ['the agent'] }] });
     expect(cards(await (await get('/api/board')).json()).find((c) => c.slugId === 's7')).toMatchObject({ stage: 'Verify' });
   });
   it('a failing Jitera gives the Linear card with a notice', async () => {
@@ -302,6 +321,18 @@ describe('/api/board/feature', () => {
     expect(warn).toHaveBeenCalledWith(expect.stringMatching(/P-ENG-12.*db down/));
     warn.mockRestore();
   });
+  it('shows the Linear description and updates, started or not', async () => {
+    for (const [key, id] of [['P-ENG-12', 'u-s1'], ['s2', 'u-s2']]) {
+      expect((await (await get(`/api/board/feature/${key}`)).json()).about)
+        .toEqual({ summary: `About ${id}`, content: '# Goal', updates: [], comments: [] });
+    }
+  });
+  it('a failing description query still shows the panel', async () => {
+    aboutFails = true;
+    const r = await get('/api/board/feature/s2');
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ card: { key: 's2' }, about: null });
+  });
   it('reads fresh', async () => {
     await get('/api/board/feature/P-ENG-12');
     await get('/api/board/feature/P-ENG-12');
@@ -315,6 +346,155 @@ describe('/api/board/feature', () => {
   it('404 for a project outside the picked teams', async () => {
     await restart({ teams: ['CORE'] });
     expect((await get('/api/board/feature/P-ENG-12')).status).toBe(404);
+  });
+});
+
+const BUILD_STATUS = `# Status - P-ENG-20 Alerts
+
+Linear: https://linear.app/x/project/alerts-s20
+
+## Build
+
+| Issue | Repo | Branch | Base | PR | Status |
+| --- | --- | --- | --- | --- | --- |
+| ENG-1 | acme/automation | b1 | main | #4812 | in review |
+| ENG-2 | acme/frontend-core | b2 | main | https://github.com/acme/frontend-core/pull/2290 | building |
+| ENG-3 | boost | b3 | main | | waiting |
+
+## Gates
+
+## Log
+`;
+const VERIFY_STATUS = `# Status - P-ENG-21 Export
+
+Linear: https://linear.app/x/project/export-s21
+`;
+const VERIFICATION = `# Verification
+
+| Requirement | Check | Command or source | Result | Evidence |
+| --- | --- | --- | --- | --- |
+| R1 | Dialog opens | e2e | pass | https://ci.example.com/1 |
+| R2 | Empty chat text | screenshot | FAILED | differs |
+`;
+const pull = (n: number, labels: string[], o: Record<string, unknown> = {}) => ({ state: 'open', draft: false, merged: false, labels: labels.map((name) => ({ name })), head: { sha: `sha${n}` }, ...o });
+
+describe('Build table, GitHub, QA and agent activity', () => {
+  let featureDocs: Documents;
+  beforeEach(async () => {
+    nodes.push(node('s20', 'flow:build'), node('s21', 'flow:verify'));
+    featureDocs = memoryDocuments({
+      ...FILES,
+      'documents/Flow/P-ENG-20 Alerts/0-status.md': BUILD_STATUS,
+      'documents/Flow/P-ENG-21 Export/0-status.md': VERIFY_STATUS,
+      'documents/Flow/P-ENG-21 Export/4-verification.md': VERIFICATION,
+    });
+    deps.docs = featureDocs;
+  });
+  const card = async (slug: string, email = MIKA) => cards(await (await get('/api/board?refresh=1', email)).json()).find((c) => c.slugId === slug)!;
+
+  it('the card carries the Build table; without a GitHub token nothing goes to GitHub', async () => {
+    const c = await card('s20');
+    expect(c.build).toEqual([
+      { issue: 'ENG-1', repo: 'automation', pr: 4812, url: 'https://github.com/acme/automation/pull/4812', status: 'in review', github: null },
+      { issue: 'ENG-2', repo: 'frontend-core', pr: 2290, url: 'https://github.com/acme/frontend-core/pull/2290', status: 'building', github: null },
+      { issue: 'ENG-3', repo: 'boost', pr: null, url: null, status: 'waiting', github: null },
+    ]);
+    expect(c).toMatchObject({ pilot: null, pilotMismatch: false, waitsFor: [{ kind: 'agent' }] });
+    expect(githubCalls).toEqual([]);
+  });
+
+  it('with a token, each PR gets its state, latest review, checks and pilot; one pilot is fine', async () => {
+    await restart({ githubToken: 'GH-TOKEN' });
+    deps.docs = featureDocs;
+    github = {
+      '/repos/acme/automation/pulls/4812': pull(4812, ['pilot-05']),
+      '/repos/acme/automation/pulls/4812/reviews': [{ user: { login: 'dana' }, state: 'CHANGES_REQUESTED' }, { user: { login: 'dana' }, state: 'APPROVED' }],
+      '/repos/acme/automation/commits/sha4812/check-runs': { check_runs: [{ status: 'completed', conclusion: 'success' }] },
+      '/repos/acme/frontend-core/pulls/2290': pull(2290, ['pilot-5'], { draft: true }),
+      '/repos/acme/frontend-core/pulls/2290/reviews': [],
+      '/repos/acme/frontend-core/commits/sha2290/check-runs': { check_runs: [{ status: 'completed', conclusion: 'failure' }] },
+    };
+    const c = await card('s20');
+    expect(c.build.map((r: { github: unknown }) => r.github)).toEqual([
+      { state: 'open', review: 'approved', checks: 'passing', pilot: 'P5' },
+      { state: 'draft', review: null, checks: 'failing', pilot: 'P5' },
+      null,
+    ]);
+    expect(c).toMatchObject({ pilot: 'P5', pilotMismatch: false, stuck: false });
+    const calls = githubCalls.length;
+    for (let i = 0; i < 2; i++) {
+      expect((await (await get('/api/board/feature/P-ENG-20')).json()).card).toMatchObject({ pilot: 'P5', build: c.build });
+    }
+    expect(githubCalls.length).toBe(calls + 6); // the panel reads GitHub once, then from the cache
+  });
+
+  it('open PRs on different pilots, or some on none, are a pilot mismatch and count as stuck', async () => {
+    await restart({ githubToken: 'GH-TOKEN' });
+    deps.docs = featureDocs;
+    github = {
+      '/repos/acme/automation/pulls/4812': pull(4812, ['pilot-05']),
+      '/repos/acme/automation/pulls/4812/reviews': [],
+      '/repos/acme/automation/commits/sha4812/check-runs': { check_runs: [] },
+      '/repos/acme/frontend-core/pulls/2290': pull(2290, ['pilot-07']),
+      '/repos/acme/frontend-core/pulls/2290/reviews': [],
+      '/repos/acme/frontend-core/commits/sha2290/check-runs': { check_runs: [] },
+    };
+    const b = await (await get('/api/board?refresh=1')).json();
+    expect(cards(b).find((c) => c.slugId === 's20')).toMatchObject({ pilot: null, pilotMismatch: true, stuck: true });
+    expect(b.stuck).toBe(1);
+  });
+
+  it('a token without the Checks permission still shows state, review and pilot', async () => {
+    await restart({ githubToken: 'GH-TOKEN' });
+    deps.docs = featureDocs;
+    github = {
+      '/repos/acme/automation/pulls/4812': pull(4812, ['pilot-05']),
+      '/repos/acme/automation/pulls/4812/reviews': [],
+    };
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect((await card('s20')).build[0].github).toEqual({ state: 'open', review: null, checks: null, pilot: 'P5' });
+    warn.mockRestore();
+  });
+
+  it('a GitHub error keeps the Build table without GitHub data', async () => {
+    await restart({ githubToken: 'GH-TOKEN' });
+    deps.docs = featureDocs;
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const c = await card('s20');
+    expect(c.build.map((r: { github: unknown }) => r.github)).toEqual([null, null, null]);
+    expect(c.build).toHaveLength(3);
+    warn.mockRestore();
+  });
+
+  it('every PR not merged in review waits for an engineer', async () => {
+    deps.docs = memoryDocuments({ 'documents/Flow/P-ENG-20 Alerts/0-status.md': BUILD_STATUS.replace('| building |', '| in review |').replace('| waiting |', '| merged |') });
+    expect(await card('s20')).toMatchObject({ waitsFor: [{ kind: 'engineer', names: [MIKA] }], waitingForMe: true });
+  });
+
+  it('Verify reads 4-verification.md: the owner waits with the counts; the panel lists the checks', async () => {
+    expect(await card('s21')).toMatchObject({ qa: { passed: 1, failed: 1 }, waitsFor: [{ kind: 'owner' }], waitingForMe: true });
+    const p = await (await get('/api/board/feature/P-ENG-21')).json();
+    expect(p.checks).toEqual([
+      { check: 'Dialog opens', passed: true, evidence: 'https://ci.example.com/1' },
+      { check: 'Empty chat text', passed: false, evidence: 'differs' },
+    ]);
+  });
+
+  it('a jflow tool call in the last 10 minutes makes the agent active on the card and the panel', async () => {
+    expect((await card('s20')).agentActive).toBe(false);
+    await activity.touch('P-ENG-20', new Date(NOW.getTime() - 9 * 60_000));
+    expect((await card('s20')).agentActive).toBe(true);
+    expect((await (await get('/api/board/feature/P-ENG-20')).json()).card.agentActive).toBe(true);
+    now = new Date(NOW.getTime() + 2 * 60_000);
+    expect((await card('s20')).agentActive).toBe(false);
+  });
+
+  it('a failing activity store shows the agent idle', async () => {
+    activity.since = async () => { throw new Error('db down'); };
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect((await card('s20')).agentActive).toBe(false);
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/activity.*db down/));
+    warn.mockRestore();
   });
 });
 

@@ -2,6 +2,7 @@ export type Settings = {
   docsUrl: string;
   docsToken: string;
   linearApiKey: string;
+  githubToken: string;
   teams: string[];
   engineers: string[];
   tdrFolder: string;
@@ -20,12 +21,14 @@ export type SettingsInput = {
   flowAgentUrl?: string; // undefined = keep the stored value; '' clears it
   docsToken?: string;
   linearApiKey?: string;
+  githubToken?: string;
 };
 
 export type StoredValue = {
   docsUrl: string;
   docsToken: string;
   linearApiKey: string;
+  githubToken: string;
   teams: string[];
   engineers: string[];
   tdrFolder: string;

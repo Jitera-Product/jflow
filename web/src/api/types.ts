@@ -4,6 +4,7 @@ export type SettingsView = {
     docsUrl: string;
       docsTokenSet: boolean;
     linearApiKeySet: boolean;
+    githubTokenSet: boolean;
     teams: string[];
     engineers: string[];
     tdrFolder: string;
@@ -21,11 +22,12 @@ export type SettingsInput = {
   flowAgentUrl: string;
   docsToken?: string;
   linearApiKey?: string;
+  githubToken?: string;
 };
 
 export type SetupStep = { ok: boolean; message?: string };
 
-export type SetupView = { linear: SetupStep; jitera: SetupStep; chats: { ok: boolean } };
+export type SetupView = { linear: SetupStep; jitera: SetupStep; github: SetupStep; chats: { ok: boolean } };
 
 export type LinearTeam = { key: string; name: string };
 
@@ -54,6 +56,17 @@ export type Me = { email: string; engineer: boolean; teams: string[] };
 
 export type Waiting = { kind: 'owner' | 'engineer' | 'agent'; names: string[] };
 
+export type GithubPr = {
+  state: 'open' | 'draft' | 'merged' | 'closed';
+  review: 'approved' | 'changes requested' | null;
+  checks: 'passing' | 'failing' | 'running' | null;
+  pilot: string | null;
+};
+
+export type BuildRow = { issue: string; repo: string; pr: number | null; url: string | null; status: string; github: GithubPr | null };
+
+export type QaCheck = { check: string; passed: boolean; evidence: string };
+
 export type BoardCard = {
   key: string;
   slugId: string;
@@ -71,6 +84,11 @@ export type BoardCard = {
   notStarted: boolean;
   behind: boolean;
   openGate: { id: string; from: string; to: string; opened: string; missing: Role[] } | null; // from, to: Linear labels
+  build: BuildRow[];
+  pilot: string | null;
+  pilotMismatch: boolean;
+  qa: { passed: number; failed: number } | null;
+  agentActive: boolean;
 };
 
 export type StageBoard = {
@@ -91,7 +109,11 @@ export type FeaturePanelView = {
   folder: string | null;
   chatUrl: string | null;
   notice: string | null;
+  checks: QaCheck[];
+  about: ProjectAbout | null;
 };
+export type ProjectPost = { author: string; createdAt: string; body: string; health: 'onTrack' | 'atRisk' | 'offTrack' | null };
+export type ProjectAbout = { summary: string; content: string; updates: ProjectPost[]; comments: ProjectPost[] };
 
 export type IdeaOwners = { owners: Array<{ id: string; name: string; email: string }>; defaultOwnerId: string | null };
 

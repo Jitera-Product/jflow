@@ -5,21 +5,22 @@ import { chatPointer } from './chatPointer.js';
 
 type Result = { isError?: boolean; content: Array<{ type: 'text'; text: string }> };
 
+const warn = (what: string, feature: string, e: unknown) =>
+  console.warn(`jflow: ${what}: ${feature}: ${e instanceof Error ? e.message : String(e)}`);
+
 // A feature belongs to the first chat the agent worked on it in. Another chat gets only a pointer to it,
-// never the feature's data. A failing store never fails the tool.
+// never the feature's data.
 export async function inFeatureChat<R extends Result>(
   deps: Deps, project: string, meta: Record<string, unknown> | undefined, body: () => Promise<R>,
 ): Promise<R | Result> {
-  const chat = chatIdOf(meta);
-  if (!chat) return body();
   const feature = project.trim().toUpperCase();
-  const stored = await storedChat(deps, feature);
+  const chat = chatIdOf(meta);
+  const stored = chat ? await storedChat(deps, feature) : null;
   if (stored && stored !== chat) return { isError: true, content: [{ type: 'text', text: await chatPointer(deps, feature, stored) }] };
+  await deps.activity.touch(feature, deps.now()).catch((e: unknown) => warn('feature activity', feature, e));
   const result = await body();
-  if (!stored && !result.isError) {
-    await deps.featureChats.remember(feature, chat, deps.now()).catch((e: unknown) => {
-      console.warn(`jflow: feature chats: ${feature}: ${e instanceof Error ? e.message : String(e)}`);
-    });
+  if (chat && !stored && !result.isError) {
+    await deps.featureChats.remember(feature, chat, deps.now()).catch((e: unknown) => warn('feature chats', feature, e));
   }
   return result;
 }

@@ -7,6 +7,7 @@ import pg from 'pg';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { pgChatTokenStore } from '../src/chats/pgChatTokenStore.js';
 import { migrate } from '../src/db/migrate.js';
+import { pgFeatureActivityStore } from '../src/activity/pgFeatureActivityStore.js';
 import { pgFeatureChatStore } from '../src/featureChats/pgFeatureChatStore.js';
 import { pgSettingsStore } from '../src/settings/pgSettingsStore.js';
 
@@ -121,5 +122,15 @@ describe.skipIf(!url)('migrate', () => {
     await store.remember('P-ENG-12', 'chat-2', new Date('2026-11-27T00:05:00Z'));
     expect(await store.get('P-ENG-12')).toBe('chat-1');
     expect(await store.get('P-ENG-13')).toBeNull();
+  });
+
+  it('pgFeatureActivityStore keeps the latest tool call of a feature', async () => {
+    await migrate(pool, fileURLToPath(new URL('../migrations', import.meta.url)));
+    const store = pgFeatureActivityStore(pool);
+    await store.touch('P-ENG-12', new Date('2026-11-27T00:10:00Z'));
+    await store.touch('P-ENG-12', new Date('2026-11-27T00:05:00Z'));
+    await store.touch('P-ENG-13', new Date('2026-11-27T00:00:00Z'));
+    expect(await store.since(new Date('2026-11-27T00:10:00Z'))).toEqual(['P-ENG-12']);
+    expect((await store.since(new Date('2026-11-26T00:00:00Z'))).sort()).toEqual(['P-ENG-12', 'P-ENG-13']);
   });
 });

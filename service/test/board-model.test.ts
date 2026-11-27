@@ -15,7 +15,7 @@ const gate = (o: Partial<GateRow> = {}): GateRow => ({
   id: 'g1', from: 'flow:spec-review', to: 'flow:tdr', roles: ['owner', 'engineer'], opened: daysAgo(1),
   status: 'open', approvals: [], decidedBy: '', sig: 'x', ...o,
 });
-const file = (o: Partial<StatusFile> = {}): StatusFile => ({ gates: [], log: [], stage: null, ...o });
+const file = (o: Partial<StatusFile> = {}): StatusFile => ({ gates: [], log: [], stage: null, build: [], ...o });
 const run = (projects: FlowProject[], files: Array<[string, StatusFile | null]> = [], o: Record<string, unknown> = {}) =>
   buildStageBoard({
     projects, files: new Map(files), ids: new Map(), engineers: ['eng@x.com'], viewer: 'nobody@x.com',
@@ -103,10 +103,14 @@ describe('buildStageBoard', () => {
     expect(cards(run([proj()], [['s1', behind]]))[0]!).toMatchObject({ behind: true, days: 5 });
   });
 
-  it('puts a flow:verify project in Verify, waiting for the owner', () => {
+  it('puts a flow:verify project in Verify, waiting for the agent until it has checks, then for the owner', () => {
     const b = run([proj({ flowLabel: 'flow:verify' })]);
     expect(b.columns.find((c) => c.stage === 'Verify')!.cards.map((c) => c.slugId)).toEqual(['s1']);
-    expect(cards(b)[0]!.waitsFor).toEqual([{ kind: 'owner', names: ['Mika'] }]);
+    expect(cards(b)[0]!).toMatchObject({ waitsFor: [{ kind: 'agent', names: ['the agent'] }], qa: null });
+    const checks = new Map([['s1', [{ check: 'a', passed: true, evidence: '' }, { check: 'b', passed: false, evidence: '' }]]]);
+    expect(cards(run([proj({ flowLabel: 'flow:verify' })], [], { checksBySlug: checks }))[0]!).toMatchObject({
+      waitsFor: [{ kind: 'owner', names: ['Mika'] }], qa: { passed: 1, failed: 1 },
+    });
   });
 
   it('computes open gate, missing roles and waitsFor from it', () => {

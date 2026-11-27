@@ -138,6 +138,8 @@ are normal but rare, and go through the human-in-the-loop path in the `build` sk
 - Never: merge, push to `main` or `master`, force push, rewrite a pushed branch. The plugin
   hook blocks these.
 - The human approves each PR (review and merge) and each stage gate. Nothing else.
+- One feature = one pilot. Every open PR of the feature is deployed to the same pilot and carries
+  its label `pilot-NN`. jflow shows "Pilot mismatch" when open PRs are on different pilots or some on none.
 
 ## Rules for agents
 

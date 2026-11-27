@@ -12,25 +12,27 @@ import { PageShell } from '@/shell/PageShell';
 import { StatePanel } from '@/shell/StatePanel';
 import { ChatsSection } from './ChatsSection';
 import { Checklist } from './Checklist';
+import { GithubSection } from './GithubSection';
 import { JiteraSection } from './JiteraSection';
 import { LinearSection } from './LinearSection';
 import { PeopleSection } from './PeopleSection';
 import { SaveRow } from './SaveRow';
 import { type SettingsFormInput, settingsFormSchema } from './settingsFormSchema';
 
-type Section = 'linear' | 'jitera' | 'people';
+type Section = 'linear' | 'github' | 'jitera' | 'people';
 
 const toForm = (s: SettingsView['settings']): SettingsFormInput => ({
   docsUrl: s.docsUrl,
   docsToken: '',
   linearApiKey: '',
+  githubToken: '',
   teams: s.teams,
   tdrFolder: s.tdrFolder,
   flowAgentUrl: s.flowAgentUrl,
   engineers: s.engineers.join('\n'),
 });
 
-const unchecked = (message: string): SetupView => ({ linear: { ok: false, message }, jitera: { ok: false, message }, chats: { ok: false } });
+const unchecked = (message: string): SetupView => ({ linear: { ok: false, message }, jitera: { ok: false, message }, github: { ok: false, message }, chats: { ok: false } });
 
 export function SettingsPage() {
   const [view, setView] = useState<SettingsView | null>(null);
@@ -59,12 +61,12 @@ export function SettingsPage() {
     check();
   }, []);
 
-  const onSubmit = form.handleSubmit(async ({ docsToken, linearApiKey, ...rest }) => {
+  const onSubmit = form.handleSubmit(async ({ docsToken, linearApiKey, githubToken, ...rest }) => {
     const at = pressed.current;
     setStatus({ at, saved: false, problems: [] });
     try {
       // A blank secret is left out, so the stored one stays.
-      show(await saveSettings({ ...rest, ...(docsToken ? { docsToken } : {}), ...(linearApiKey ? { linearApiKey } : {}) }));
+      show(await saveSettings({ ...rest, ...(docsToken ? { docsToken } : {}), ...(linearApiKey ? { linearApiKey } : {}), ...(githubToken ? { githubToken } : {}) }));
       setStatus({ at, saved: true, problems: [] });
       check();
     } catch (e) {
@@ -131,6 +133,7 @@ export function SettingsPage() {
         <FormProvider {...form}>
           <form onSubmit={onSubmit} onKeyDown={onKeyDown} noValidate className="grid gap-6">
             <LinearSection keySet={s.linearApiKeySet} savedAt={s.updatedAt} footer={footer('linear')} />
+            <GithubSection tokenSet={s.githubTokenSet} footer={footer('github')} />
             <JiteraSection tokenSet={s.docsTokenSet} footer={footer('jitera')} />
             <PeopleSection footer={footer('people')} />
           </form>

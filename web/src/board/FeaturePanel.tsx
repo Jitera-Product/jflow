@@ -6,9 +6,14 @@ import { Button } from '@/components/ui/Button';
 import { daysText } from '@/lib/daysText';
 import { shortDate } from '@/lib/shortDate';
 import { StatePanel } from '@/shell/StatePanel';
+import { AboutSection } from './AboutSection';
 import { PanelSection } from './PanelSection';
+import { PilotSection } from './PilotSection';
+import { PostsSection } from './PostsSection';
+import { QaSection } from './QaSection';
 import { StageChip } from './StageChip';
 import { StageTimeline } from './StageTimeline';
+import { WorkSection } from './WorkSection';
 
 const NOTE = 'bg-secondary mx-7 mt-6 rounded-md px-3 py-2';
 
@@ -97,6 +102,13 @@ export function FeaturePanel({ featureKey, onClose }: { featureKey: string; onCl
           {view.notice && <p className={NOTE}>{view.notice}</p>}
           {c.notStarted && <p className={NOTE}>Not started in jflow</p>}
           {view.behind && <p className={NOTE}>{`The status file is behind: Linear says ${c.stage}.`}</p>}
+          {view.about && (
+            <>
+              <AboutSection summary={view.about.summary} content={view.about.content} />
+              <PostsSection title="Updates" posts={view.about.updates} />
+              <PostsSection title="Comments" posts={view.about.comments} />
+            </>
+          )}
           {view.gate && (
             <PanelSection title="Open gate">
               <p>{`${view.gate.from} -> ${view.gate.to}, waiting for ${view.gate.missing.join(', ')}`}</p>
@@ -105,6 +117,7 @@ export function FeaturePanel({ featureKey, onClose }: { featureKey: string; onCl
               </Button>
             </PanelSection>
           )}
+          {view.checks.length > 0 && <QaSection checks={view.checks} pilot={c.pilot} />}
           {view.stages.length > 0 && (
             <PanelSection title="Stages">
               <StageTimeline stages={view.stages} />
@@ -122,6 +135,8 @@ export function FeaturePanel({ featureKey, onClose }: { featureKey: string; onCl
               </ul>
             </PanelSection>
           )}
+          {c.build.length > 0 && <WorkSection build={c.build} />}
+          {(c.pilot || c.pilotMismatch) && <PilotSection card={c} />}
           {view.log.length > 0 && (
             <PanelSection title="Log">
               <ul className="text-muted-foreground flex flex-col gap-1.5 font-mono text-xs">

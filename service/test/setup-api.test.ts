@@ -6,6 +6,7 @@ import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair } from 'jose';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { memoryChatTokenStore } from '../src/chats/memoryChatTokenStore.js';
 import { openChatTokens } from '../src/chats/openChatTokens.js';
+import { memoryFeatureActivityStore } from '../src/activity/memoryFeatureActivityStore.js';
 import { memoryFeatureChatStore } from '../src/featureChats/memoryFeatureChatStore.js';
 import type { Config } from '../src/config/types.js';
 import { memoryDocuments } from '../src/documents/memoryDocuments.js';
@@ -16,6 +17,7 @@ import { memorySettingsStore } from '../src/settings/memorySettingsStore.js';
 import { openSettings } from '../src/settings/openSettings.js';
 import type { LiveSettings } from '../src/settings/types.js';
 import { flowLabels } from '../src/linear/flowLabels.js';
+import { NO_GITHUB } from '../src/http/routes/githubStep.js';
 
 const TEAM = 'team.cloudflareaccess.com';
 const AUD = 'aud-1';
@@ -45,7 +47,13 @@ let linearCalls: string[];
 let linearFails: boolean;
 const have = ['flow:intent'];
 
-const fakeLinear = (async (_url: any, init: any) => {
+let githubCalls: Array<{ url: string; auth: string }>;
+let githubOk: boolean;
+const fakeLinear = (async (url: any, init: any) => {
+  if (String(url).startsWith('https://api.github.com/')) {
+    githubCalls.push({ url: String(url), auth: init.headers.authorization });
+    return new Response(JSON.stringify(githubOk ? { login: 'jflow-bot' } : { message: 'Bad credentials' }), { status: githubOk ? 200 : 401 });
+  }
   const { query, variables } = JSON.parse(init.body);
   const op = /(?:query|mutation)\s+(\w+)/.exec(query)![1]!;
   linearCalls.push(op === 'CreateFlowLabel' ? `create:${variables.name}` : op);
@@ -71,12 +79,14 @@ async function start(linearApiKey = 'LIN-KEY-BBB', docs?: Documents) {
   settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: [MIKA] }, () => new Date());
   await settings.save({ docsUrl: 'https://d.example.com', docsToken: 'DOCS-STORED', teams: ['ENG'], engineers: [MIKA], linearApiKey }, MIKA);
   const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [], () => new Date());
-  deps = { config, settings, chats, featureChats: memoryFeatureChatStore(), docs: docs ?? memoryDocuments({}), tracker: {} as never, now: () => new Date() };
+  deps = { config, settings, chats, featureChats: memoryFeatureChatStore(), activity: memoryFeatureActivityStore(), docs: docs ?? memoryDocuments({}), tracker: {} as never, now: () => new Date() };
   server = createHttpServer(deps, { jwks, fetch: fakeLinear, makeDocs });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 }
 beforeEach(async () => {
+  githubCalls = [];
+  githubOk = true;
   linearCalls = [];
   linearFails = false;
   made = [];
@@ -103,6 +113,7 @@ describe('access', () => {
   const routes: Array<[string, string, unknown?]> = [
     ['GET', '/api/setup'], ['GET', '/api/linear/teams'], ['GET', '/api/linear/labels'],
     ['GET', '/api/chats'], ['POST', '/api/chats', { name: 'x' }], ['DELETE', '/api/chats/abc'], ['GET', '/api/agent-prompt'], ['POST', '/api/setup/jitera', { docsUrl: 'https://d.example.com' }],
+    ['POST', '/api/setup/github', {}],
   ];
   it.each(routes)('%s %s: 401 without Access, 403 for a non-engineer', async (method, path, body) => {
     expect((await call(method, path, null, body)).status).toBe(401);
@@ -124,7 +135,7 @@ describe('/api/setup', () => {
   const setup = async () => (await call('GET', '/api/setup')).json();
 
   it('reports each step', async () => {
-    expect(await setup()).toEqual({ linear: { ok: true }, jitera: { ok: true }, chats: { ok: false } });
+    expect(await setup()).toEqual({ linear: { ok: true }, jitera: { ok: true }, github: { ok: false, message: NO_GITHUB }, chats: { ok: false } });
     const { token } = await deps.chats.create('agent', MIKA);
     deps.chats.used(deps.chats.find(token)!.id);
     expect((await setup()).chats).toEqual({ ok: true });
@@ -258,5 +269,26 @@ describe('POST /api/setup/jitera', () => {
   it('refuses a URL that is not https', async () => {
     expect(await test({ docsUrl: 'ftp://x', docsToken: 't' })).toEqual({ ok: false, message: 'The Jitera MCP URL must be an https URL.' });
     expect(made).toEqual([]);
+  });
+});
+
+describe('GitHub token', () => {
+  it('is optional: setup says so, and the token is never returned', async () => {
+    expect((await (await call('GET', '/api/setup')).json()).github).toEqual({ ok: false, message: NO_GITHUB });
+    await settings.save({ docsUrl: 'https://d.example.com', teams: ['ENG'], engineers: [MIKA], githubToken: 'GH-TOKEN-CCC' }, MIKA);
+    expect((await (await call('GET', '/api/setup')).json()).github).toEqual({ ok: true });
+    expect(githubCalls.at(-1)).toEqual({ url: 'https://api.github.com/user', auth: 'Bearer GH-TOKEN-CCC' });
+    const view = await (await call('GET', '/api/settings')).text();
+    expect(view).toContain('"githubTokenSet":true');
+    expect(view).not.toContain('GH-TOKEN-CCC');
+  });
+  it('Test tries the typed token, else the stored one, and says when GitHub refuses it', async () => {
+    expect(await (await call('POST', '/api/setup/github', MIKA, {})).json()).toEqual({ ok: false, message: 'Enter the GitHub token.' });
+    expect(await (await call('POST', '/api/setup/github', MIKA, { githubToken: 'GH-NEW' })).json()).toEqual({ ok: true });
+    expect(githubCalls.at(-1)!.auth).toBe('Bearer GH-NEW');
+    githubOk = false;
+    const r = await (await call('POST', '/api/setup/github', MIKA, { githubToken: 'GH-NEW' })).text();
+    expect(JSON.parse(r)).toEqual({ ok: false, message: 'GitHub did not accept the token.' });
+    expect(r).not.toContain('GH-NEW');
   });
 });

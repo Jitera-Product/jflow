@@ -41,6 +41,9 @@
   --color-waits-bg: var(--waits-bg);
   --color-waits-text: var(--waits-text);
   --color-waits-dot: var(--waits-dot);
+
+  --color-working-bg: var(--working-bg);
+  --color-working-text: var(--working-text);
 }
 
 :root {
@@ -75,6 +78,9 @@
   --waits-bg: #fefce8;
   --waits-text: #97540a;
   --waits-dot: #ca8a04;
+
+  --working-bg: #eff6ff;
+  --working-text: #2563eb;
 
   --brand-gradient-from: #0181f8;
   --brand-gradient-to: #4cc3ff;
@@ -116,6 +122,9 @@
   --waits-text: #fcd34d;
   --waits-dot: #eab308;
 
+  --working-bg: rgba(37, 99, 235, 0.18);
+  --working-text: #93c5fd;
+
   --btn-gradient: linear-gradient(var(--brand-gradient-from), var(--brand-gradient-to));
   --btn-gradient-disabled: linear-gradient(#003463, #1e4e66);
 
@@ -142,5 +151,50 @@
   li,
   dd {
     text-wrap-style: pretty;
+  }
+}
+
+@layer components {
+  .markdown {
+    @apply text-[13px] leading-relaxed wrap-anywhere;
+  }
+  .markdown > * + * {
+    @apply mt-2;
+  }
+  .markdown :is(h1, h2, h3, h4, h5, h6) {
+    @apply mt-4 text-[13px] font-semibold first:mt-0;
+  }
+  .markdown h1 {
+    @apply text-sm;
+  }
+  .markdown ul {
+    @apply list-disc pl-5;
+  }
+  .markdown ol {
+    @apply list-decimal pl-5;
+  }
+  .markdown li + li {
+    @apply mt-0.5;
+  }
+  .markdown a {
+    @apply underline underline-offset-2 hover:text-muted-foreground;
+  }
+  .markdown code {
+    @apply bg-secondary rounded px-1 py-0.5 font-mono text-xs;
+  }
+  .markdown pre {
+    @apply bg-secondary overflow-x-auto rounded-md p-3;
+  }
+  .markdown pre code {
+    @apply bg-transparent p-0;
+  }
+  .markdown blockquote {
+    @apply text-muted-foreground border-l-2 pl-3;
+  }
+  .markdown img {
+    @apply max-w-full rounded-md;
+  }
+  .markdown hr {
+    @apply my-3;
   }
 }

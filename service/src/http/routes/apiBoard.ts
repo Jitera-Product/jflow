@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { activeFeatures } from '../../activity/activeFeatures.js';
 import { buildStageBoard } from '../../board/buildStageBoard.js';
 import { loadStageBoard } from '../../board/loadStageBoard.js';
 import { json } from '../json.js';
@@ -17,5 +18,6 @@ export async function apiBoard(ctx: HttpContext, req: IncomingMessage, res: Serv
   }
   // The cache holds the loaded data; mine and older only shape the board built from it, so they share one cache entry.
   const shape = { mine: q.get('mine') === '1', older: q.get('older') === '1' };
-  json(res, 200, buildStageBoard({ ...data, engineers, viewer: email, ...shape }, new Date(data.at)));
+  const active = await activeFeatures(ctx.deps);
+  json(res, 200, buildStageBoard({ ...data, active, engineers, viewer: email, ...shape }, new Date(data.at)));
 }

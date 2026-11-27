@@ -6,7 +6,7 @@ import { SettingsError } from './SettingsError.js';
 import type { LegacySettings, LiveSettings, Settings, SettingsStore, StoredRow, StoredValue } from './types.js';
 
 const EMPTY: StoredValue = {
-  docsUrl: '', docsToken: '', linearApiKey: '', teams: [], engineers: [],
+  docsUrl: '', docsToken: '', linearApiKey: '', githubToken: '', teams: [], engineers: [],
   tdrFolder: '', flowAgentUrl: '', gateSecret: '', legacyChatsImported: false,
 };
 
@@ -38,7 +38,7 @@ export async function openSettings(
   if (gateSecretImported) console.warn('jflow: imported the gate secret from JFLOW_GATE_SECRET; you can remove JFLOW_GATE_SECRET now');
   let row = (await store.load()) as StoredRow;
 
-  const read = (r: StoredRow, field: 'docsToken' | 'linearApiKey'): string => {
+  const read = (r: StoredRow, field: 'docsToken' | 'linearApiKey' | 'githubToken'): string => {
     const plain = openSecret(key, r.value[field]);
     if (plain === null) {
       console.error(`jflow: settings: cannot decrypt ${field}, set it again on /settings`);
@@ -54,6 +54,7 @@ export async function openSettings(
       docsUrl: r.value.docsUrl,
       docsToken: read(r, 'docsToken'),
       linearApiKey: read(r, 'linearApiKey'),
+      githubToken: read(r, 'githubToken'),
       teams: r.value.teams,
       engineers: r.value.engineers,
       tdrFolder: r.value.tdrFolder,
@@ -79,6 +80,7 @@ export async function openSettings(
         docsUrl: input.docsUrl,
         docsToken: input.docsToken ? sealSecret(key, input.docsToken) : stored.docsToken,
         linearApiKey: input.linearApiKey ? sealSecret(key, input.linearApiKey) : stored.linearApiKey,
+        githubToken: input.githubToken ? sealSecret(key, input.githubToken) : stored.githubToken,
         teams: input.teams,
         engineers,
         tdrFolder: input.tdrFolder ?? stored.tdrFolder,

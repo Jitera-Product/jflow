@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { memoryChatTokenStore } from '../src/chats/memoryChatTokenStore.js';
 import { openChatTokens } from '../src/chats/openChatTokens.js';
+import { memoryFeatureActivityStore } from '../src/activity/memoryFeatureActivityStore.js';
 import { memoryFeatureChatStore } from '../src/featureChats/memoryFeatureChatStore.js';
 import type { Config } from '../src/config/types.js';
 import { memoryDocuments } from '../src/documents/memoryDocuments.js';
@@ -59,7 +60,7 @@ let deps: Deps;
 function setup(project: TrackerProject = PROJECT, spec = SPEC_DONE) {
   docs = memoryDocuments({ [STATUS]: statusMd, [`${FOLDER}/2-spec.md`]: spec, 'documents/Flow/P-ENG-1 Other/0-status.md': 'x' });
   tracker = fakeTracker(project);
-  deps = { config, settings, chats, featureChats: memoryFeatureChatStore(), docs, tracker, now: () => new Date('2026-11-23T10:00:00Z') };
+  deps = { config, settings, chats, featureChats: memoryFeatureChatStore(), activity: memoryFeatureActivityStore(), docs, tracker, now: () => new Date('2026-11-23T10:00:00Z') };
 }
 beforeEach(() => setup());
 

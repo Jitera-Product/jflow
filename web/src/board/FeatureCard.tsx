@@ -3,7 +3,9 @@ import type { BoardCard } from '@/api/types';
 import { Avatar } from '@/components/ui/Avatar';
 import { cn } from '@/lib/cn';
 import { daysText } from '@/lib/daysText';
+import { cardChipsOf } from './cardChipsOf';
 import { gateDaysOf } from './gateDaysOf';
+import { Pill } from './Pill';
 import { progressOf } from './progressOf';
 import { StageChip } from './StageChip';
 import { StatusChip } from './StatusChip';
@@ -12,6 +14,7 @@ import { statusChipOf } from './statusChipOf';
 // at: when the board was read, for the stuck days
 export function FeatureCard({ card, at }: { card: BoardCard; at: string }) {
   const chip = statusChipOf(card);
+  const chips = cardChipsOf(card);
   const done = card.stage === 'Done';
   return (
     <Link
@@ -31,6 +34,16 @@ export function FeatureCard({ card, at }: { card: BoardCard; at: string }) {
       <div aria-hidden="true" className="bg-secondary h-1 overflow-hidden rounded-full">
         <span className={cn('block h-full rounded-full', done ? 'bg-success-text' : 'bg-primary')} style={{ width: `${progressOf(card.stage) * 100}%` }} />
       </div>
+      {chips.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {chips.map((c) => (
+            <Pill key={c.text} tone={c.tone} mono={c.mono}>
+              {c.tone === 'fail' && <span aria-hidden="true" className="bg-error-text size-1.5 rounded-full" />}
+              {c.text}
+            </Pill>
+          ))}
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         {card.notStarted ? (
           card.owner && <span className="text-muted-foreground text-xs">{`From ${card.owner.name}`}</span>

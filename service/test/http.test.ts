@@ -9,6 +9,7 @@ import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair, type JWTVerifyG
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { memoryChatTokenStore } from '../src/chats/memoryChatTokenStore.js';
 import { openChatTokens } from '../src/chats/openChatTokens.js';
+import { memoryFeatureActivityStore } from '../src/activity/memoryFeatureActivityStore.js';
 import { memoryFeatureChatStore } from '../src/featureChats/memoryFeatureChatStore.js';
 import type { Config } from '../src/config/types.js';
 import { memoryDocuments } from '../src/documents/memoryDocuments.js';
@@ -91,7 +92,7 @@ async function setup(project: TrackerProject = PROJECT) {
   const quiet = vi.spyOn(console, 'warn').mockImplementation(() => {});
   const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [{ name: 'test', token: MCP_TOKEN }, { name: 'second-agent', token: MCP_TOKEN_B }], () => new Date());
   quiet.mockRestore();
-  deps = { config, settings, chats, featureChats: memoryFeatureChatStore(), docs, tracker, now: () => new Date() };
+  deps = { config, settings, chats, featureChats: memoryFeatureChatStore(), activity: memoryFeatureActivityStore(), docs, tracker, now: () => new Date() };
   gate = (await openGate(deps, 'P-ENG-12', 'flow:plan', ORIGIN)).gate;
   gatePath = `/gate/P-ENG-12/${gate}`;
   server = createHttpServer(deps, { jwks, fetch: linearHasAllLabels });
@@ -442,7 +443,7 @@ describe('/api/settings', () => {
     expect(JSON.parse(text)).toEqual({
       email: MIKA,
       settings: {
-        docsUrl: 'https://docs.example.com', docsTokenSet: true, linearApiKeySet: true,
+        docsUrl: 'https://docs.example.com', docsTokenSet: true, linearApiKeySet: true, githubTokenSet: false,
         teams: ['ENG'], engineers: ENGINEERS, updatedBy: MIKA, updatedAt: expect.any(String),
         tdrFolder: '', flowAgentUrl: '', },
     });

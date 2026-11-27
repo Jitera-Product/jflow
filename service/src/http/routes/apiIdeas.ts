@@ -23,7 +23,6 @@ export async function apiIdeas(ctx: HttpContext, req: IncomingMessage, res: Serv
       const [owners, me] = await Promise.all([listTeamMembers(f, linearApiKey, team), findUserByEmail(f, linearApiKey, email).catch(() => null)]);
       return json(res, 200, { owners, defaultOwnerId: owners.some((o) => o.id === me?.id) ? me!.id : null });
     }
-    if (!ctx.origin()) return json(res, 409, { error: 'no_public_url', message: 'An engineer has to set the jflow address on /settings first.' });
     const read = await readJson(req, res);
     if (!read) return;
     const body = ideaBody.safeParse(read.body);

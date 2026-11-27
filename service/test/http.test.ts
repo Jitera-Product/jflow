@@ -31,6 +31,7 @@ const FOLDER = 'documents/Flow/P-ENG-12 Export';
 const STATUS = `${FOLDER}/0-status.md`;
 const SPEC_DONE = '**Flagged concerns.**\n\n1. Format - Decide: Mika\n   Decision: CSV - Mika, 2026-11-20\n';
 const ORIGIN = 'https://flow.example.com';
+const FWD = { 'x-forwarded-proto': 'https', 'x-forwarded-host': 'flow.example.com' }; // as behind the proxy at ORIGIN
 const TEAM = 'team.cloudflareaccess.com';
 const AUD = 'aud-1';
 const MCP_TOKEN = 't'.repeat(32);
@@ -82,8 +83,8 @@ let gate: string;
 let gatePath: string;
 const apiGatePath = () => `/api${gatePath}`;
 
-async function setup(project: TrackerProject = PROJECT, publicUrl = ORIGIN) {
-  settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS, publicUrl }, () => new Date());
+async function setup(project: TrackerProject = PROJECT) {
+  settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, () => new Date());
   await settings.save({ docsUrl: 'https://docs.example.com', tdrFolder: '', docsToken: 'DOCS-TOKEN-AAA', linearApiKey: 'LIN-KEY-BBB', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
   docs = memoryDocuments({ [STATUS]: statusMd, [`${FOLDER}/2-spec.md`]: SPEC_DONE });
   tracker = fakeTracker(project);
@@ -91,7 +92,7 @@ async function setup(project: TrackerProject = PROJECT, publicUrl = ORIGIN) {
   const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [{ name: 'test', token: MCP_TOKEN }, { name: 'second-agent', token: MCP_TOKEN_B }], () => new Date());
   quiet.mockRestore();
   deps = { config, settings, chats, featureChats: memoryFeatureChatStore(), docs, tracker, now: () => new Date() };
-  gate = (await openGate(deps, 'P-ENG-12', 'flow:plan')).gate;
+  gate = (await openGate(deps, 'P-ENG-12', 'flow:plan', ORIGIN)).gate;
   gatePath = `/gate/P-ENG-12/${gate}`;
   server = createHttpServer(deps, { jwks, fetch: linearHasAllLabels });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
@@ -107,9 +108,9 @@ async function serve(legacy: LegacySettings) {
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 }
-const get = (path: string, headers: Record<string, string>) => fetch(base + path, { headers, redirect: 'manual' });
+const get = (path: string, headers: Record<string, string>) => fetch(base + path, { headers: { ...FWD, ...headers }, redirect: 'manual' });
 const post = (path: string, body: string, headers: Record<string, string>) =>
-  fetch(base + path, { method: 'POST', body, headers, redirect: 'manual' });
+  fetch(base + path, { method: 'POST', body, headers: { ...FWD, ...headers }, redirect: 'manual' });
 const initBody = JSON.stringify({
   jsonrpc: '2.0', id: 1, method: 'initialize',
   params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'c', version: '1' } },
@@ -175,6 +176,19 @@ describe('/mcp', () => {
     expect(await deps.chats.revoke(chat.id)).toBe(true);
     expect((await post('/mcp', initBody, h)).status).toBe(401);
   });
+  it('open_gate links to the address the MCP request came to', async () => {
+    const linkVia = async (headers: Record<string, string>) => {
+      const client = new Client({ name: 'c', version: '1' });
+      await client.connect(new StreamableHTTPClientTransport(new URL(base + '/mcp'), {
+        requestInit: { headers: { authorization: `Bearer ${MCP_TOKEN}`, ...headers } },
+      }));
+      const r = (await client.callTool({ name: 'open_gate', arguments: { project: 'P-ENG-12', to: 'flow:plan' } })) as { content: Array<{ text: string }> };
+      await client.close();
+      return JSON.parse(r.content[0]!.text).url as string;
+    };
+    expect(await linkVia({ 'x-forwarded-proto': 'https', 'x-forwarded-host': 'jflow.acme.example' })).toBe(`https://jflow.acme.example${gatePath}`);
+    expect(await linkVia({})).toBe(`${base}${gatePath}`);
+  });
 });
 
 describe('verifyAccess', () => {
@@ -230,7 +244,7 @@ describe('GET /api/gate', () => {
     expect(body).toMatchObject({ canDecide: false, reason: 'ken@jitera.com cannot decide this gate.' });
   });
   it('someone who already approved gets the reason', async () => {
-    const tdr = (await openGate(deps, 'P-ENG-12', 'flow:tdr')).gate;
+    const tdr = (await openGate(deps, 'P-ENG-12', 'flow:tdr', ORIGIN)).gate;
     const path = `/api/gate/P-ENG-12/${tdr}`;
     const r = await apiPost(path, { decision: 'approve', to: 'flow:tdr' });
     expect(r.status).toBe(200);
@@ -302,11 +316,16 @@ describe('POST /api/gate', () => {
     expect(r.status).toBe(404);
     expect((await r.json()).error).toBe('not_found');
   });
-  it('the origin check normalizes case and the default port of publicUrl', async () => {
-    server.close();
-    await setup(PROJECT, 'https://Flow.Example.COM:443');
-    expect((await apiPost(apiGatePath(), { decision: 'approve', to: 'flow:plan' })).status).toBe(200);
+  it('the origin check compares the Origin with the host the request came to', async () => {
+    const body = { decision: 'approve', to: 'flow:plan' };
+    const direct = { 'x-forwarded-proto': '', 'x-forwarded-host': '' };
+    expect((await apiPost(apiGatePath(), body, MIKA, direct)).status).toBe(403);
+    expect((await apiPost(apiGatePath(), body, MIKA, { ...direct, origin: base })).status).toBe(200);
     expect(tracker.labels).toEqual(['flow:plan']);
+  });
+  it('the origin check normalizes case and the default port of the forwarded host', async () => {
+    const r = await apiPost(apiGatePath(), { decision: 'approve', to: 'flow:plan' }, MIKA, { 'x-forwarded-host': 'Flow.Example.COM:443' });
+    expect(r.status).toBe(200);
   });
 });
 
@@ -344,7 +363,7 @@ describe('gate webhook', () => {
     expect((await hook(bodyOf({}), { secret: live.token })).status).toBe(200);
   });
   it('a partial approval answers open with the missing role', async () => {
-    const tdr = (await openGate(deps, 'P-ENG-12', 'flow:tdr')).gate;
+    const tdr = (await openGate(deps, 'P-ENG-12', 'flow:tdr', ORIGIN)).gate;
     const send = (email: string) => hook(bodyOf({ gate: tdr, to: 'flow:tdr', email }));
     for (const _ of [1, 2]) {
       const r = await send('ken@jitera.com');
@@ -425,7 +444,7 @@ describe('/api/settings', () => {
       settings: {
         docsUrl: 'https://docs.example.com', docsTokenSet: true, linearApiKeySet: true,
         teams: ['ENG'], engineers: ENGINEERS, updatedBy: MIKA, updatedAt: expect.any(String),
-        publicUrl: ORIGIN, tdrFolder: '', flowAgentUrl: '', },
+        tdrFolder: '', flowAgentUrl: '', },
     });
   });
   it('the view never carries the gate secret', async () => {
@@ -457,41 +476,16 @@ describe('/api/settings', () => {
     expect((await save({ flowAgentUrl: '' })).status).toBe(200);
     expect(settings.get().flowAgentUrl).toBe('');
   });
-  it('POST saves publicUrl as a normalized origin and refuses a bad one', async () => {
-    expect((await save({ publicUrl: 'https://flow.example.com/' })).status).toBe(200);
-    expect(settings.get().publicUrl).toBe(ORIGIN);
-    const r = await save({ publicUrl: 'HTTPS://Flow.Example.com:443/' });
+  it('POST ignores an old publicUrl field', async () => {
+    const r = await save({ publicUrl: 'https://other.example.com' });
     expect(r.status).toBe(200);
-    expect((await r.json()).settings.publicUrl).toBe(ORIGIN);
+    expect((await r.json()).settings).not.toHaveProperty('publicUrl');
+    expect(settings.get()).not.toHaveProperty('publicUrl');
   });
-  it('POST refuses a publicUrl that differs from the request origin, and the stored value stays', async () => {
-    const r = await save({ publicUrl: 'https://new.example.com' });
-    expect(r.status).toBe(400);
-    expect((await r.json()).problems).toEqual(['Open /settings at that address to set it.']);
-    expect(settings.get().publicUrl).toBe(ORIGIN);
-  });
-  it('POST accepts a publicUrl with the same origin as the request', async () => {
-    expect((await save({ publicUrl: ORIGIN + '/' })).status).toBe(200);
-    expect(settings.get().publicUrl).toBe(ORIGIN);
-  });
-  it('once publicUrl is set, a POST from another origin is refused', async () => {
-    const r = await save({ publicUrl: 'https://other.example.com' }, MIKA, { origin: 'https://other.example.com' });
+  it('a POST with no Origin is refused', async () => {
+    const r = await post('/api/settings', JSON.stringify({ ...GOOD, tdrFolder: 'X' }), { ...JSON_H, ...(await as(MIKA)) });
     expect(r.status).toBe(403);
-    expect(await r.json()).toEqual({ error: 'refused' });
-    expect(settings.get().publicUrl).toBe(ORIGIN);
-  });
-  it('the first save takes publicUrl from the page origin when none is set', async () => {
-    await serve({ engineers: ENGINEERS });
-    const r = await save({}, MIKA, { origin: 'https://flow.example.com' });
-    expect(r.status).toBe(200);
-    expect((await r.json()).settings.publicUrl).toBe('https://flow.example.com');
-    expect(settings.get().publicUrl).toBe('https://flow.example.com');
-  });
-  it('with no publicUrl, a POST with no Origin is refused', async () => {
-    await serve({ engineers: ENGINEERS });
-    const r = await post('/api/settings', JSON.stringify(GOOD), { ...JSON_H, ...(await as(MIKA)) });
-    expect(r.status).toBe(403);
-    expect(settings.get().publicUrl).toBe('');
+    expect(settings.get().tdrFolder).toBe('');
   });
   it('the first person to open settings on an empty instance becomes an engineer', async () => {
     await serve({});
@@ -558,7 +552,7 @@ describe('/api/settings', () => {
       },
     });
     const r = await fetch(base + '/api/settings', {
-      method: 'POST', body, duplex: 'half', headers: { ...JSON_H, origin: ORIGIN, ...(await as(MIKA)) },
+      method: 'POST', body, duplex: 'half', headers: { ...FWD, ...JSON_H, origin: ORIGIN, ...(await as(MIKA)) },
     } as RequestInit);
     expect(r.status).toBe(413);
     expectApiHeaders(r);

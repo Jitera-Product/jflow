@@ -95,7 +95,7 @@ const GOOD: SettingsInput = {
 };
 
 async function start(input: Partial<SettingsInput> = {}) {
-  settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: [MIKA], publicUrl: ORIGIN }, () => NOW);
+  settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: [MIKA] }, () => NOW);
   await settings.save({ ...GOOD, ...input }, MIKA);
   const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [], () => NOW);
   docs = memoryDocuments(FILES);
@@ -246,7 +246,7 @@ describe('/api/board/feature', () => {
       { stage: 'Spec review', status: 'not started', date: '', file: '', by: '' },
     ]);
     expect(p.log).toHaveLength(2);
-    expect(p.gate).toEqual({ url: `${ORIGIN}/gate/P-ENG-12/g1`, from: 'Spec review', to: 'Plan', missing: ['engineer'] });
+    expect(p.gate).toEqual({ url: '/gate/P-ENG-12/g1', from: 'Spec review', to: 'Plan', missing: ['engineer'] });
     expect(p.files).toEqual(['0-status.md', '1-intent.md']);
     expect(p.linearUrl).toBe('https://linear.app/x/project/n-s1');
     expect(p.folder).toBe('documents/Flow/P-ENG-12 Export/');

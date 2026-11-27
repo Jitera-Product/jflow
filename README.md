@@ -115,6 +115,7 @@ Requirements: `gh` logged in, Linear MCP and Jitera MCP connected.
 
 With a jflow service, an engineer connects each chat from `/settings` -> Chats: "New token", then copy the
 block for Jitera, Claude Code or another MCP chat. The service setup is in [docs/deploy.md](docs/deploy.md).
+jflow takes its own address from each request, so there is no address to set.
 
 ### Claude Code
 

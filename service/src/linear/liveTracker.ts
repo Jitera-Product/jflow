@@ -8,11 +8,11 @@ export function liveTracker(settings: LiveSettings, make = linearTracker): Track
   let tracker: Tracker | undefined;
 
   const current = (): Tracker => {
-    const { linearApiKey, publicUrl } = settings.get();
+    const { linearApiKey } = settings.get();
     if (linearApiKey === '') {
       throw new FeatureError(
         'not_configured',
-        `jflow is not set up yet: the Linear API key is missing. An engineer sets it at ${publicUrl}/settings.`,
+        'jflow is not set up yet: the Linear API key is missing. An engineer sets it on /settings.',
       );
     }
     if (!tracker || linearApiKey !== key) {

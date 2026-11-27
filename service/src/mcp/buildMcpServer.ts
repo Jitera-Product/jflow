@@ -10,7 +10,7 @@ import { registerSetStage } from './tools/registerSetStage.js';
 import { registerStartFeature } from './tools/registerStartFeature.js';
 import { registerWriteFile } from './tools/registerWriteFile.js';
 
-export function buildMcpServer(deps: Deps, client: string): McpServer {
+export function buildMcpServer(deps: Deps, client: string, origin: string | null): McpServer {
   const by = `Flow agent (${client})`;
   const server = new McpServer({ name: 'jflow', version: '0.1.0' });
   registerReadSettings(server, deps);
@@ -20,7 +20,7 @@ export function buildMcpServer(deps: Deps, client: string): McpServer {
   registerWriteFile(server, deps);
   registerLogStage(server, deps, by);
   registerSetStage(server, deps, by);
-  registerOpenGate(server, deps);
+  registerOpenGate(server, deps, origin);
   registerSaveUiHandoff(server, deps);
   return server;
 }

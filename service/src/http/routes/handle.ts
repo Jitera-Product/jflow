@@ -51,7 +51,7 @@ export async function handle(ctx: HttpContext, req: IncomingMessage, res: Server
 
   const idea = path === '/api/ideas/owners' ? 'GET' : path === '/api/ideas' ? 'POST' : null;
   if (idea && req.method === idea) {
-    if (idea === 'POST' && !sameOrigin(ctx, req)) return json(res, 403, { error: 'refused' });
+    if (idea === 'POST' && !sameOrigin(req)) return json(res, 403, { error: 'refused' });
     const email = await verifyAccess(header(req, 'cf-access-jwt-assertion'), { ...ctx.deps.config.access, jwks: ctx.opts.jwks });
     if (!email) return json(res, 401, { error: 'sign_in' });
     if (!isConfigured(ctx.deps.settings.get())) {
@@ -70,7 +70,7 @@ export async function handle(ctx: HttpContext, req: IncomingMessage, res: Server
       : fixed === 'setup/jitera' ? m === 'POST'
       : m === 'GET' || (m === 'POST' && fixed === 'settings');
     if (allowed) {
-      if (m !== 'GET' && !sameOrigin(ctx, req)) return json(res, 403, { error: 'refused' });
+      if (m !== 'GET' && !sameOrigin(req)) return json(res, 403, { error: 'refused' });
       const email = await verifyAccess(header(req, 'cf-access-jwt-assertion'), { ...ctx.deps.config.access, jwks: ctx.opts.jwks });
       if (!email) return json(res, 401, { error: 'sign_in' });
       if (project) return apiGate(ctx, req, res, email, project, gate!);

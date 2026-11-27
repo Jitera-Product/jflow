@@ -1,5 +1,4 @@
 import { randomBytes } from 'node:crypto';
-import { bareOrigin } from './bareOrigin.js';
 import { checkSettings } from './checkSettings.js';
 import { openSecret } from './openSecret.js';
 import { sealSecret } from './sealSecret.js';
@@ -8,7 +7,7 @@ import type { LegacySettings, LiveSettings, Settings, SettingsStore, StoredRow, 
 
 const EMPTY: StoredValue = {
   docsUrl: '', docsToken: '', linearApiKey: '', teams: [], engineers: [],
-  publicUrl: '', tdrFolder: '', flowAgentUrl: '', gateSecret: '', legacyChatsImported: false,
+  tdrFolder: '', flowAgentUrl: '', gateSecret: '', legacyChatsImported: false,
 };
 
 export async function openSettings(
@@ -27,14 +26,6 @@ export async function openSettings(
     value.engineers = legacy.engineers.map((e) => e.toLowerCase());
     fromFile.push('engineers');
     changed = true;
-  }
-  if (value.publicUrl === '' && legacy.publicUrl) {
-    const origin = bareOrigin(legacy.publicUrl);
-    if (origin) {
-      value.publicUrl = origin;
-      fromFile.push('publicUrl');
-      changed = true;
-    } else console.warn(`jflow: settings: the old publicUrl ${legacy.publicUrl} is not a bare origin; set it on /settings`);
   }
   if (value.gateSecret === '') {
     value.gateSecret = sealSecret(key, legacy.gateSecret || randomBytes(32).toString('base64url'));
@@ -65,7 +56,6 @@ export async function openSettings(
       linearApiKey: read(r, 'linearApiKey'),
       teams: r.value.teams,
       engineers: r.value.engineers,
-      publicUrl: r.value.publicUrl,
       tdrFolder: r.value.tdrFolder,
       flowAgentUrl: r.value.flowAgentUrl,
       gateSecret,
@@ -91,7 +81,6 @@ export async function openSettings(
         linearApiKey: input.linearApiKey ? sealSecret(key, input.linearApiKey) : stored.linearApiKey,
         teams: input.teams,
         engineers,
-        publicUrl: input.publicUrl ? (bareOrigin(input.publicUrl) as string) : stored.publicUrl,
         tdrFolder: input.tdrFolder ?? stored.tdrFolder,
         flowAgentUrl: input.flowAgentUrl ?? stored.flowAgentUrl,
         gateSecret: stored.gateSecret,

@@ -7,7 +7,6 @@ import { liveTracker } from '../src/linear/liveTracker.js';
 import type { Tracker } from '../src/linear/types.js';
 import type { LiveSettings, Settings } from '../src/settings/types.js';
 
-const URL = 'https://flow.example.com';
 const VERBS = {
   read: { tool: 'r', args: {} }, list: { tool: 'l', args: {} }, create: { tool: 'c', args: {} }, update: { tool: 'u', args: {} },
 };
@@ -17,7 +16,7 @@ let s: Settings;
 const settings: LiveSettings = { get: () => s, save: async () => s, claimFirstEngineer: async () => false };
 const empty = (): Settings => ({
   docsUrl: '', docsToken: '', linearApiKey: '', teams: [], engineers: ['ken@example.com'],
-  publicUrl: URL, tdrFolder: '', gateSecret: 's'.repeat(32), updatedBy: null, updatedAt: null,
+  tdrFolder: '', gateSecret: 's'.repeat(32), updatedBy: null, updatedAt: null,
 });
 
 function fakeDocs(made: DocumentsConnection[]) {
@@ -33,7 +32,7 @@ describe('live documents', () => {
     const docs = liveDocuments(settings, BASE, fakeDocs([]));
     const err = await docs.list('x').catch((e: unknown) => e);
     expect(err).toBeInstanceOf(FeatureError);
-    expect(err).toMatchObject({ code: 'not_configured', message: expect.stringContaining('https://flow.example.com/settings') });
+    expect(err).toMatchObject({ code: 'not_configured', message: expect.stringContaining('on /settings') });
     s = { ...s, docsToken: 'secret-token' };
     expect(await docs.list('x')).toEqual(['a.md']);
   });
@@ -74,7 +73,7 @@ describe('live tracker', () => {
     const tracker = liveTracker(settings, make);
     await expect(tracker.getProject('P-ENG-1')).rejects.toMatchObject({
       code: 'not_configured',
-      message: 'jflow is not set up yet: the Linear API key is missing. An engineer sets it at https://flow.example.com/settings.',
+      message: 'jflow is not set up yet: the Linear API key is missing. An engineer sets it on /settings.',
     });
     s = { ...s, linearApiKey: 'k1' };
     await tracker.getProject('P-ENG-1');

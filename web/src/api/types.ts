@@ -6,7 +6,6 @@ export type SettingsView = {
     linearApiKeySet: boolean;
     teams: string[];
     engineers: string[];
-    publicUrl: string;
     tdrFolder: string;
     flowAgentUrl: string;
     updatedBy: string | null;
@@ -20,7 +19,6 @@ export type SettingsInput = {
   engineers: string[];
   tdrFolder: string;
   flowAgentUrl: string;
-  publicUrl?: string; // blank or missing = keep the stored one
   docsToken?: string;
   linearApiKey?: string;
 };

@@ -1,9 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { z } from 'zod';
 import { createFlowLabels } from '../../linear/createFlowLabels.js';
-import { bareOrigin } from '../../settings/bareOrigin.js';
 import { SettingsError } from '../../settings/SettingsError.js';
-import { header } from '../header.js';
 import { json } from '../json.js';
 import { readJson } from '../readJson.js';
 import { settingsView } from '../settingsView.js';
@@ -18,7 +16,6 @@ const settingsBody = z.object({
   engineers: list((s) => s.toLowerCase()),
   docsToken: secret,
   linearApiKey: secret,
-  publicUrl: z.string().trim().optional(),
   tdrFolder: z.string().trim().optional(), // missing = keep the stored value
   flowAgentUrl: z.string().trim().optional(), // missing = keep the stored value
 });
@@ -33,13 +30,8 @@ export async function apiSettings(ctx: HttpContext, req: IncomingMessage, res: S
   if (!body.success) {
     return json(res, 400, { error: 'invalid', problems: body.error.issues.map((i) => `${i.path.join('.') || 'body'}: ${i.message}`) });
   }
-  const from = header(req, 'origin');
-  if (body.data.publicUrl && bareOrigin(body.data.publicUrl) !== from) {
-    return json(res, 400, { error: 'invalid', problems: ['Open /settings at that address to set it.'] });
-  }
   try {
-    const publicUrl = body.data.publicUrl || (ctx.origin() === '' ? from : undefined);
-    await live.save({ ...body.data, publicUrl }, email);
+    await live.save(body.data, email);
   } catch (e) {
     if (e instanceof SettingsError) return json(res, 400, { error: 'invalid', problems: e.problems });
     throw e;

@@ -27,7 +27,6 @@ const toForm = (s: SettingsView['settings']): SettingsFormInput => ({
   teams: s.teams,
   tdrFolder: s.tdrFolder,
   flowAgentUrl: s.flowAgentUrl,
-  publicUrl: s.publicUrl,
   engineers: s.engineers.join('\n'),
 });
 
@@ -60,12 +59,12 @@ export function SettingsPage() {
     check();
   }, []);
 
-  const onSubmit = form.handleSubmit(async ({ docsToken, linearApiKey, publicUrl, ...rest }) => {
+  const onSubmit = form.handleSubmit(async ({ docsToken, linearApiKey, ...rest }) => {
     const at = pressed.current;
     setStatus({ at, saved: false, problems: [] });
     try {
-      // A blank secret or address is left out, so the stored one stays.
-      show(await saveSettings({ ...rest, ...(publicUrl ? { publicUrl } : {}), ...(docsToken ? { docsToken } : {}), ...(linearApiKey ? { linearApiKey } : {}) }));
+      // A blank secret is left out, so the stored one stays.
+      show(await saveSettings({ ...rest, ...(docsToken ? { docsToken } : {}), ...(linearApiKey ? { linearApiKey } : {}) }));
       setStatus({ at, saved: true, problems: [] });
       check();
     } catch (e) {
@@ -136,7 +135,7 @@ export function SettingsPage() {
             <PeopleSection footer={footer('people')} />
           </form>
         </FormProvider>
-        <ChatsSection publicUrl={s.publicUrl} />
+        <ChatsSection />
       </div>
     </PageShell>
   );

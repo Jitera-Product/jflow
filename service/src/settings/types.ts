@@ -4,7 +4,6 @@ export type Settings = {
   linearApiKey: string;
   teams: string[];
   engineers: string[];
-  publicUrl: string; // bare origin, no trailing slash; '' until set
   tdrFolder: string;
   flowAgentUrl: string; // Studio chat address of the Flow agent; '' until set
   gateSecret: string;
@@ -17,7 +16,6 @@ export type SettingsInput = {
   docsUrl: string;
   teams: string[];
   engineers: string[];
-  publicUrl?: string; // undefined or '' = keep the stored value
   tdrFolder?: string; // undefined = keep the stored value; '' clears it
   flowAgentUrl?: string; // undefined = keep the stored value; '' clears it
   docsToken?: string;
@@ -30,7 +28,6 @@ export type StoredValue = {
   linearApiKey: string;
   teams: string[];
   engineers: string[];
-  publicUrl: string;
   tdrFolder: string;
   flowAgentUrl: string;
   gateSecret: string;
@@ -45,7 +42,7 @@ export type SettingsStore = {
   claimFirstEngineer(email: string, at: Date): Promise<boolean>;
 };
 
-export type LegacySettings = { engineers?: string[]; publicUrl?: string; gateSecret?: string };
+export type LegacySettings = { engineers?: string[]; gateSecret?: string };
 
 export type LiveSettings = {
   get(): Settings;

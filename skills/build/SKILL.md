@@ -18,7 +18,8 @@ folder (for example `~/Projects/acme`).
 
 1. **Read state.** The project issues (status, blocked-by, assignee, `gitBranchName`), their
    PRs (state, base, checks, review, unresolved comments), `2-spec.md`, `3-plan.md` and the
-   Build table in `0-status.md` (add it from `templates/0-status.md` if it is missing).
+   Build table in `0-status.md` (add it from `templates/0-status.md` if it is missing). Rewrite a PR cell
+   that is not a full GitHub URL (`#123`, `repo#123`) as the full URL.
 2. **Answers first.** For every issue in "waiting for answer", read new replies in its PR and
    Linear comments. If answered, move it back to ready.
 3. **Ready issues.** An issue is ready when it has no PR yet and every issue it depends on
@@ -49,7 +50,7 @@ folder (for example `~/Projects/acme`).
 6. **Draft PR.** `gh pr create --draft --base <base>`. Body: what and why in a few lines,
    link to the issue, link to the plan section, how it was proven, "Stacked on #N" when
    stacked. Move the Linear issue to In Review and attach the PR.
-7. **Log.** Build table row (branch, base, PR, status) and one log line in `0-status.md`.
+7. **Log.** Build table row (branch, base, PR as the full GitHub URL, status) and one log line in `0-status.md`.
 
 ## Questions (human in the loop)
 

@@ -21,6 +21,8 @@ Status values: not started, in progress, done, skipped (TDR and UI only, when no
 | Issue | Repo | Branch | Base | PR | Status |
 | --- | --- | --- | --- | --- | --- |
 
+PR: the full GitHub URL, like https://github.com/<org>/<repo>/pull/123, not #123.
+
 Build status values: waiting (blocked by an issue with no PR yet), building, waiting for answer,
 in review, merged.
 

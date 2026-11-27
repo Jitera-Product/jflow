@@ -4,13 +4,13 @@ import { CopyText } from './CopyText';
 
 const block = 'grid gap-3 rounded-md border p-4';
 
-export function ChatBlocks({ publicUrl, token }: { publicUrl: string; token: string }) {
+export function ChatBlocks({ token }: { token: string }) {
   const [prompt, setPrompt] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     getAgentPrompt().then(setPrompt, () => setFailed(true));
   }, []);
-  const url = `${publicUrl}/mcp`;
+  const url = `${window.location.origin}/mcp`;
 
   return (
     <div className="grid gap-4">

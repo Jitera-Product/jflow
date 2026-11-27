@@ -101,7 +101,6 @@ export function FeaturePanel({ featureKey, onClose }: { featureKey: string; onCl
         <>
           {view.notice && <p className={NOTE}>{view.notice}</p>}
           {c.notStarted && <p className={NOTE}>Not started in jflow</p>}
-          {view.behind && <p className={NOTE}>{`The status file is behind: Linear says ${c.stage}.`}</p>}
           {view.about && (
             <>
               <AboutSection summary={view.about.summary} content={view.about.content} />

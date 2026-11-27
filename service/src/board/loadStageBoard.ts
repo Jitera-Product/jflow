@@ -28,17 +28,17 @@ export async function loadStageBoard(deps: Deps, fetchFn: typeof fetch, teams: s
   const read = await mapLimit(folders, 8, async ({ id, entry }) => {
     const md = await deps.docs.read(`${flow}/${entry}0-status.md`).catch(() => null);
     const slug = md === null ? null : slugOfStatus(md);
-    const stage = slug ? stageOf.get(slug) : null;
+    const file = md === null ? null : readStatusFile(md);
+    const stage = file?.stage ?? (slug ? stageOf.get(slug) : null);
     const verify = stage === 'Verify' ? await deps.docs.read(`${flow}/${entry}4-verification.md`).catch(() => null) : null;
-    return { id, md, slug, stage, verify };
+    return { id, file, slug, stage, verify };
   });
   const files = new Map<string, StatusFile | null>();
   const ids = new Map<string, string>();
   const checks = new Map<string, QaCheck[]>();
   const github: Array<StatusFile> = [];
-  for (const { id, md, slug, stage, verify } of read) {
-    if (!slug || md === null || ids.has(slug)) continue;
-    const file = readStatusFile(md);
+  for (const { id, file, slug, stage, verify } of read) {
+    if (!slug || !file || ids.has(slug)) continue;
     ids.set(slug, id);
     files.set(slug, file);
     if (verify) checks.set(slug, readChecks(verify));

@@ -170,7 +170,7 @@ describe('/api/board', () => {
     expect(b.notice).toBeNull();
     const all = cards(b);
     expect(all.map((c) => c.slugId)).toEqual(['s2', 's1']);
-    expect(all[1]).toMatchObject({ key: 'P-ENG-12', id: 'P-ENG-12', stage: 'Plan', notStarted: false, behind: true, days: 6 });
+    expect(all[1]).toMatchObject({ key: 'P-ENG-12', id: 'P-ENG-12', stage: 'Spec', notStarted: false });
     expect(all[0]).toMatchObject({ key: 's2', id: null, stage: 'Intent', notStarted: true, days: 6 });
     expect(b.columns.map((c: { stage: string }) => c.stage)[0]).toBe('Intent');
   });
@@ -257,8 +257,7 @@ describe('/api/board/feature', () => {
     const text = await r.text();
     expect(text).not.toMatch(/LIN-KEY|DOCS-TOKEN/);
     const p = JSON.parse(text);
-    expect(p.card).toMatchObject({ key: 'P-ENG-12', slugId: 's1', stage: 'Plan' });
-    expect(p.behind).toBe(true);
+    expect(p.card).toMatchObject({ key: 'P-ENG-12', slugId: 's1', stage: 'Spec' });
     expect(p.stages).toEqual([
       { stage: 'Intent', status: 'done', date: '2026-11-20', file: '1-intent.md', by: 'mika@jitera.com' },
       { stage: 'Spec', status: 'in progress', date: '2026-11-21', file: '2-spec.md', by: 'Flow agent' },
@@ -298,7 +297,7 @@ describe('/api/board/feature', () => {
   });
   it('shows a not started project by slugId', async () => {
     const p = await (await get('/api/board/feature/s2')).json();
-    expect(p).toMatchObject({ card: { key: 's2', notStarted: true }, stages: [], log: [], gate: null, files: [], behind: false, folder: null, notice: null });
+    expect(p).toMatchObject({ card: { key: 's2', notStarted: true }, stages: [], log: [], gate: null, files: [], folder: null, notice: null });
   });
   it('links the feature folder with the Flow agent, and the chat the agent first worked in', async () => {
     expect((await (await get('/api/board/feature/P-ENG-12')).json()).chatUrl).toBeNull();

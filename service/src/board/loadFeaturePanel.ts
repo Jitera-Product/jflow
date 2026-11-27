@@ -41,9 +41,10 @@ export async function loadFeaturePanel(
     notice = NOTICE;
   }
   const p = found?.p ?? bySlug;
-  const stage = p && stageOfLabel(p.flowLabel);
-  if (!p || !stage) return null;
+  const label = p && stageOfLabel(p.flowLabel);
+  if (!p || !label) return null;
   const file = found ? readStatusFile(found.md) : null;
+  const stage = file?.stage ?? label;
   const id = found?.id ?? null;
   const [about, verify, active] = await Promise.all([
     readProjectAbout(fetchFn, s.linearApiKey, p.uuid).catch((e: unknown) => {
@@ -71,7 +72,6 @@ export async function loadFeaturePanel(
     } : null,
     files: found?.files ?? [],
     linearUrl: p.url,
-    behind: card.behind,
     folder,
     chatUrl,
     notice,

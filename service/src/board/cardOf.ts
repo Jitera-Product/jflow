@@ -19,8 +19,7 @@ export function cardOf(
   const build = file?.build ?? [];
   const waits = waitsFor(openGate?.missing ?? null, stage, p.lead, engineers, build, checks.length > 0);
   const me = viewer.toLowerCase();
-  const behind = !!file?.stage && file.stage !== stage;
-  const since = stageSince(behind ? null : file, p.updatedAt);
+  const since = stageSince(file, p.updatedAt);
   const waitingForMe =
     (!!p.lead && p.lead.email.toLowerCase() === me && waits.some((w) => w.kind === 'owner')) ||
     (engineers.includes(me) && waits.some((w) => w.kind === 'engineer'));
@@ -31,7 +30,7 @@ export function cardOf(
     name: p.name, url: p.url, team: p.team, owner: p.lead,
     stage, days: wholeDaysSince(since, now), since, waitsFor: waits,
     stuck: pilot.mismatch || (!!openGate && now.getTime() - Date.parse(openGate.opened) > STUCK_DAYS * 86_400_000),
-    waitingForMe, notStarted: !file, behind, openGate,
+    waitingForMe, notStarted: !file, openGate,
     build, pilot: pilot.pilot, pilotMismatch: pilot.mismatch,
     qa: checks.length ? { passed: checks.length - failed, failed } : null,
     agentActive: data.active,

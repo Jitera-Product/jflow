@@ -5,7 +5,7 @@ export const STAGES = ['Intent', 'Spec', 'Spec review', 'TDR', 'UI', 'Plan', 'Bu
 export const card = (o: Partial<BoardCard> = {}): BoardCard => ({
   key: 'P-ENG-12', slugId: 'a1b2', id: 'P-ENG-12', name: 'Search filters', url: 'https://linear.app/x/project/a1b2',
   team: 'ENG', owner: { name: 'Mika', email: 'mika@example.com' }, stage: 'Spec review', days: 4, since: '2026-11-22',
-  waitsFor: [{ kind: 'owner', names: ['Mika'] }], stuck: false, waitingForMe: false, notStarted: false, behind: false, openGate: null,
+  waitsFor: [{ kind: 'owner', names: ['Mika'] }], stuck: false, waitingForMe: false, notStarted: false, openGate: null,
   build: [], pilot: null, pilotMismatch: false, qa: null, agentActive: false,
   ...o,
 });

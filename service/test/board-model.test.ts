@@ -50,8 +50,9 @@ describe('readStatusFile', () => {
       { date: '2026-11-23', what: 'Spec review approved', stage: 'Spec review', who: 'mika@x.com via jitera', text: '' },
     ]);
   });
-  it('gives null stage when nothing is in progress', () => {
+  it('gives null stage when nothing is in progress, Done when the Done row is done', () => {
     expect(readStatusFile('# x\n').stage).toBeNull();
+    expect(readStatusFile('| 9 | Done | done | - | 2026-11-20 | a |\n').stage).toBe('Done');
   });
 });
 
@@ -60,7 +61,7 @@ describe('buildStageBoard', () => {
     const b = run([proj()]);
     const plan = b.columns.find((c) => c.stage === 'Plan')!;
     expect(plan.cards).toHaveLength(1);
-    expect(plan.cards[0]).toMatchObject({ notStarted: true, behind: false, days: 5, key: 's1', id: null });
+    expect(plan.cards[0]).toMatchObject({ notStarted: true, days: 5, key: 's1', id: null });
     expect(run([proj()], [['s1', null]]).columns.find((c) => c.stage === 'Plan')!.cards[0]!.notStarted).toBe(true);
   });
 
@@ -69,9 +70,9 @@ describe('buildStageBoard', () => {
     expect(c).toMatchObject({ key: 'P-CORE-9', id: 'P-CORE-12', slugId: 's1' });
   });
 
-  it('puts a flow:plan project with a Spec review file in Plan and marks it behind', () => {
-    const c = cards(run([proj()], [['s1', file({ stage: 'Spec review' })]]))[0]!;
-    expect(c).toMatchObject({ stage: 'Plan', behind: true, notStarted: false });
+  it('puts a flow:plan project in the stage of its status file', () => {
+    const c = cards(run([proj()], [['s1', file({ stage: 'Verify' })]]))[0]!;
+    expect(c).toMatchObject({ stage: 'Verify', notStarted: false });
   });
 
   const line = (date: string, what: string, text = '') => ({ date, what, stage: what.replace(/ (approved|changes requested)$/, ''), who: 'a', text });
@@ -97,10 +98,8 @@ describe('buildStageBoard', () => {
     expect(cards(run([proj({ flowLabel: 'flow:spec' })], [['s1', file({ log })]]))[0]!.days).toBe(6);
   });
 
-  it('counts from updatedAt when there is no move line or the card is behind', () => {
+  it('counts from updatedAt when there is no move line', () => {
     expect(cards(run([proj()], [['s1', file({ log: [line('2026-11-25', 'Plan', 'drafted')] })]]))[0]!.days).toBe(5);
-    const behind = file({ stage: 'Spec review', log: [line('2026-11-25', 'Spec', 'stage set to flow:spec-review')] });
-    expect(cards(run([proj()], [['s1', behind]]))[0]!).toMatchObject({ behind: true, days: 5 });
   });
 
   it('puts a flow:verify project in Verify, waiting for the agent until it has checks, then for the owner', () => {
@@ -177,7 +176,7 @@ describe('buildStageBoard', () => {
   it('sets the notice and ignores files when filesFailed', () => {
     const b = run([proj()], [['s1', file({ stage: 'Spec review', gates: [gate()] })]], { filesFailed: true });
     expect(b.notice).toBe('jflow could not read the status files in Jitera. Stages come from Linear only.');
-    expect(cards(b)[0]).toMatchObject({ notStarted: true, behind: false, openGate: null });
+    expect(cards(b)[0]).toMatchObject({ notStarted: true, openGate: null });
     expect(run([proj()]).notice).toBeNull();
   });
 

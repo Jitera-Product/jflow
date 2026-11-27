@@ -18,9 +18,10 @@ export function buildStageBoard(
 ): StageBoard {
   const cards: Card[] = [];
   for (const p of input.projects) {
-    const stage = stageOfLabel(p.flowLabel);
-    if (!stage) continue;
+    const label = stageOfLabel(p.flowLabel);
+    if (!label) continue;
     const file = input.filesFailed ? null : input.files.get(p.slugId) ?? null;
+    const stage = file?.stage ?? label;
     const id = input.ids.get(p.slugId) ?? null;
     const c = cardOf(p, stage, file, id, input.engineers, input.viewer, now, {
       checks: input.checksBySlug?.get(p.slugId) ?? [],

@@ -29,7 +29,6 @@ const panel: FeaturePanelView = {
   gate: { url: 'https://flow.example.com/gate/P-ENG-12/g1', from: 'Spec review', to: 'TDR', missing: ['owner'] },
   files: ['0-status.md', '1-intent.md', '2-spec.md'],
   linearUrl: 'https://linear.app/x/project/a1b2',
-  behind: false,
   folder: 'documents/Flow/P-ENG-12 Search filters/',
   chatUrl: null,
   notice: null,
@@ -118,7 +117,6 @@ test('/f/<ID> opens the side sheet: header, the open gate link, stages, document
   expect(d.getByRole('link', { name: 'Open the gate' }).getAttribute('href')).toBe('https://flow.example.com/gate/P-ENG-12/g1');
   for (const name of panel.files) expect(d.getByText(name)).toBeTruthy();
   expect(d.getByRole('link', { name: 'Open in Linear' }).getAttribute('href')).toBe('https://linear.app/x/project/a1b2');
-  expect(d.queryByText(/status file is behind/)).toBeNull();
   expect(screen.queryByText(/Jitera chat/)).toBeNull(); // no chatUrl
 });
 
@@ -147,12 +145,6 @@ test('the panel shows the notice when Jitera could not be read', async () => {
   }));
   renderAt('/f/P-ENG-12');
   expect(await screen.findByText('jflow could not read the status file in Jitera.')).toBeTruthy();
-});
-
-test('the panel says the status file is behind when behind', async () => {
-  routeFetch(routes({ 'GET /api/board/feature/P-ENG-12': reply(200, { ...panel, behind: true, card: { ...gated, behind: true } }) }));
-  renderAt('/f/P-ENG-12');
-  expect(await screen.findByText('The status file is behind: Linear says Spec review.')).toBeTruthy();
 });
 
 test('a slugId link opens a not started feature; an unknown one says not found', async () => {

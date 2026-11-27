@@ -15,9 +15,9 @@ endpoint so an agent can work on the same documents.
 | `PORT` | Optional, default `8080`. |
 
 Everything else is set on `/settings`: the Linear key and teams, the Jitera MCP URL, token and project, the
-engineers, the jflow address (public URL) and the chat tokens. The first person to sign in becomes an engineer. Until
-the jflow address is set, `open_gate` answers `not_configured`. The setup path and the upgrade from a config file are in
-[docs/deploy.md](../docs/deploy.md).
+engineers and the chat tokens. The first person to sign in becomes an engineer. jflow takes its own address from
+each request (`X-Forwarded-Proto` and `X-Forwarded-Host` when a proxy sends them, else the `Host` header), so there
+is no address to set. The setup path and the upgrade from a config file are in [docs/deploy.md](../docs/deploy.md).
 
 ## Run locally
 
@@ -66,7 +66,7 @@ For a real deployment (network, health check, Docker and Kubernetes examples) se
 | `GET /api/agent-prompt` | The Flow agent prompt for the Jitera copy block. Engineers only. |
 | `GET /api/linear/teams` | The teams the saved Linear key can see. Engineers only. |
 | `GET /api/linear/labels` | The `flow:*` labels Linear still lacks. jflow creates them on each settings save and when it sets a stage. Engineers only. |
-| `GET`, `POST /api/chats` | List chat tokens, create one. The token is shown once, in the answer to POST. POST answers 409 `no_public_url` until the jflow address is set. Engineers only. |
+| `GET`, `POST /api/chats` | List chat tokens, create one. The token is shown once, in the answer to POST. Engineers only. |
 | `DELETE /api/chats/<id>` | Revoke a chat token. It stops working at once. Engineers only. |
 | `GET /api/me` | The signed-in viewer. Open to every Access user. |
 | `GET /api/board` | The board by stage. Query: `team`, `mine`, `older`, `refresh=1`. Cached 60 seconds per team set. Open to every Access user. |

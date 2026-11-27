@@ -28,7 +28,8 @@ const SPEC_OPEN = '**Flagged concerns.**\n\n1. Format - Decide: Mika\n';
 
 const config = { flowFolder: 'documents/Flow', templatesDir: TEMPLATES } as Config;
 const ENGINEERS = ['mika@jitera.com', 'ken@jitera.com'];
-const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS, publicUrl: 'https://flow.example.com' }, () => new Date());
+const ORIGIN = 'https://flow.example.com';
+const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, () => new Date());
 await settings.save({ docsUrl: '', tdrFolder: '', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
 const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [], () => new Date());
 
@@ -116,47 +117,54 @@ describe('features', () => {
 
 describe('gates', () => {
   it('opens a signed gate and returns the confirm link', async () => {
-    const g = await openGate(deps, 'P-ENG-12', 'flow:plan');
+    const g = await openGate(deps, 'P-ENG-12', 'flow:plan', ORIGIN);
     expect(g).toMatchObject({ from: 'flow:spec-review', to: 'flow:plan', roles: ['owner'] });
     expect(g.url).toBe(`https://flow.example.com/gate/P-ENG-12/${g.gate}`);
     expect(readGates((await docs.read(STATUS))!)).toHaveLength(1);
   });
+  it('the link uses the origin of the request; with none it refuses and writes nothing', async () => {
+    expect((await openGate(deps, 'P-ENG-12', 'flow:plan', 'http://localhost:8080')).url).toMatch(/^http:\/\/localhost:8080\/gate\/P-ENG-12\//);
+    setup(PROJECT);
+    const before = await docs.read(STATUS);
+    await expect(openGate(deps, 'P-ENG-12', 'flow:plan', null)).rejects.toMatchObject({ code: 'not_configured' });
+    expect(await docs.read(STATUS)).toBe(before);
+  });
   it('refuses to open while a concern has no decision', async () => {
     setup(PROJECT, SPEC_OPEN);
-    await expect(openGate(deps, 'P-ENG-12', 'flow:plan')).rejects.toMatchObject({ code: 'not_ready' });
+    await expect(openGate(deps, 'P-ENG-12', 'flow:plan', ORIGIN)).rejects.toMatchObject({ code: 'not_ready' });
   });
   it('a spec that needs a TDR can only open the gate to flow:tdr', async () => {
     setup(PROJECT, `**TDR.** Needed for the queue, because it is a new service.\n\n${SPEC_DONE}`);
     for (const to of ['flow:plan', 'flow:ui']) {
-      const e = await openGate(deps, 'P-ENG-12', to).catch((x) => x);
+      const e = await openGate(deps, 'P-ENG-12', to, ORIGIN).catch((x) => x);
       expect(e).toMatchObject({ code: 'not_ready' });
       expect(e.message).toContain('flow:tdr');
     }
-    expect((await openGate(deps, 'P-ENG-12', 'flow:tdr')).to).toBe('flow:tdr');
+    expect((await openGate(deps, 'P-ENG-12', 'flow:tdr', ORIGIN)).to).toBe('flow:tdr');
     setup(PROJECT, `**TDR.** Not needed.\n\n${SPEC_DONE}`);
-    expect((await openGate(deps, 'P-ENG-12', 'flow:plan')).to).toBe('flow:plan');
+    expect((await openGate(deps, 'P-ENG-12', 'flow:plan', ORIGIN)).to).toBe('flow:plan');
   });
   it('refuses to open while the plan has an open technical question', async () => {
     setup({ ...PROJECT, flowLabel: 'flow:plan' });
     await docs.create(`${FOLDER}/3-plan.md`, '**Open technical questions.**\n- Which queue?\n');
-    await expect(openGate(deps, 'P-ENG-12', 'flow:build')).rejects.toMatchObject({ code: 'not_ready' });
+    await expect(openGate(deps, 'P-ENG-12', 'flow:build', ORIGIN)).rejects.toMatchObject({ code: 'not_ready' });
   });
   it('refuses a move that is not a gate', async () => {
-    await expect(openGate(deps, 'P-ENG-12', 'flow:build')).rejects.toMatchObject({ code: 'not_allowed' });
-    await expect(openGate(deps, 'P-ENG-12', 'flow:spec')).rejects.toMatchObject({ code: 'not_allowed' });
+    await expect(openGate(deps, 'P-ENG-12', 'flow:build', ORIGIN)).rejects.toMatchObject({ code: 'not_allowed' });
+    await expect(openGate(deps, 'P-ENG-12', 'flow:spec', ORIGIN)).rejects.toMatchObject({ code: 'not_allowed' });
   });
   it('opening the same move twice returns the same gate; another move replaces it', async () => {
-    const a = await openGate(deps, 'P-ENG-12', 'flow:plan');
-    const b = await openGate(deps, 'P-ENG-12', 'flow:plan');
+    const a = await openGate(deps, 'P-ENG-12', 'flow:plan', ORIGIN);
+    const b = await openGate(deps, 'P-ENG-12', 'flow:plan', ORIGIN);
     expect(b.gate).toBe(a.gate);
-    const c = await openGate(deps, 'P-ENG-12', 'flow:tdr');
+    const c = await openGate(deps, 'P-ENG-12', 'flow:tdr', ORIGIN);
     expect(c.gate).not.toBe(a.gate);
     const rows = readGates((await docs.read(STATUS))!);
     expect(rows.map((r) => [r.id, r.status])).toEqual([[a.gate, 'replaced'], [c.gate, 'open']]);
     await expect(decide(a.gate, 'mika@jitera.com')).rejects.toMatchObject({ code: 'closed' });
   });
   it('the owner approves: label moves, stages and log update', async () => {
-    const g = await openGate(deps, 'P-ENG-12', 'flow:plan');
+    const g = await openGate(deps, 'P-ENG-12', 'flow:plan', ORIGIN);
     const d = await decide(g.gate, 'Mika@jitera.com');
     expect(d).toEqual({ status: 'approved', missing: [] });
     expect(tracker.labels).toEqual(['flow:plan']);
@@ -169,7 +177,7 @@ describe('gates', () => {
     expect(readGates(md)[0]).toMatchObject({ status: 'approved', decidedBy: 'mika@jitera.com' });
   });
   it('writes one audit line before the label moves, with no secret in it', async () => {
-    const g = await openGate(deps, 'P-ENG-12', 'flow:plan');
+    const g = await openGate(deps, 'P-ENG-12', 'flow:plan', ORIGIN);
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
     let linesAtMove = -1;
     const set = tracker.setFlowLabel;
@@ -186,7 +194,7 @@ describe('gates', () => {
     });
   });
   it('the label moved but the status write failed: closed, the row is not marked stale', async () => {
-    const g = await openGate(deps, 'P-ENG-12', 'flow:plan');
+    const g = await openGate(deps, 'P-ENG-12', 'flow:plan', ORIGIN);
     vi.spyOn(console, 'log').mockImplementation(() => {});
     const update = docs.update;
     let fail = true;
@@ -203,20 +211,20 @@ describe('gates', () => {
     expect(readGates((await docs.read(STATUS))!)[0]!.status).toBe('open');
   });
   it('refuses a decision for another move than the one the person saw', async () => {
-    const g = await openGate(deps, 'P-ENG-12', 'flow:plan');
+    const g = await openGate(deps, 'P-ENG-12', 'flow:plan', ORIGIN);
     await expect(decideGate(deps, { project: 'P-ENG-12', gate: g.gate, email: 'mika@jitera.com', decision: 'approve', channel: 'page', expectedTo: 'flow:tdr' }))
       .rejects.toMatchObject({ code: 'mismatch' });
     expect(tracker.labels).toEqual(['flow:spec-review']);
     expect(readGates((await docs.read(STATUS))!)[0]!.status).toBe('open');
   });
   it('a person who is neither owner nor engineer is refused', async () => {
-    const g = await openGate(deps, 'P-ENG-12', 'flow:plan');
+    const g = await openGate(deps, 'P-ENG-12', 'flow:plan', ORIGIN);
     await expect(decide(g.gate, 'eve@jitera.com')).rejects.toMatchObject({ code: 'not_allowed' });
     await expect(decide(g.gate, 'ken@jitera.com')).rejects.toMatchObject({ code: 'not_allowed' }); // engineer, but owner gate
     expect(tracker.labels).toEqual(['flow:spec-review']);
   });
   it('spec to TDR needs two different people', async () => {
-    const g = await openGate(deps, 'P-ENG-12', 'flow:tdr');
+    const g = await openGate(deps, 'P-ENG-12', 'flow:tdr', ORIGIN);
     expect(await decide(g.gate, 'mika@jitera.com')).toEqual({ status: 'open', missing: ['engineer'] });
     expect(await decide(g.gate, 'MIKA@jitera.com')).toEqual({ status: 'open', missing: ['engineer'] });
     expect(tracker.labels).toEqual(['flow:spec-review']);
@@ -224,7 +232,7 @@ describe('gates', () => {
     expect(tracker.labels).toEqual(['flow:tdr']);
   });
   it('a row that changes between the first read and the last approval is stale', async () => {
-    const g = await openGate(deps, 'P-ENG-12', 'flow:tdr');
+    const g = await openGate(deps, 'P-ENG-12', 'flow:tdr', ORIGIN);
     await decide(g.gate, 'mika@jitera.com');
     // The second read of 0-status.md (the re-read before the write) first sees another valid change.
     let reads = 0;
@@ -242,7 +250,7 @@ describe('gates', () => {
     expect(tracker.labels).toEqual(['flow:spec-review']);
   });
   it('a hand-edited row is refused as invalid', async () => {
-    const g = await openGate(deps, 'P-ENG-12', 'flow:tdr');
+    const g = await openGate(deps, 'P-ENG-12', 'flow:tdr', ORIGIN);
     const md = (await docs.read(STATUS))!;
     const row = readGates(md)[0]!;
     await docs.update(STATUS, upsertGate(md, { ...row, approvals: [{ role: 'owner', email: 'mika@jitera.com' }] }));
@@ -250,7 +258,7 @@ describe('gates', () => {
     expect(tracker.labels).toEqual(['flow:spec-review']);
   });
   it('a label moved by hand makes the gate stale', async () => {
-    const g = await openGate(deps, 'P-ENG-12', 'flow:plan');
+    const g = await openGate(deps, 'P-ENG-12', 'flow:plan', ORIGIN);
     tracker.labels = ['flow:intent'];
     await expect(decide(g.gate, 'mika@jitera.com')).rejects.toMatchObject({ code: 'stale' });
     expect(readGates((await docs.read(STATUS))!)[0]!.status).toBe('stale');
@@ -258,7 +266,7 @@ describe('gates', () => {
     await expect(decide(g.gate, 'mika@jitera.com')).rejects.toMatchObject({ code: 'closed' }); // still signed
   });
   it('request changes closes the gate and keeps the label', async () => {
-    const g = await openGate(deps, 'P-ENG-12', 'flow:plan');
+    const g = await openGate(deps, 'P-ENG-12', 'flow:plan', ORIGIN);
     expect(await decide(g.gate, 'Mika@jitera.com', 'changes')).toEqual({ status: 'changes requested', missing: ['owner'] });
     expect(tracker.labels).toEqual(['flow:spec-review']);
     const md = (await docs.read(STATUS))!;
@@ -266,7 +274,7 @@ describe('gates', () => {
     expect(md).toContain('- 2026-11-23 - Spec review changes requested - mika@jitera.com via page');
   });
   it('a closed gate refuses another decision', async () => {
-    const g = await openGate(deps, 'P-ENG-12', 'flow:plan');
+    const g = await openGate(deps, 'P-ENG-12', 'flow:plan', ORIGIN);
     await decide(g.gate, 'mika@jitera.com');
     await expect(decide(g.gate, 'mika@jitera.com')).rejects.toMatchObject({ code: 'closed' });
     await expect(decide('gnope', 'mika@jitera.com')).rejects.toMatchObject({ code: 'not_found' });

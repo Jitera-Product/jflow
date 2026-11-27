@@ -27,7 +27,7 @@ const config = {
 } as Config;
 const NOW = () => new Date('2026-11-23T10:00:00Z');
 const ENGINEERS = ['mika@jitera.com', 'ken@jitera.com'];
-const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS, publicUrl: 'https://flow.example.com' }, NOW);
+const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, NOW);
 await settings.save({ docsUrl: '', tdrFolder: '', teams: ['ENG'], engineers: ENGINEERS }, 'mika@jitera.com');
 const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [], NOW);
 
@@ -61,9 +61,9 @@ async function setup(project: TrackerProject = PROJECT) {
   tracker = fakeTracker(project);
   await connect({ config, settings, chats, featureChats, docs, tracker, now: NOW });
 }
-async function connect(deps: Deps) {
+async function connect(deps: Deps, origin: string | null = 'https://flow.example.com') {
   const [a, b] = InMemoryTransport.createLinkedPair();
-  await buildMcpServer(deps, 'test').connect(b);
+  await buildMcpServer(deps, 'test', origin).connect(b);
   client = new Client({ name: 'c', version: '1' });
   await client.connect(a);
 }
@@ -207,12 +207,11 @@ describe('mcp tools', () => {
     expect(r.isError).toBe(true);
     expect(r.content[0]!.text).toMatch(/^not_configured: /);
   });
-  it('open_gate returns not_configured with the settings path until publicUrl is set', async () => {
-    const noUrl = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, NOW);
-    await connect({ config, settings: noUrl, chats, featureChats, docs, tracker, now: NOW });
+  it('open_gate returns not_configured when the request origin is unknown', async () => {
+    await connect({ config, settings, chats, featureChats, docs, tracker, now: NOW }, null);
     const r = await call('open_gate', { to: 'flow:plan' });
     expect(r.isError).toBe(true);
-    expect(r.content[0]!.text).toMatch(/^not_configured: .*\/settings/);
+    expect(r.content[0]!.text).toMatch(/^not_configured: .*Host/);
     expect(await docs.read(STATUS)).toBe(statusMd);
   });
   it('save_ui_handoff refuses a cell with a pipe', async () => {

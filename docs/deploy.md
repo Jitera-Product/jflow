@@ -49,9 +49,10 @@ Open `https://<your host>/settings`. Cloudflare Access asks you to sign in. When
 first email that signs in becomes the first engineer. Two people at the same moment cannot both claim it.
 A second person who signs in later gets `not_allowed` until an engineer adds them.
 
-The first save on `/settings` fills in the jflow address (public URL) from the address in your browser. You
-can edit it in People. It is a bare origin: scheme, host and an optional port, with no path. Gate links and
-the chat copy blocks are built from it. jflow never takes it from the `Host` header of a request.
+jflow has no address setting. It takes its own address from each request: the first value of
+`X-Forwarded-Proto` and `X-Forwarded-Host` when the proxy sends them, else the scheme of the connection and the
+`Host` header. Gate links use the address of the MCP request that opened the gate. The chat copy blocks use the
+address of the `/settings` page. A write from the web app must come from a page at the same address.
 
 The checklist on top shows what is left. Each item links to its section:
 
@@ -59,7 +60,7 @@ The checklist on top shows what is left. Each item links to its section:
 2. **Jitera.** Set the MCP URL and a token tied to the project that holds the flow documents (for example the key of
    an agent in that project). "Test" lists the flow folder.
    The TDR folder is here too.
-3. **People.** Check the jflow address. List the engineers, one email per line.
+3. **People.** List the engineers, one email per line.
 4. **Chats.** "New token" asks for a name and shows the token once, with copy blocks for Jitera, Claude Code
    and any other MCP chat. In Jitera, add jflow as a custom connector: the MCP URL, Client ID empty, and the
    token as Client Secret (a secret without a client ID is a bearer token). A chat needs no redeploy. "Revoke" stops a token at once, for MCP calls and for
@@ -73,13 +74,13 @@ People without access to that chat ask for it in Jitera. A feature with no folde
 make the jflow connector "shared", so every member's chat with the Flow agent can use the jflow tools; a private
 connector only works for its creator.
 
-The Chats item is done when any token was used once. Until the jflow address is set, only `open_gate`
-answers `not_configured`, and the chat token is shown without the copy blocks.
+The Chats item is done when any token was used once.
 
 ## Network
 
-- Put TLS in front with any reverse proxy. The jflow address on `/settings` is the public origin, for example
-  `https://flow.example.com`. Gate links are built from it.
+- Put TLS in front with any reverse proxy. The proxy must pass the public host, in `Host` or `X-Forwarded-Host`,
+  and the public scheme in `X-Forwarded-Proto` (`https`). If the last proxy says `http` for a page served over
+  `https`, writes from the web app are refused with 403 `refused`.
 - `/`, `/f/*`, `/workload`, `/gate/*`, `/settings` and `/api/*` must sit behind Cloudflare Access. The pages are a static app that
   jflow serves itself, and the app calls `/api/*`. Access sends the `Cf-Access-Jwt-Assertion` header, and
   jflow verifies that JWT itself against `JFLOW_ACCESS_TEAM_DOMAIN` and `JFLOW_ACCESS_AUD` on every `/api` call. Cloudflare
@@ -144,7 +145,7 @@ Older versions took a JSON config file (`JFLOW_CONFIG`), `JFLOW_GATE_SECRET` and
    - `JFLOW_GATE_SECRET` becomes the gate secret, so open gates keep their signature;
    - each `mcpClients` entry with its env token becomes a chat token with the same name, so a connected chat
      keeps working. A missing token, or one under 32 characters, is skipped with a warning;
-   - `engineers` and `publicUrl` from the file.
+   - `engineers` from the file. An old `publicUrl` in the file or in the database is ignored.
 
    The log says which old values can go. A value already in the database, for example one an engineer changed
    on `/settings`, is never overwritten.
@@ -158,6 +159,4 @@ If `JFLOW_ACCESS_TEAM_DOMAIN` and `JFLOW_ACCESS_AUD` are not set, jflow still ta
 
 ### Moving jflow to a new host
 
-The jflow address can only be changed from that address, so a new host cannot save its own address while the old one
-is stored. Clear the stored address with `update settings set value = value - 'publicUrl' where id = 1;`, then open
-`/settings` at the new address. The next save takes the page origin.
+Point the new host at jflow. Nothing in the settings holds the address. Gate links already opened keep the old host.

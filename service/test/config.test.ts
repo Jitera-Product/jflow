@@ -30,7 +30,7 @@ it('reads the old file only as legacy, and takes access from it when the env lac
   const c = loadConfig({ DATABASE_URL: 'p', JFLOW_SETTINGS_KEY: KEY, JFLOW_CONFIG: '/c.json', MCP_TOKEN: 'm'.repeat(32) }, () => file);
   expect(c.access).toEqual({ teamDomain: 't', aud: 'a' });
   expect(c.legacy?.engineers).toEqual(['Ken@x.com']);
-  expect(c.legacy?.publicUrl).toBe('https://flow.example.com/');
+  expect(c.legacy).not.toHaveProperty('publicUrl');
   expect(c.legacy).not.toHaveProperty('documents');
 });
 it('the env wins over the access values in the old file', () => {

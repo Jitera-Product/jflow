@@ -2,7 +2,6 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { ApiError } from '@/api/ApiError';
 import { createChat } from '@/api/createChat';
 import { getChats } from '@/api/getChats';
-import { getSettings } from '@/api/getSettings';
 import { revokeChat } from '@/api/revokeChat';
 import type { ChatToken, CreatedChat } from '@/api/types';
 import { Button } from '@/components/ui/Button';
@@ -10,16 +9,14 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { when } from '@/lib/when';
 import { ChatBlocks } from './ChatBlocks';
-import { CopyText } from './CopyText';
 import { SettingsSection } from './SettingsSection';
 
 const sayError = (e: unknown, fallback: string) => {
   if (!(e instanceof ApiError)) return fallback;
-  if (e.error === 'no_public_url') return 'Save the settings once first, so jflow knows its address.';
   return e.problems?.[0] || e.message || fallback;
 };
 
-export function ChatsSection({ publicUrl }: { publicUrl: string }) {
+export function ChatsSection() {
   const [chats, setChats] = useState<ChatToken[] | null>(null);
   const [asking, setAsking] = useState(false);
   const [name, setName] = useState('');
@@ -27,7 +24,7 @@ export function ChatsSection({ publicUrl }: { publicUrl: string }) {
   const [confirming, setConfirming] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   // The token lives only here, until Done. It is never stored or read again.
-  const [created, setCreated] = useState<(CreatedChat & { publicUrl: string }) | null>(null);
+  const [created, setCreated] = useState<CreatedChat | null>(null);
 
   const load = () => getChats().then((r) => setChats(r.chats), (e) => setProblem(sayError(e, 'Could not load the chat tokens.')));
   useEffect(() => {
@@ -39,10 +36,7 @@ export function ChatsSection({ publicUrl }: { publicUrl: string }) {
     setBusy('create');
     setProblem(null);
     try {
-      const chat = await createChat(name.trim());
-      // The address may have been set since this page loaded, so read it again.
-      const address = await getSettings().then((v) => v.settings.publicUrl, () => publicUrl);
-      setCreated({ ...chat, publicUrl: address });
+      setCreated(await createChat(name.trim()));
       setAsking(false);
       setName('');
     } catch (err) {
@@ -108,14 +102,7 @@ export function ChatsSection({ publicUrl }: { publicUrl: string }) {
       {created ? (
         <div className="grid gap-4">
           <p className="rounded-md bg-secondary px-3 py-2">{`Token for ${created.chat.name}. Copy it now: jflow shows it only once.`}</p>
-          {created.publicUrl ? (
-            <ChatBlocks publicUrl={created.publicUrl} token={created.token} />
-          ) : (
-            <>
-              <p role="alert" className="text-error-text">Save the settings once first, so jflow knows its address.</p>
-              <CopyText label="Token" text={created.token} />
-            </>
-          )}
+          <ChatBlocks token={created.token} />
           <div>
             <Button type="button" onClick={done}>
               Done

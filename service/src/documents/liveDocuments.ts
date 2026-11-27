@@ -9,11 +9,11 @@ export function liveDocuments(settings: LiveSettings, base: Config['documents'],
   let docs: Documents | undefined;
 
   const current = (): Documents => {
-    const { docsUrl, docsToken, publicUrl } = settings.get();
+    const { docsUrl, docsToken } = settings.get();
     if (docsUrl === '' || docsToken === '') {
       throw new FeatureError(
         'not_configured',
-        `jflow is not set up yet: the Jitera MCP URL or token is missing. An engineer sets them at ${publicUrl}/settings.`,
+        'jflow is not set up yet: the Jitera MCP URL or token is missing. An engineer sets them on /settings.',
       );
     }
     const want = JSON.stringify([docsUrl, docsToken]);

@@ -5,7 +5,7 @@ import type { ChatToken } from '@/api/types';
 import { bodyOf, callsTo, reply, routeFetch } from '@/test/routeFetch';
 import { ChatsSection } from './ChatsSection';
 
-const publicUrl = 'https://flow.example.com';
+const origin = window.location.origin;
 const token = 'jflow_tok_9f8e7d6c5b4a';
 const prompt = '# Flow agent\n\nYou run the jflow flow.';
 
@@ -13,8 +13,6 @@ const used: ChatToken = { id: 'c1', name: 'Jitera', createdBy: 'mika@example.com
 const fresh: ChatToken = { id: 'c2', name: 'Claude Code', createdBy: 'mika@example.com', createdAt: '2026-11-26T08:00:00.000Z', lastUsedAt: null };
 
 const when = (iso: string) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso));
-
-const settings = (url: string) => reply(200, { email: 'mika@example.com', settings: { publicUrl: url } });
 
 const agentPrompt = () => new Response(prompt, { status: 200, headers: { 'content-type': 'text/markdown; charset=utf-8' } });
 
@@ -30,7 +28,7 @@ test('the list shows name, created by, created at, last used and Revoke', async 
     'DELETE /api/chats/c1': reply(204),
   });
   const user = userEvent.setup();
-  render(<ChatsSection publicUrl={publicUrl} />);
+  render(<ChatsSection />);
   const row = (await screen.findByText('Jitera')).closest('li')!;
   expect(row.textContent).toContain('mika@example.com');
   expect(row.textContent).toContain(when(used.createdAt));
@@ -52,11 +50,10 @@ test('New token asks a name, shows the token once with the three blocks, and for
   const f = routeFetch({
     'GET /api/chats': [reply(200, { chats: [] }), reply(200, { chats: [fresh] })],
     'POST /api/chats': reply(200, { chat: fresh, token }),
-    'GET /api/settings': settings(publicUrl),
     'GET /api/agent-prompt': agentPrompt,
   });
   const user = userEvent.setup();
-  render(<ChatsSection publicUrl={publicUrl} />);
+  render(<ChatsSection />);
   await user.click(await screen.findByRole('button', { name: 'New token' }));
   await user.type(screen.getByLabelText('Chat name'), 'Claude Code');
   await user.click(screen.getByRole('button', { name: 'Create' }));
@@ -64,7 +61,7 @@ test('New token asks a name, shows the token once with the three blocks, and for
 
   const jitera = await screen.findByRole('group', { name: 'Jitera' });
   expect(await within(jitera).findByText((_, el) => el?.tagName === 'PRE' && el.textContent === prompt)).toBeTruthy();
-  expect(within(jitera).getByText(`${publicUrl}/mcp`)).toBeTruthy();
+  expect(within(jitera).getByText(`${origin}/mcp`)).toBeTruthy();
   expect(within(jitera).getByText('Client ID: leave it empty, so Jitera sends the secret as a bearer token.')).toBeTruthy();
   expect(within(jitera).getByRole('button', { name: 'Copy Client Secret' })).toBeTruthy();
   expect(within(jitera).getByText(token)).toBeTruthy();
@@ -72,10 +69,10 @@ test('New token asks a name, shows the token once with the three blocks, and for
   const claude = screen.getByRole('group', { name: 'Claude Code' });
   expect(claude.textContent).toContain('/plugin marketplace add Jitera-Product/jflow');
   expect(claude.textContent).toContain('/plugin install flow@jflow');
-  expect(claude.textContent).toContain(`claude mcp add --transport http jflow ${publicUrl}/mcp --header "Authorization: Bearer ${token}"`);
+  expect(claude.textContent).toContain(`claude mcp add --transport http jflow ${origin}/mcp --header "Authorization: Bearer ${token}"`);
 
   const other = screen.getByRole('group', { name: 'Other MCP chat' });
-  expect(within(other).getByText(`${publicUrl}/mcp`)).toBeTruthy();
+  expect(within(other).getByText(`${origin}/mcp`)).toBeTruthy();
   expect(within(other).getByText(`Authorization: Bearer ${token}`)).toBeTruthy();
 
   await user.click(screen.getByRole('button', { name: 'Done' }));
@@ -86,20 +83,15 @@ test('New token asks a name, shows the token once with the three blocks, and for
   expect(callsTo(f, 'POST', '/api/chats')).toHaveLength(1);
 });
 
-test('no_public_url asks to save the settings first; name_taken shows the message', async () => {
+test('name_taken shows the message', async () => {
   routeFetch({
     'GET /api/chats': reply(200, { chats: [] }),
-    'POST /api/chats': [
-      reply(409, { error: 'no_public_url', message: 'Set the public URL first.' }),
-      reply(409, { error: 'name_taken', message: 'A chat with this name exists.' }),
-    ],
+    'POST /api/chats': reply(409, { error: 'name_taken', message: 'A chat with this name exists.' }),
   });
   const user = userEvent.setup();
-  render(<ChatsSection publicUrl="" />);
+  render(<ChatsSection />);
   await user.click(await screen.findByRole('button', { name: 'New token' }));
   await user.type(screen.getByLabelText('Chat name'), 'Jitera');
-  await user.click(screen.getByRole('button', { name: 'Create' }));
-  expect(await screen.findByText('Save the settings once first, so jflow knows its address.')).toBeTruthy();
   await user.click(screen.getByRole('button', { name: 'Create' }));
   expect(await screen.findByText('A chat with this name exists.')).toBeTruthy();
 });
@@ -108,13 +100,12 @@ test('Copy writes to the clipboard; when that fails, the text is selected to cop
   routeFetch({
     'GET /api/chats': reply(200, { chats: [] }),
     'POST /api/chats': reply(200, { chat: fresh, token }),
-    'GET /api/settings': settings(publicUrl),
     'GET /api/agent-prompt': agentPrompt,
   });
   const user = userEvent.setup();
   const writeText = vi.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('denied'));
   Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
-  render(<ChatsSection publicUrl={publicUrl} />);
+  render(<ChatsSection />);
   await user.click(await screen.findByRole('button', { name: 'New token' }));
   await user.type(screen.getByLabelText('Chat name'), 'Claude Code');
   await user.click(screen.getByRole('button', { name: 'Create' }));
@@ -125,32 +116,6 @@ test('Copy writes to the clipboard; when that fails, the text is selected to cop
   expect(await within(other).findByText('Copied')).toBeTruthy();
 
   await user.click(within(other).getByRole('button', { name: 'Copy URL' }));
-  expect(writeText).toHaveBeenLastCalledWith(`${publicUrl}/mcp`);
-  await vi.waitFor(() => expect(String(window.getSelection())).toBe(`${publicUrl}/mcp`));
-});
-
-test('the blocks use the address read after create, and wait while it is still blank', async () => {
-  routeFetch({
-    'GET /api/chats': reply(200, { chats: [] }),
-    'POST /api/chats': reply(200, { chat: fresh, token }),
-    'GET /api/settings': [settings(publicUrl), settings('')],
-    'GET /api/agent-prompt': agentPrompt,
-  });
-  const user = userEvent.setup();
-  render(<ChatsSection publicUrl="" />); // the page loaded before another engineer set the address
-  const make = async () => {
-    await user.click(await screen.findByRole('button', { name: 'New token' }));
-    await user.type(screen.getByLabelText('Chat name'), 'Claude Code');
-    await user.click(screen.getByRole('button', { name: 'Create' }));
-  };
-  await make();
-  const other = await screen.findByRole('group', { name: 'Other MCP chat' });
-  expect(within(other).getByText(`${publicUrl}/mcp`)).toBeTruthy();
-  expect(document.body.innerHTML).not.toMatch(/>\/mcp</);
-  await user.click(screen.getByRole('button', { name: 'Done' }));
-
-  await make();
-  expect(await screen.findByText('Save the settings once first, so jflow knows its address.')).toBeTruthy();
-  expect(screen.queryByRole('group')).toBeNull();
-  expect(screen.getByText(token)).toBeTruthy(); // shown once, so it must not be lost
+  expect(writeText).toHaveBeenLastCalledWith(`${origin}/mcp`);
+  await vi.waitFor(() => expect(String(window.getSelection())).toBe(`${origin}/mcp`));
 });

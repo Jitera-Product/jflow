@@ -9,7 +9,6 @@ export const settingsFormSchema = z.object({
   teams: z.array(z.string()),
   tdrFolder: z.string().trim(),
   flowAgentUrl: z.string().trim(),
-  publicUrl: z.string().trim(),
   engineers: z.string().transform((s) => words(s.toLowerCase())),
 });
 

@@ -20,6 +20,7 @@ import { flowLabels } from '../src/linear/flowLabels.js';
 const TEAM = 'team.cloudflareaccess.com';
 const AUD = 'aud-1';
 const ORIGIN = 'https://flow.example.com';
+const FWD = { 'x-forwarded-proto': 'https', 'x-forwarded-host': 'flow.example.com' }; // as behind the proxy at ORIGIN
 const MIKA = 'mika@jitera.com';
 const config = {
   flowFolder: 'documents/Flow', templatesDir: '', webDir: '', access: { teamDomain: TEAM, aud: AUD },
@@ -66,8 +67,8 @@ const makeDocs = ((conn: { url: string; token: string }) => {
   return { list: async () => { if (docsFail) throw new Error(docsFail); return []; } };
 }) as never;
 
-async function start(publicUrl = ORIGIN, linearApiKey = 'LIN-KEY-BBB', docs?: Documents) {
-  settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: [MIKA], publicUrl }, () => new Date());
+async function start(linearApiKey = 'LIN-KEY-BBB', docs?: Documents) {
+  settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: [MIKA] }, () => new Date());
   await settings.save({ docsUrl: 'https://d.example.com', docsToken: 'DOCS-STORED', teams: ['ENG'], engineers: [MIKA], linearApiKey }, MIKA);
   const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [], () => new Date());
   deps = { config, settings, chats, featureChats: memoryFeatureChatStore(), docs: docs ?? memoryDocuments({}), tracker: {} as never, now: () => new Date() };
@@ -90,6 +91,7 @@ const call = async (method: string, path: string, email: string | null = MIKA, b
     method,
     headers: {
       ...(email ? { 'cf-access-jwt-assertion': await sign(email) } : {}),
+      ...FWD,
       ...(method !== 'GET' ? { origin: ORIGIN } : {}),
       ...(body ? { 'content-type': 'application/json' } : {}),
       ...extra,
@@ -129,7 +131,7 @@ describe('/api/setup', () => {
   });
   it('Linear without a key, or without a team, is not ok', async () => {
     await server.close();
-    await start(ORIGIN, '');
+    await start('');
     expect((await setup()).linear).toEqual({ ok: false, message: 'Add a Linear API key.' });
     await settings.save({ docsUrl: 'https://d.example.com', teams: [], engineers: [MIKA], linearApiKey: 'LIN-KEY-BBB' }, MIKA);
     expect((await setup()).linear).toEqual({ ok: false, message: 'Pick at least one Linear team.' });
@@ -151,7 +153,7 @@ describe('/api/linear', () => {
   });
   it('teams and labels are 409 no_key without a key', async () => {
     await server.close();
-    await start(ORIGIN, '');
+    await start('');
     for (const path of ['/api/linear/teams', '/api/linear/labels']) {
       const r = await call('GET', path);
       expect(r.status).toBe(409);
@@ -215,16 +217,13 @@ describe('/api/chats', () => {
   it('DELETE with an id that is not a uuid is 404', async () => {
     expect((await call('DELETE', '/api/chats/not-a-uuid')).status).toBe(404);
   });
-  it('409 no_public_url while the public URL is empty', async () => {
-    await server.close();
-    await start('');
+  it('POST works with no stored address when the Origin matches the host the request came to', async () => {
     const r = await fetch(base + '/api/chats', {
-      method: 'POST', headers: { 'cf-access-jwt-assertion': await sign(MIKA), origin: 'https://first.example.com', 'content-type': 'application/json' },
+      method: 'POST', headers: { 'cf-access-jwt-assertion': await sign(MIKA), origin: base, 'content-type': 'application/json' },
       body: JSON.stringify({ name: 'claude' }),
     });
-    expect(r.status).toBe(409);
-    expect((await r.json()).error).toBe('no_public_url');
-    expect(deps.chats.list()).toEqual([]);
+    expect(r.status).toBe(200);
+    expect(deps.chats.list().map((c) => c.name)).toEqual(['claude']);
   });
 });
 

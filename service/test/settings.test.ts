@@ -36,10 +36,10 @@ describe('secrets', () => {
 });
 
 describe('openSettings', () => {
-  it('a fresh store has no engineers, a random gate secret and no publicUrl', async () => {
+  it('a fresh store has no engineers and a random gate secret', async () => {
     const store = memorySettingsStore();
     const s = await openSettings(store, KEY, {}, now);
-    expect(s.get()).toMatchObject({ engineers: [], publicUrl: '', tdrFolder: '', flowAgentUrl: '' });
+    expect(s.get()).toMatchObject({ engineers: [], tdrFolder: '', flowAgentUrl: '' });
     expect(s.get().gateSecret.length).toBeGreaterThanOrEqual(32);
     expect(JSON.stringify(store.row)).not.toContain(s.get().gateSecret);
     let saves = 0;
@@ -68,12 +68,11 @@ describe('openSettings', () => {
 
   it('imports legacy values only into empty fields', async () => {
     const store = memorySettingsStore();
-    const live = await openSettings(store, KEY, { engineers: ['Ken@x.com'], publicUrl: 'https://flow.example.com/', gateSecret: 'g'.repeat(32) }, now);
-    expect(live.get()).toMatchObject({ engineers: ['ken@x.com'], publicUrl: 'https://flow.example.com', gateSecret: 'g'.repeat(32) });
+    const live = await openSettings(store, KEY, { engineers: ['Ken@x.com'], gateSecret: 'g'.repeat(32) }, now);
+    expect(live.get()).toMatchObject({ engineers: ['ken@x.com'], gateSecret: 'g'.repeat(32) });
     expect(JSON.stringify(store.row)).not.toContain('g'.repeat(32));
-    await live.save(input({ engineers: ['ken@x.com'], publicUrl: 'https://other.example.com' }), 'ken@x.com');
-    const again = await openSettings(store, KEY, { engineers: ['mika@x.com'], publicUrl: 'https://flow.example.com/', gateSecret: 'h'.repeat(32) }, now);
-    expect(again.get().publicUrl).toBe('https://other.example.com');
+    await live.save(input({ engineers: ['ken@x.com'] }), 'ken@x.com');
+    const again = await openSettings(store, KEY, { engineers: ['mika@x.com'], gateSecret: 'h'.repeat(32) }, now);
     expect(again.get().gateSecret).toBe('g'.repeat(32));
     expect(again.get().engineers).toEqual(['ken@x.com']);
   });
@@ -81,45 +80,42 @@ describe('openSettings', () => {
   it('says it imported a value only when it copied it into the store', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const store = memorySettingsStore();
-    const legacy = { engineers: ['Ken@x.com'], publicUrl: 'https://flow.example.com', gateSecret: 'g'.repeat(32) };
+    const legacy = { engineers: ['Ken@x.com'], gateSecret: 'g'.repeat(32) };
     await openSettings(store, KEY, legacy, now);
     expect(warn.mock.calls.map((a) => a[0])).toEqual([
-      'jflow: imported engineers and publicUrl from JFLOW_CONFIG',
+      'jflow: imported engineers from JFLOW_CONFIG',
       'jflow: imported the gate secret from JFLOW_GATE_SECRET; you can remove JFLOW_GATE_SECRET now',
     ]);
     expect(JSON.stringify(warn.mock.calls)).not.toContain('g'.repeat(32));
     warn.mockClear();
     await openSettings(store, KEY, legacy, now);
     expect(warn).not.toHaveBeenCalled();
-    const half = memorySettingsStore();
-    await openSettings(half, KEY, { engineers: [ken] }, now);
-    warn.mockClear();
-    await openSettings(half, KEY, legacy, now);
-    expect(warn.mock.calls.map((a) => a[0])).toEqual(['jflow: imported publicUrl from JFLOW_CONFIG']);
     warn.mockRestore();
   });
 
-  it('skips a legacy publicUrl that is not a bare origin', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const s = await openSettings(memorySettingsStore(), KEY, { publicUrl: 'https://flow.example.com/app' }, now);
-    expect(s.get().publicUrl).toBe('');
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('bare origin'));
-    warn.mockRestore();
-  });
-
-  it('loads a row from before publicUrl and the gate secret, and keeps its engineers', async () => {
+  it('loads a row from before the gate secret, and keeps its engineers', async () => {
     const store = memorySettingsStore();
     const old = { docsUrl: 'https://docs.example.com', docsToken: sealSecret(KEY, 'tok-1'), linearApiKey: '', teams: ['CORE'], engineers: [ken] };
     store.row = { value: old as unknown as StoredValue, updatedBy: ken, updatedAt: now() };
-    const s = await openSettings(store, KEY, { engineers: ['mika@x.com'], publicUrl: 'https://flow.example.com', gateSecret: 'g'.repeat(32) }, now);
+    const s = await openSettings(store, KEY, { engineers: ['mika@x.com'], gateSecret: 'g'.repeat(32) }, now);
     expect(s.get()).toMatchObject({
-      engineers: [ken], docsToken: 'tok-1', teams: ['CORE'], publicUrl: 'https://flow.example.com', gateSecret: 'g'.repeat(32),
+      engineers: [ken], docsToken: 'tok-1', teams: ['CORE'], gateSecret: 'g'.repeat(32),
       tdrFolder: '', flowAgentUrl: '', updatedBy: ken, legacyChatsImported: false,
     });
     expect(openSecret(KEY, store.row!.value.gateSecret)).toBe('g'.repeat(32));
     const fresh = memorySettingsStore();
     fresh.row = { value: old as unknown as StoredValue, updatedBy: ken, updatedAt: now() };
     expect((await openSettings(fresh, KEY, {}, now)).get().gateSecret.length).toBeGreaterThanOrEqual(32);
+  });
+
+  it('loads a row that still has the old publicUrl and ignores it', async () => {
+    const store = memorySettingsStore();
+    await openSettings(store, KEY, { engineers: [ken] }, now);
+    store.row = { ...store.row!, value: { ...store.row!.value, publicUrl: 'https://flow.example.com' } as StoredValue };
+    const s = await openSettings(store, KEY, {}, now);
+    expect(s.get()).not.toHaveProperty('publicUrl');
+    await s.save(input(), ken);
+    expect(store.row!.value).not.toHaveProperty('publicUrl');
   });
 
   it('stops when the stored gate secret cannot be opened', async () => {
@@ -139,13 +135,12 @@ describe('openSettings', () => {
     expect(s.get().docsToken).toBe('tok-1');
   });
 
-  it('saves publicUrl and the team settings, and keeps publicUrl and the gate secret when not sent', async () => {
+  it('saves the team settings, and keeps the gate secret', async () => {
     const s = await openSettings(memorySettingsStore(), KEY, { engineers: [ken] }, now);
     const secret = s.get().gateSecret;
-    await s.save(input({ publicUrl: 'https://flow.example.com/', tdrFolder: 'TDR' }), ken);
-    expect(s.get()).toMatchObject({ publicUrl: 'https://flow.example.com', tdrFolder: 'TDR', gateSecret: secret });
+    await s.save(input({ tdrFolder: 'TDR' }), ken);
+    expect(s.get()).toMatchObject({ tdrFolder: 'TDR', gateSecret: secret });
     await s.save(input(), ken);
-    expect(s.get().publicUrl).toBe('https://flow.example.com');
     expect(s.get().gateSecret).toBe(secret);
   });
 
@@ -193,22 +188,15 @@ describe('openSettings', () => {
     expect(err2.problems).toContain('you cannot remove yourself from engineers');
     expect(s.get()).toEqual(before);
   });
-
-  it('refuses a publicUrl with a path', async () => {
-    const s = await openSettings(memorySettingsStore(), KEY, { engineers: [ken] }, now);
-    const err = await s.save(input({ publicUrl: 'https://x.com/app' }), ken).catch((e) => e);
-    expect(err).toBeInstanceOf(SettingsError);
-    expect(err.message).toMatch(/bare origin/);
-  });
 });
 
 describe('importLegacySettings', () => {
   const config = (legacy: Config['legacy']) => ({ legacy }) as Config;
 
-  it('takes engineers and publicUrl from the old file and the gate secret from the env, and says nothing yet', () => {
+  it('takes engineers from the old file and the gate secret from the env, and says nothing yet', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const got = importLegacySettings(config({ engineers: ['Ken@x.com'], publicUrl: 'https://flow.example.com/' }), { JFLOW_GATE_SECRET: 'g'.repeat(32) });
-    expect(got).toEqual({ engineers: ['Ken@x.com'], publicUrl: 'https://flow.example.com/', gateSecret: 'g'.repeat(32) });
+    const got = importLegacySettings(config({ engineers: ['Ken@x.com'] }), { JFLOW_GATE_SECRET: 'g'.repeat(32) });
+    expect(got).toEqual({ engineers: ['Ken@x.com'], gateSecret: 'g'.repeat(32) });
     expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
   });
@@ -242,9 +230,6 @@ describe('checkSettings', () => {
     [{ engineers: [ken, 'bad'] }, '"bad" is not an email'],
     [{ engineers: [] }, 'keep at least one engineer'],
     [{ engineers: ['mika@jitera.com'] }, 'you cannot remove yourself from engineers'],
-    [{ publicUrl: 'https://flow.example.com/app' }, 'publicUrl must be a bare origin like https://flow.example.com, with no path, query or hash'],
-    [{ publicUrl: 'https://flow.example.com/?a=1' }, 'publicUrl must be a bare origin like https://flow.example.com, with no path, query or hash'],
-    [{ publicUrl: 'ftp://flow.example.com' }, 'publicUrl must be a bare origin like https://flow.example.com, with no path, query or hash'],
     [{ flowAgentUrl: 'http://studio.jitera.app/p/core/chat?a=agent-1' }, 'flowAgentUrl must be the Studio chat address of the Flow agent, like https://studio.jitera.app/p/<project>/chat?a=<agent>'],
     [{ flowAgentUrl: 'https://studio.jitera.app/p/core/chat' }, 'flowAgentUrl must be the Studio chat address of the Flow agent, like https://studio.jitera.app/p/<project>/chat?a=<agent>'],
     [{ flowAgentUrl: 'https://studio.jitera.app/p/core/chat?b=1' }, 'flowAgentUrl must be the Studio chat address of the Flow agent, like https://studio.jitera.app/p/<project>/chat?a=<agent>'],
@@ -259,8 +244,6 @@ describe('checkSettings', () => {
     expect(checkSettings(input({ docsUrl: '' }), ken)).toEqual([]);
     expect(checkSettings(input({ docsUrl: 'http://localhost:3000' }), ken)).toEqual([]);
     expect(checkSettings(input({ docsUrl: 'http://127.0.0.1:3000' }), ken)).toEqual([]);
-    expect(checkSettings(input({ publicUrl: 'https://flow.example.com/' }), ken)).toEqual([]);
-    expect(checkSettings(input({ publicUrl: 'http://localhost:8080' }), ken)).toEqual([]);
     expect(checkSettings(input({ flowAgentUrl: '' }), ken)).toEqual([]);
     expect(checkSettings(input({ flowAgentUrl: AGENT }), ken)).toEqual([]);
   });

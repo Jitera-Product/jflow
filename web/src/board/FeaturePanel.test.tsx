@@ -34,6 +34,7 @@ const panel: FeaturePanelView = {
   chatUrl: null,
   notice: null,
   checks: [],
+  about: null,
 };
 
 const CHAT = 'https://studio.jitera.app/p/core/docs/%2FFlow%2FP-ENG-12%20Search%20filters?a=agent-1&c=6f1c1d8e-0000-4000-8000-000000000001';
@@ -157,12 +158,20 @@ test('the panel says the status file is behind when behind', async () => {
 test('a slugId link opens a not started feature; an unknown one says not found', async () => {
   const fresh = card({ key: 'zz9', slugId: 'zz9', id: null, name: 'Export to CSV', stage: 'Intent', notStarted: true });
   routeFetch(routes({
-    'GET /api/board/feature/zz9': reply(200, { ...panel, card: fresh, stages: [], log: [], gate: null, files: [] }),
+    'GET /api/board/feature/zz9': reply(200, {
+      ...panel, card: fresh, stages: [], log: [], gate: null, files: [],
+      about: { summary: 'CSV for finance', content: '## Why', updates: [{ author: 'Mika', createdAt: '2026-11-20T00:00:00Z', body: 'Scoped', health: 'onTrack' }], comments: [] },
+    }),
     'GET /api/board/feature/nope': reply(404, { error: 'not_found', message: 'No flow project "nope" in the jflow teams.' }),
   }));
   renderAt('/f/zz9');
   const dialog = await screen.findByRole('dialog', { name: 'Export to CSV' });
   expect(await within(dialog).findByText('Not started in jflow')).toBeTruthy();
+  expect(within(dialog).getByText('CSV for finance')).toBeTruthy();
+  expect(within(dialog).getByRole('heading', { name: 'Why' })).toBeTruthy();
+  expect(within(dialog).getByRole('heading', { name: 'Updates' })).toBeTruthy();
+  expect(within(dialog).getByText('Scoped')).toBeTruthy();
+  expect(within(dialog).queryByRole('heading', { name: 'Comments' })).toBeNull();
   cleanup();
 
   renderAt('/f/nope');

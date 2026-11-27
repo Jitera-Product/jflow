@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/Button';
 import { daysText } from '@/lib/daysText';
 import { shortDate } from '@/lib/shortDate';
 import { StatePanel } from '@/shell/StatePanel';
+import { AboutSection } from './AboutSection';
 import { PanelSection } from './PanelSection';
 import { PilotSection } from './PilotSection';
+import { PostsSection } from './PostsSection';
 import { QaSection } from './QaSection';
 import { StageChip } from './StageChip';
 import { StageTimeline } from './StageTimeline';
@@ -100,6 +102,13 @@ export function FeaturePanel({ featureKey, onClose }: { featureKey: string; onCl
           {view.notice && <p className={NOTE}>{view.notice}</p>}
           {c.notStarted && <p className={NOTE}>Not started in jflow</p>}
           {view.behind && <p className={NOTE}>{`The status file is behind: Linear says ${c.stage}.`}</p>}
+          {view.about && (
+            <>
+              <AboutSection summary={view.about.summary} content={view.about.content} />
+              <PostsSection title="Updates" posts={view.about.updates} />
+              <PostsSection title="Comments" posts={view.about.comments} />
+            </>
+          )}
           {view.gate && (
             <PanelSection title="Open gate">
               <p>{`${view.gate.from} -> ${view.gate.to}, waiting for ${view.gate.missing.join(', ')}`}</p>

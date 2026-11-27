@@ -153,3 +153,49 @@
     text-wrap-style: pretty;
   }
 }
+
+/* Markdown from Linear: small headings, the panel's 13px text */
+@layer components {
+  .markdown {
+    @apply text-[13px] leading-relaxed wrap-anywhere;
+  }
+  .markdown > * + * {
+    @apply mt-2;
+  }
+  .markdown :is(h1, h2, h3, h4, h5, h6) {
+    @apply mt-4 text-[13px] font-semibold first:mt-0;
+  }
+  .markdown h1 {
+    @apply text-sm;
+  }
+  .markdown ul {
+    @apply list-disc pl-5;
+  }
+  .markdown ol {
+    @apply list-decimal pl-5;
+  }
+  .markdown li + li {
+    @apply mt-0.5;
+  }
+  .markdown a {
+    @apply underline underline-offset-2 hover:text-muted-foreground;
+  }
+  .markdown code {
+    @apply bg-secondary rounded px-1 py-0.5 font-mono text-xs;
+  }
+  .markdown pre {
+    @apply bg-secondary overflow-x-auto rounded-md p-3;
+  }
+  .markdown pre code {
+    @apply bg-transparent p-0;
+  }
+  .markdown blockquote {
+    @apply text-muted-foreground border-l-2 pl-3;
+  }
+  .markdown img {
+    @apply max-w-full rounded-md;
+  }
+  .markdown hr {
+    @apply my-3;
+  }
+}

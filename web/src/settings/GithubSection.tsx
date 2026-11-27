@@ -32,7 +32,7 @@ export function GithubSection({ tokenSet, footer }: { tokenSet: boolean; footer:
           {...register('githubToken')}
         />
         <p id="githubToken-hint" className="text-muted-foreground">
-          Fine-grained, read-only Pull requests on the product repos. Optional: without it the board shows the Build table only, with no PR reviews, checks or pilots.
+          Fine-grained, read-only Pull requests and Checks on the product repos. Optional: without it the board shows the Build table only, with no PR reviews, checks or pilots.
         </p>
       </div>
       <div className="grid gap-2">

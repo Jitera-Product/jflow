@@ -65,6 +65,7 @@ const node = (slugId: string, label: string | null, o: Node = {}): Node => ({
 let nodes: Node[];
 let linearCalls: Array<string[]>;
 let linearFails: boolean;
+let aboutFails: boolean;
 let github: Record<string, unknown>;
 let githubCalls: string[];
 const fakeLinear = (async (url: unknown, init: { body: string }) => {
@@ -73,7 +74,12 @@ const fakeLinear = (async (url: unknown, init: { body: string }) => {
     githubCalls.push(path);
     return path in github ? new Response(JSON.stringify(github[path]), { status: 200 }) : new Response('{}', { status: 404 });
   }
-  const { variables } = JSON.parse(init.body);
+  const { query, variables } = JSON.parse(init.body);
+  if (query.includes('ProjectAbout')) {
+    if (aboutFails) return new Response(JSON.stringify({ errors: [{ message: 'too complex' }] }), { status: 400 });
+    const project = { description: `About ${variables.id}`, content: '# Goal', projectUpdates: { nodes: [] }, comments: { nodes: [] } };
+    return new Response(JSON.stringify({ data: { project } }), { status: 200 });
+  }
   linearCalls.push(variables.teams);
   if (linearFails) return new Response(JSON.stringify({ errors: [{ message: 'bad key LIN-KEY-BBB' }] }), { status: 401 });
   const inTeams = nodes.filter((n) => (n.teams as { nodes: Array<{ key: string }> }).nodes.some((t) => variables.teams.includes(t.key)));
@@ -125,6 +131,7 @@ beforeEach(async () => {
   now = NOW;
   linearCalls = [];
   linearFails = false;
+  aboutFails = false;
   nodes = [
     node('s1', 'flow:plan'),
     node('s2', 'flow:intent', { teams: { nodes: [{ key: 'CORE' }] }, lead: { name: 'Bo', email: 'bo@jitera.com' } }),
@@ -313,6 +320,18 @@ describe('/api/board/feature', () => {
     expect((await r.json()).chatUrl).toBe('https://studio.jitera.app/p/core/docs/%2FFlow%2FP-ENG-12%20Export?a=agent-1');
     expect(warn).toHaveBeenCalledWith(expect.stringMatching(/P-ENG-12.*db down/));
     warn.mockRestore();
+  });
+  it('shows the Linear description and updates, started or not', async () => {
+    for (const [key, id] of [['P-ENG-12', 'u-s1'], ['s2', 'u-s2']]) {
+      expect((await (await get(`/api/board/feature/${key}`)).json()).about)
+        .toEqual({ summary: `About ${id}`, content: '# Goal', updates: [], comments: [] });
+    }
+  });
+  it('a failing description query still shows the panel', async () => {
+    aboutFails = true;
+    const r = await get('/api/board/feature/s2');
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ card: { key: 's2' }, about: null });
   });
   it('reads fresh', async () => {
     await get('/api/board/feature/P-ENG-12');

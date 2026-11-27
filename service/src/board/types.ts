@@ -1,4 +1,4 @@
-import type { FlowProject } from '../linear/types.js';
+import type { FlowProject, ProjectAbout } from '../linear/types.js';
 import type { Role } from '../gates/types.js';
 import type { QaCheck } from '../qa/types.js';
 import type { GateRow, StageName } from '../status/stages.js';
@@ -41,4 +41,5 @@ export type FeaturePanel = {
   files: string[]; linearUrl: string; behind: boolean;
   folder: string | null; chatUrl: string | null; notice: string | null;
   checks: QaCheck[];
+  about: ProjectAbout | null; // null when Linear did not answer
 };

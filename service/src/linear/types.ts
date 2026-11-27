@@ -22,3 +22,7 @@ export type FlowProject = {
   lead: { name: string; email: string } | null;
   flowLabel: string; state: string; updatedAt: string;
 };
+
+// health is onTrack, atRisk or offTrack on project updates; null on comments
+export type ProjectPost = { author: string; createdAt: string; body: string; health: string | null };
+export type ProjectAbout = { summary: string; content: string; updates: ProjectPost[]; comments: ProjectPost[] };

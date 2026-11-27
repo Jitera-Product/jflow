@@ -3,6 +3,7 @@ import type { Deps } from '../feature/types.js';
 import { chatUrlOf } from '../featureChats/chatUrlOf.js';
 import { storedChat } from '../featureChats/storedChat.js';
 import { listFlowProjects } from '../linear/listFlowProjects.js';
+import { readProjectAbout } from '../linear/readProjectAbout.js';
 import { readChecks } from '../qa/readChecks.js';
 import { lines } from '../status/lines.js';
 import type { BuildRow } from '../work/types.js';
@@ -45,7 +46,11 @@ export async function loadFeaturePanel(
   if (!p || !stage) return null;
   const file = found ? readStatusFile(found.md) : null;
   const id = found?.id ?? null;
-  const [verify, active] = await Promise.all([
+  const [about, verify, active] = await Promise.all([
+    readProjectAbout(fetchFn, s.linearApiKey, p.uuid).catch((e: unknown) => {
+      console.warn(`jflow: no Linear description for ${key}: ${e instanceof Error ? e.message : String(e)}`);
+      return null;
+    }),
     found?.files.includes(VERIFICATION) ? deps.docs.read(`${found.folder}${VERIFICATION}`).catch(() => null) : null,
     activeFeatures(deps),
   ]);
@@ -72,5 +77,6 @@ export async function loadFeaturePanel(
     chatUrl,
     notice,
     checks,
+    about,
   };
 }

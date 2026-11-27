@@ -1,4 +1,5 @@
 import { gql } from './gql.js';
+import { personName } from './personName.js';
 import type { FlowProject } from './types.js';
 
 const QUERY = `query BoardProjects($teams: [String!], $after: String) {
@@ -7,7 +8,7 @@ const QUERY = `query BoardProjects($teams: [String!], $after: String) {
     nodes {
       id slugId name url updatedAt
       status { type }
-      lead { name email }
+      lead { name displayName email }
       teams(first: 5) { nodes { key } }
       labels(first: 10) { nodes { name } }
     }
@@ -17,7 +18,7 @@ const QUERY = `query BoardProjects($teams: [String!], $after: String) {
 type Node = {
   id: string; slugId: string; name: string; url: string; updatedAt: string;
   status: { type: string };
-  lead: { name: string; email: string } | null;
+  lead: { name: string; displayName: string; email: string } | null;
   teams: { nodes: Array<{ key: string }> };
   labels: { nodes: Array<{ name: string }> };
 };
@@ -36,7 +37,7 @@ export async function listFlowProjects(fetchFn: typeof fetch, apiKey: string, te
       out.push({
         uuid: n.id, slugId: n.slugId, identifier: null, name: n.name, url: n.url,
         team: n.teams.nodes.find((t) => teamKeys.includes(t.key))?.key ?? n.teams.nodes[0]?.key ?? '',
-        lead: n.lead ? { name: n.lead.name, email: n.lead.email.toLowerCase() } : null,
+        lead: n.lead ? { name: personName(n.lead), email: n.lead.email.toLowerCase() } : null,
         flowLabel: flow[0]!.name, state: n.status.type, updatedAt: n.updatedAt,
       });
     }

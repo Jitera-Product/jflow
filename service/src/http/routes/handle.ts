@@ -24,9 +24,10 @@ import { staticFiles } from './staticFiles.js';
 import { webhook } from './webhook.js';
 
 export async function handle(ctx: HttpContext, req: IncomingMessage, res: ServerResponse) {
-  const path = new URL(req.url ?? '/', 'http://localhost').pathname;
+  const { pathname: path, search } = new URL(req.url ?? '/', 'http://localhost');
   if (path === '/healthz' && req.method === 'GET') return send(res, 200, 'ok');
   if (path === '/' && req.method === 'GET' && !isConfigured(ctx.deps.settings.get())) return send(res, 302, '', { location: '/settings' });
+  if (path === '/workload' && req.method === 'GET') return send(res, 301, '', { location: `/people${search}` });
   if (path === '/mcp') return req.method === 'POST' ? mcp(ctx.deps, req, res) : send(res, 405, 'method not allowed');
   if (path === '/webhooks/gate' && req.method === 'POST') return webhook(ctx.deps, req, res);
 
@@ -84,7 +85,7 @@ export async function handle(ctx: HttpContext, req: IncomingMessage, res: Server
   }
   if (path.startsWith('/api/')) return json(res, 404, { error: 'not_found', message: 'No such API.' });
 
-  if (req.method === 'GET' && (['/', '/settings', '/workload'].includes(path) || /^\/f\/[^/]+$/.test(path) || /^\/gate\/[^/]+\/[^/]+$/.test(path) || path.startsWith('/assets/'))) {
+  if (req.method === 'GET' && (['/', '/settings', '/waiting', '/people'].includes(path) || /^\/f\/[^/]+$/.test(path) || /^\/gate\/[^/]+\/[^/]+$/.test(path) || path.startsWith('/assets/'))) {
     return staticFiles(ctx.deps.config.webDir, res, path);
   }
   send(res, 404, 'not found');

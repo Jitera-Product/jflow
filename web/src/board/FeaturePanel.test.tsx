@@ -11,14 +11,16 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const gated = card({ openGate: { id: 'g1', to: 'TDR', opened: '2026-11-20', missing: ['owner'] } });
+const gated = card({ openGate: { id: 'g1', from: 'flow:spec-review', to: 'flow:tdr', opened: '2026-11-20', missing: ['owner'] } });
 
 const panel: FeaturePanelView = {
   card: gated,
   stages: [
-    { stage: 'Intent', status: 'done', date: '2026-11-18' },
-    { stage: 'Spec', status: 'done', date: '2026-11-20' },
-    { stage: 'Spec review', status: 'in progress', date: '' },
+    { stage: 'Intent', status: 'done', date: '2026-11-18', file: '1-intent.md', by: 'mika@example.com' },
+    { stage: 'Spec', status: 'done', date: '2026-11-20', file: '2-spec.md', by: 'Flow agent' },
+    { stage: 'Spec review', status: 'in progress', date: '', file: '', by: '' },
+    { stage: 'TDR', status: 'skipped', date: '', file: '', by: '' },
+    { stage: 'UI', status: 'not started', date: '', file: '', by: '' },
   ],
   log: [
     { date: '2026-11-18', stage: 'Intent', who: 'mika@example.com', text: 'started' },
@@ -94,14 +96,22 @@ test('with the panel and New idea open, Escape closes only New idea', async () =
   expect(router.state.location.pathname).toBe('/f/P-ENG-12');
 });
 
-test('/f/<ID> opens the panel with stages, log, the open gate link, files and the Linear link', async () => {
+test('/f/<ID> opens the side sheet: header, the open gate link, stages, documents, log and the Linear link', async () => {
   routeFetch(routes());
   renderAt('/f/P-ENG-12');
   const dialog = await screen.findByRole('dialog', { name: 'P-ENG-12 Search filters' });
   const d = within(dialog);
   expect(await d.findByText('in progress')).toBeTruthy();
-  expect(d.getByText('2026-11-18 - Intent - mika@example.com - started')).toBeTruthy();
-  expect(d.getByText('2026-11-20 - Spec review - sam@example.com via jitera')).toBeTruthy();
+  expect(d.getByRole('heading', { name: 'Search filters' })).toBeTruthy();
+  expect(d.getAllByText('Spec review').length).toBeGreaterThan(1); // the stage chip and the timeline
+  expect(d.getByText('Owner').textContent).toBe('Owner Mika');
+  expect(d.getByText(/^In Spec review for/).textContent).toBe('In Spec review for 4 days');
+  expect(d.getByText('done by mika@example.com, Nov 18')).toBeTruthy();
+  expect(d.getByText('skipped')).toBeTruthy();
+  expect(d.getByText('not started')).toBeTruthy();
+  expect(d.getByText('Flow agent, Nov 20')).toBeTruthy(); // 2-spec.md
+  expect(d.getByText('Nov 18 Intent mika@example.com started')).toBeTruthy();
+  expect(d.getByText('Nov 20 Spec review sam@example.com via jitera')).toBeTruthy();
   expect(d.getByText('Spec review -> TDR, waiting for owner')).toBeTruthy();
   expect(d.getByRole('link', { name: 'Open the gate' }).getAttribute('href')).toBe('https://flow.example.com/gate/P-ENG-12/g1');
   for (const name of panel.files) expect(d.getByText(name)).toBeTruthy();

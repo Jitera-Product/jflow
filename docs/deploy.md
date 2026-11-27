@@ -81,7 +81,7 @@ The Chats item is done when any token was used once.
 - Put TLS in front with any reverse proxy. The proxy must pass the public host, in `Host` or `X-Forwarded-Host`,
   and the public scheme in `X-Forwarded-Proto` (`https`). If the last proxy says `http` for a page served over
   `https`, writes from the web app are refused with 403 `refused`.
-- `/`, `/f/*`, `/workload`, `/gate/*`, `/settings` and `/api/*` must sit behind Cloudflare Access. The pages are a static app that
+- `/`, `/f/*`, `/waiting`, `/people`, `/workload`, `/gate/*`, `/settings` and `/api/*` must sit behind Cloudflare Access. The pages are a static app that
   jflow serves itself, and the app calls `/api/*`. Access sends the `Cf-Access-Jwt-Assertion` header, and
   jflow verifies that JWT itself against `JFLOW_ACCESS_TEAM_DOMAIN` and `JFLOW_ACCESS_AUD` on every `/api` call. Cloudflare
   Access is the only SSO supported today. Do not route those paths to jflow without it. The boards need nothing extra: they use the Linear key and teams from `/settings`. Anyone Access lets in can open them, and only `/settings` is limited to engineers.

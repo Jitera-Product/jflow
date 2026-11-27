@@ -179,7 +179,8 @@ are reached through symlinks next to each SKILL.md. Keep it that way so both age
 
 ## Team workload board
 
-The service serves it at `/workload`, next to the board by stage at `/`. It needs nothing beyond the
+The service serves it at `/people` (the People tab; `/workload` still leads there), next to the board by phase
+at `/` and the "Waiting for me" list at `/waiting`. It needs nothing beyond the
 Linear key and teams on `/settings`. Anyone Cloudflare Access lets in can open it. Pick the teams and
 statuses with the filters at the top; the link carries the choice, so a team can share one link.
 

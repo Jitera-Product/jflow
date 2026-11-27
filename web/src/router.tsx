@@ -6,6 +6,7 @@ import { GatePage } from './gate/GatePage';
 import { SettingsPage } from './settings/SettingsPage';
 import { PageShell } from './shell/PageShell';
 import { StatePanel } from './shell/StatePanel';
+import { WaitingPage } from './waiting/WaitingPage';
 
 const root = createRootRoute({
   component: Outlet,
@@ -31,9 +32,12 @@ const feature = createRoute({
   },
 });
 
-const workload = createRoute({
+const waiting = createRoute({ getParentRoute: () => root, path: '/waiting', component: WaitingPage });
+
+// the service sends /workload here
+const people = createRoute({
   getParentRoute: () => root,
-  path: '/workload',
+  path: '/people',
   component: lazyRouteComponent(() => import('./workload/WorkloadPage'), 'WorkloadPage'),
 });
 
@@ -48,7 +52,7 @@ const gate = createRoute({
   },
 });
 
-export const routeTree = root.addChildren([board.addChildren([stages, feature]), workload, settings, gate]);
+export const routeTree = root.addChildren([board.addChildren([stages, feature]), waiting, people, settings, gate]);
 
 export const router = createRouter({ routeTree });
 

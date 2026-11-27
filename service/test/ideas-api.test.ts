@@ -59,9 +59,11 @@ beforeAll(async () => {
 
 let server: Server;
 let base: string;
+let settings: Awaited<ReturnType<typeof openSettings>>;
+const saved = { docsUrl: 'https://d.example.com', docsToken: 'DOCS-TOKEN-AAA', linearApiKey: 'LIN-KEY-BBB', teams: ['ENG', 'CORE'], engineers: [MIKA] };
 async function start() {
-  const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: [MIKA] }, () => NOW);
-  await settings.save({ docsUrl: 'https://d.example.com', docsToken: 'DOCS-TOKEN-AAA', linearApiKey: 'LIN-KEY-BBB', teams: ['ENG', 'CORE'], engineers: [MIKA] }, MIKA);
+  settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: [MIKA] }, () => NOW);
+  await settings.save(saved, MIKA);
   const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [], () => NOW);
   const deps = { config, settings, chats, featureChats: memoryFeatureChatStore(), docs: memoryDocuments({}), tracker: {} as never, now: () => NOW };
   server = createHttpServer(deps, { jwks, fetch: fakeLinear });
@@ -127,21 +129,27 @@ describe('POST /api/ideas', () => {
   it('creates the Linear project with team, lead, label and the two headings', async () => {
     const r = await post(idea);
     expect(r.status).toBe(200);
-    expect(await r.json()).toEqual({ uuid: 'u-new', slugId: 'new-1', url: 'https://linear.app/x/project/new-1' });
+    expect(await r.json()).toEqual({ uuid: 'u-new', slugId: 'new-1', url: 'https://linear.app/x/project/new-1', chatUrl: null });
     expect(bodies.find((b) => b.query.includes('BoardCreateLookup'))!.variables).toMatchObject({ key: 'CORE', label: 'flow:intent' });
     expect(bodies.at(-1)!.variables.input).toEqual({
       name: 'Export to CSV', description: 'Ops cannot export. They copy by hand.',
-      content: '## Problem\n\nOps cannot export.\nThey copy by hand.\n\n## Who it is for\n\nOps team\n',
+      content: '## Problem\n\nOps cannot export.\nThey copy by hand.\n\n## Who it is for\n\nOps team\n\n## Requester\n\neve@jitera.com\n',
       teamIds: ['t-core'], leadId: 'u-bo', labelIds: ['l-intent'],
     });
   });
-  it('400 owner_required without an owner (Review Focus 4), and Linear is not called', async () => {
+  it('without an owner ("Pick later") the project has no lead and the team is not asked', async () => {
     for (const ownerId of [undefined, '', '  ']) {
+      bodies = [];
       const r = await post({ ...idea, ownerId });
-      expect(r.status).toBe(400);
-      expect((await r.json()).error).toBe('owner_required');
+      expect(r.status).toBe(200);
+      expect(bodies.some((b) => b.query.includes('BoardTeamMembers'))).toBe(false);
+      expect(bodies.at(-1)!.variables.input).not.toHaveProperty('leadId');
     }
-    expect(bodies).toEqual([]);
+  });
+  it('returns a new chat link with the Flow agent when it is set', async () => {
+    await settings.save({ ...saved, flowAgentUrl: 'https://studio.jitera.app/p/core/chat?a=agent-1' }, MIKA);
+    const r = await post(idea);
+    expect((await r.json()).chatUrl).toBe('https://studio.jitera.app/p/core/chat?a=agent-1');
   });
   it.each([{ title: '  ' }, { team: 'NOPE' }, { team: '' }])('400 invalid for %j', async (bad) => {
     const r = await post({ ...idea, ...bad });

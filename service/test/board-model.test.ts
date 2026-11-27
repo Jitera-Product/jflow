@@ -82,6 +82,12 @@ describe('buildStageBoard', () => {
     expect(at([line('2026-11-10', 'Intent', 'folder created'), line('2026-11-22', 'Spec review', 'stage set to flow:spec-review')], { flowLabel: 'flow:spec-review' })).toBe(4);
   });
 
+  it('since is the day the card entered its stage: the newest move line, else updatedAt', () => {
+    const since = (log: ReturnType<typeof line>[], o: Partial<FlowProject> = {}) => cards(run([proj(o)], [['s1', file({ log })]]))[0]!.since;
+    expect(since([line('2026-11-10', 'Intent', 'folder created'), line('2026-11-23', 'Intent approved')], { flowLabel: 'flow:spec' })).toBe('2026-11-23');
+    expect(since([])).toBe(daysAgo(5));
+  });
+
   it('a later changes requested or log_stage line does not reset the count', () => {
     const log = [
       line('2026-11-20', 'Intent approved'),
@@ -106,7 +112,7 @@ describe('buildStageBoard', () => {
   it('computes open gate, missing roles and waitsFor from it', () => {
     const g = gate({ approvals: [{ role: 'owner', email: 'mika@x.com' }] });
     const c = cards(run([proj()], [['s1', file({ gates: [g] })]]))[0]!;
-    expect(c.openGate).toEqual({ id: 'g1', to: 'flow:tdr', opened: g.opened, missing: ['engineer'] });
+    expect(c.openGate).toEqual({ id: 'g1', from: 'flow:spec-review', to: 'flow:tdr', opened: g.opened, missing: ['engineer'] });
     expect(c.waitsFor).toEqual([{ kind: 'engineer', names: ['eng@x.com'] }]);
     const none = cards(run([proj()], [['s1', file({ gates: [g] })]], { engineers: [] }))[0]!;
     expect(none.waitsFor[0]!.names).toEqual(['an engineer']);

@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { z } from 'zod';
+import { chatUrlOf } from '../../featureChats/chatUrlOf.js';
 import { createFlowProject } from '../../linear/createFlowProject.js';
 import { findUserByEmail } from '../../linear/findUserByEmail.js';
 import { listTeamMembers } from '../../linear/listTeamMembers.js';
@@ -13,7 +14,7 @@ const ideaBody = z.object({
 });
 
 export async function apiIdeas(ctx: HttpContext, req: IncomingMessage, res: ServerResponse, email: string) {
-  const { teams, linearApiKey } = ctx.deps.settings.get();
+  const { teams, linearApiKey, flowAgentUrl } = ctx.deps.settings.get();
   const f = ctx.opts.fetch ?? fetch;
   try {
     if (req.method === 'GET') {
@@ -30,19 +31,18 @@ export async function apiIdeas(ctx: HttpContext, req: IncomingMessage, res: Serv
       return json(res, 400, { error: 'invalid', message: 'Give the idea a title and pick a team.', problems });
     }
     const { title, problem, audience, team, ownerId } = body.data;
-    if (!ownerId) return json(res, 400, { error: 'owner_required', message: 'Pick an owner.' });
-    const members = await listTeamMembers(f, linearApiKey, team);
-    if (!members.some((m) => m.id === ownerId)) {
+    // no owner = "Pick later": the project has no lead until someone takes it
+    if (ownerId && !(await listTeamMembers(f, linearApiKey, team)).some((m) => m.id === ownerId)) {
       return json(res, 400, { error: 'invalid', message: 'Pick an owner from this team.', problems: ['owner: not a member of this team'] });
     }
-    const content = `## Problem\n\n${problem}\n\n## Who it is for\n\n${audience}\n`;
+    const content = `## Problem\n\n${problem}\n\n## Who it is for\n\n${audience}\n\n## Requester\n\n${email}\n`;
     let created;
     try {
-      created = await createFlowProject(f, linearApiKey, { teamKey: team, name: title, summary: problem, content, leadId: ownerId });
+      created = await createFlowProject(f, linearApiKey, { teamKey: team, name: title, summary: problem, content, leadId: ownerId || undefined });
     } catch {
       return json(res, 502, { error: 'linear', message: 'Linear refused the project. Try again or check the title and owner.' });
     }
-    json(res, 200, created);
+    json(res, 200, { ...created, chatUrl: chatUrlOf(flowAgentUrl, null, null) });
   } catch {
     json(res, 502, { error: 'linear', message: 'Linear did not answer. Check the key and try again.' });
   }

@@ -241,9 +241,9 @@ describe('/api/board/feature', () => {
     expect(p.card).toMatchObject({ key: 'P-ENG-12', slugId: 's1', stage: 'Plan' });
     expect(p.behind).toBe(true);
     expect(p.stages).toEqual([
-      { stage: 'Intent', status: 'done', date: '2026-11-20' },
-      { stage: 'Spec', status: 'in progress', date: '2026-11-21' },
-      { stage: 'Spec review', status: 'not started', date: '' },
+      { stage: 'Intent', status: 'done', date: '2026-11-20', file: '1-intent.md', by: 'mika@jitera.com' },
+      { stage: 'Spec', status: 'in progress', date: '2026-11-21', file: '2-spec.md', by: 'Flow agent' },
+      { stage: 'Spec review', status: 'not started', date: '', file: '', by: '' },
     ]);
     expect(p.log).toHaveLength(2);
     expect(p.gate).toEqual({ url: '/gate/P-ENG-12/g1', from: 'Spec review', to: 'Plan', missing: ['engineer'] });
@@ -319,11 +319,18 @@ describe('/api/board/feature', () => {
 });
 
 describe('pages', () => {
-  it('/ serves the app when configured; /workload and /f/<ID> too', async () => {
-    for (const path of ['/', '/workload', '/f/P-ENG-12']) {
+  it('/ serves the app when configured; /waiting, /people and /f/<ID> too', async () => {
+    for (const path of ['/', '/waiting', '/people', '/f/P-ENG-12']) {
       const r = await get(path, null);
       expect(r.status).toBe(200);
       expect(await r.text()).toContain('jflow fixture');
+    }
+  });
+  it('/workload moves to /people and keeps the filters', async () => {
+    for (const [from, to] of [['/workload', '/people'], ['/workload?window=-P14D&team=t1', '/people?window=-P14D&team=t1']]) {
+      const r = await get(from!, null);
+      expect(r.status).toBe(301);
+      expect(r.headers.get('location')).toBe(to);
     }
   });
   it('/ redirects to /settings while not configured', async () => {

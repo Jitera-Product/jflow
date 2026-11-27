@@ -33,6 +33,7 @@ const panel: FeaturePanelView = {
   folder: 'documents/Flow/P-ENG-12 Search filters/',
   chatUrl: null,
   notice: null,
+  checks: [],
 };
 
 const CHAT = 'https://studio.jitera.app/p/core/docs/%2FFlow%2FP-ENG-12%20Search%20filters?a=agent-1&c=6f1c1d8e-0000-4000-8000-000000000001';
@@ -166,4 +167,62 @@ test('a slugId link opens a not started feature; an unknown one says not found',
 
   renderAt('/f/nope');
   expect(await screen.findByText('No flow project "nope" in the jflow teams.')).toBeTruthy();
+});
+
+test('the panel shows QA on the pilot, the Work rows with PR links, and the pilot', async () => {
+  const c = card({
+    stage: 'Verify', pilot: 'P5', qa: { passed: 1, failed: 1 },
+    build: [
+      { issue: 'ENG-1240', repo: 'automation', pr: 4812, url: 'https://github.com/acme/automation/pull/4812', status: 'in review', github: { state: 'open', review: 'approved', checks: 'passing', pilot: 'P5' } },
+      { issue: 'ENG-1241', repo: 'boost', pr: 12, url: null, status: 'building', github: null },
+      { issue: 'ENG-1242', repo: 'boost', pr: null, url: null, status: 'waiting', github: null },
+    ],
+  });
+  routeFetch(routes({
+    'GET /api/board/feature/P-ENG-12': reply(200, {
+      ...panel, card: c, gate: null,
+      checks: [
+        { check: 'Dialog opens', passed: true, evidence: 'https://ci.example.com/1' },
+        { check: 'Empty chat text', passed: false, evidence: 'differs from the design' },
+      ],
+    }),
+  }));
+  renderAt('/f/P-ENG-12');
+  const dialog = await screen.findByRole('dialog', { name: 'P-ENG-12 Search filters' });
+  const qa = (await within(dialog).findByRole('heading', { name: 'QA on pilot P5' })).closest('section')!;
+  expect(within(qa).getByText('1 passed')).toBeTruthy();
+  expect(within(qa).getByText('1 failed')).toBeTruthy();
+  expect(within(qa).getByRole('link', { name: 'https://ci.example.com/1' }).getAttribute('href')).toBe('https://ci.example.com/1');
+  expect(within(qa).getByText('differs from the design').tagName).toBe('SPAN');
+  expect(within(qa).getByText('Fail')).toBeTruthy();
+
+  const work = within(dialog).getByRole('heading', { name: 'Work' }).closest('section')!;
+  const items = within(work).getAllByRole('listitem');
+  expect(items.map((li) => li.textContent)).toEqual([
+    'ENG-1240automation #4812Approved', 'ENG-1241boost #12Building', 'ENG-1242boost, no PR yetWaiting',
+  ]);
+  expect(within(work).getByRole('link', { name: 'automation #4812' }).getAttribute('href')).toBe('https://github.com/acme/automation/pull/4812');
+  expect(within(work).queryByRole('link', { name: 'boost #12' })).toBeNull();
+
+  const pilot = within(dialog).getByRole('heading', { name: 'Pilot' }).closest('section')!;
+  expect(pilot.textContent).toContain('P5');
+});
+
+test('a pilot mismatch lists each repo and its pilot', async () => {
+  const gh = (pilot: string | null) => ({ state: 'open' as const, review: null, checks: null, pilot });
+  const c = card({
+    stage: 'Build', pilotMismatch: true, stuck: true,
+    build: [
+      { issue: 'ENG-1', repo: 'automation', pr: 1, url: null, status: 'in review', github: gh('P5') },
+      { issue: 'ENG-2', repo: 'frontend-core', pr: 2, url: null, status: 'in review', github: gh('P7') },
+      { issue: 'ENG-3', repo: 'boost', pr: 3, url: null, status: 'in review', github: gh(null) },
+    ],
+  });
+  routeFetch(routes({ 'GET /api/board/feature/P-ENG-12': reply(200, { ...panel, card: c, gate: null }) }));
+  renderAt('/f/P-ENG-12');
+  const dialog = await screen.findByRole('dialog', { name: 'P-ENG-12 Search filters' });
+  const pilot = (await within(dialog).findByRole('heading', { name: 'Pilot' })).closest('section')!;
+  expect(within(pilot).getByText('Pilot mismatch')).toBeTruthy();
+  expect(within(pilot).getByText('automation P5, frontend-core P7, boost not on a pilot')).toBeTruthy();
+  expect(within(dialog).queryByRole('heading', { name: /^QA/ })).toBeNull();
 });

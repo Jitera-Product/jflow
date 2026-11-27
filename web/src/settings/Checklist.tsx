@@ -4,6 +4,7 @@ import type { SetupView } from '@/api/types';
 export function Checklist({ setup }: { setup: SetupView | null }) {
   const items = [
     { id: 'linear', title: 'Linear', ok: setup?.linear.ok, message: setup?.linear.message },
+    { id: 'github', title: 'GitHub (optional)', ok: setup?.github.ok, message: setup?.github.message },
     { id: 'jitera', title: 'Jitera', ok: setup?.jitera.ok, message: setup?.jitera.message },
     { id: 'chats', title: 'Chats', ok: setup?.chats.ok, message: 'Connect a chat and use it once.' },
   ];

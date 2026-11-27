@@ -4,6 +4,7 @@ export type SettingsView = {
     docsUrl: string;
       docsTokenSet: boolean;
     linearApiKeySet: boolean;
+    githubTokenSet: boolean;
     teams: string[];
     engineers: string[];
     tdrFolder: string;
@@ -21,11 +22,12 @@ export type SettingsInput = {
   flowAgentUrl: string;
   docsToken?: string;
   linearApiKey?: string;
+  githubToken?: string;
 };
 
 export type SetupStep = { ok: boolean; message?: string };
 
-export type SetupView = { linear: SetupStep; jitera: SetupStep; chats: { ok: boolean } };
+export type SetupView = { linear: SetupStep; jitera: SetupStep; github: SetupStep; chats: { ok: boolean } };
 
 export type LinearTeam = { key: string; name: string };
 
@@ -54,6 +56,18 @@ export type Me = { email: string; engineer: boolean; teams: string[] };
 
 export type Waiting = { kind: 'owner' | 'engineer' | 'agent'; names: string[] };
 
+export type GithubPr = {
+  state: 'open' | 'draft' | 'merged' | 'closed';
+  review: 'approved' | 'changes requested' | null;
+  checks: 'passing' | 'failing' | 'running' | null;
+  pilot: string | null;
+};
+
+// a row of the Build table in 0-status.md; url only when the org is known; github only with a token
+export type BuildRow = { issue: string; repo: string; pr: number | null; url: string | null; status: string; github: GithubPr | null };
+
+export type QaCheck = { check: string; passed: boolean; evidence: string };
+
 export type BoardCard = {
   key: string;
   slugId: string;
@@ -71,6 +85,11 @@ export type BoardCard = {
   notStarted: boolean;
   behind: boolean;
   openGate: { id: string; from: string; to: string; opened: string; missing: Role[] } | null; // from, to: Linear labels
+  build: BuildRow[];
+  pilot: string | null; // the one pilot all open PRs are on
+  pilotMismatch: boolean; // open PRs on different pilots, or some on none; counts as stuck
+  qa: { passed: number; failed: number } | null; // Verify only, once 4-verification.md has checks
+  agentActive: boolean; // a jflow tool call in the last 10 minutes
 };
 
 export type StageBoard = {
@@ -91,6 +110,7 @@ export type FeaturePanelView = {
   folder: string | null;
   chatUrl: string | null;
   notice: string | null;
+  checks: QaCheck[];
 };
 
 export type IdeaOwners = { owners: Array<{ id: string; name: string; email: string }>; defaultOwnerId: string | null };

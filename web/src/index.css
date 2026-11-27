@@ -41,6 +41,9 @@
   --color-waits-bg: var(--waits-bg);
   --color-waits-text: var(--waits-text);
   --color-waits-dot: var(--waits-dot);
+
+  --color-working-bg: var(--working-bg);
+  --color-working-text: var(--working-text);
 }
 
 :root {
@@ -75,6 +78,9 @@
   --waits-bg: #fefce8;
   --waits-text: #97540a;
   --waits-dot: #ca8a04;
+
+  --working-bg: #eff6ff;
+  --working-text: #2563eb;
 
   --brand-gradient-from: #0181f8;
   --brand-gradient-to: #4cc3ff;
@@ -115,6 +121,9 @@
   --waits-bg: rgba(202, 138, 4, 0.16);
   --waits-text: #fcd34d;
   --waits-dot: #eab308;
+
+  --working-bg: rgba(37, 99, 235, 0.18);
+  --working-text: #93c5fd;
 
   --btn-gradient: linear-gradient(var(--brand-gradient-from), var(--brand-gradient-to));
   --btn-gradient-disabled: linear-gradient(#003463, #1e4e66);

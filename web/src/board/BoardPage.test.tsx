@@ -52,7 +52,8 @@ test('four phase columns; cards show ID, stage, name, owner and a status chip; s
 
   expect(screen.getByText('Waits for a person')).toBeTruthy();
   expect(screen.getByText('Bar: how far the feature is, from Intent to Done')).toBeTruthy();
-  expect(screen.queryByText('Agent is working')).toBeNull();
+  expect(screen.getByText('Agent is working')).toBeTruthy();
+  expect(screen.getByText('Agent idle')).toBeTruthy();
   expect(within(screen.getByRole('navigation', { name: 'Main' })).getByLabelText('1 waiting')).toBeTruthy();
 });
 

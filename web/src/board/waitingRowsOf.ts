@@ -1,6 +1,8 @@
 import type { BoardCard, Me } from '@/api/types';
+import { plural } from '@/lib/plural';
 import { gateDaysOf } from './gateDaysOf';
 import { myActionOf } from './myActionOf';
+import { qaFailedOf } from './qaFailedOf';
 import { stageOfLabel } from './stageOfLabel';
 
 export type WaitingRow = { group: 'Approve' | 'Decide'; card: BoardCard; what: string; days: number; href: string };
@@ -11,7 +13,8 @@ const upper = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 export function waitingRowsOf(cards: BoardCard[], me: Me, at: string): WaitingRow[] {
   const rows = cards.filter((c) => c.waitingForMe).map((c): WaitingRow => {
     const g = c.openGate;
-    const what = upper(myActionOf(c));
+    const failed = qaFailedOf(c);
+    const what = failed ? `QA: ${plural(failed, 'check')} failed. Fix it or accept it.` : upper(myActionOf(c));
     if (!g || !c.id) return { group: 'Decide', card: c, what, days: c.days, href: `/f/${c.key}` };
     const mine = g.missing.filter((r) => (r === 'owner' ? c.owner?.email.toLowerCase() === me.email.toLowerCase() : me.engineer));
     return {

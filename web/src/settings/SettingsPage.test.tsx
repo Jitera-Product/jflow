@@ -11,6 +11,7 @@ const view: SettingsView = {
     docsUrl: 'https://docs.example.com/mcp',
     docsTokenSet: true,
     linearApiKeySet: false,
+    githubTokenSet: false,
     teams: ['CORE'],
     engineers: ['mika@example.com', 'sam@example.com'],
     tdrFolder: 'Technical Design Record (TDR)',
@@ -25,6 +26,7 @@ const withKey: SettingsView = { ...view, settings: { ...view.settings, linearApi
 const setup: SetupView = {
   linear: { ok: true },
   jitera: { ok: false, message: 'Could not read the Jitera documents. Check the URL and the token.' },
+  github: { ok: false, message: 'Optional. Add a read-only GitHub token to show PR reviews, checks and pilots.' },
   chats: { ok: false },
 };
 
@@ -39,17 +41,19 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test('checklist shows Linear, Jitera and Chats from /api/setup, each linking to its section', async () => {
+test('checklist shows Linear, GitHub (optional), Jitera and Chats from /api/setup, each linking to its section', async () => {
   routeFetch(base);
   render(<SettingsPage />);
   const list = await screen.findByRole('list', { name: 'Setup' });
   await vi.waitFor(() => expect(within(list).getByRole('link', { name: /Linear/ }).textContent).toContain('Done'));
   const links = within(list).getAllByRole('link');
-  expect(links.map((a) => a.getAttribute('href'))).toEqual(['#linear', '#jitera', '#chats']);
+  expect(links.map((a) => a.getAttribute('href'))).toEqual(['#linear', '#github', '#jitera', '#chats']);
   expect(links[0]!.textContent).not.toContain('Not done');
-  expect(links[1]!.textContent).toContain('Not done');
+  expect(links[1]!.textContent).toContain('GitHub (optional)');
+  expect(links[1]!.textContent).toContain('Optional. Add a read-only GitHub token');
   expect(links[2]!.textContent).toContain('Not done');
-  for (const id of ['linear', 'jitera', 'chats']) expect(document.getElementById(id)).toBeTruthy();
+  expect(links[3]!.textContent).toContain('Not done');
+  for (const id of ['linear', 'jitera', 'github', 'chats']) expect(document.getElementById(id)).toBeTruthy();
 });
 
 test('loaded values show, secrets only as "Set"', async () => {
@@ -143,6 +147,7 @@ test('save sends every field and leaves out blank secrets', async () => {
   await user.click(within(jitera).getByRole('button', { name: 'Save' }));
   await vi.waitFor(() => expect(bodyOf(f, 'POST', '/api/settings', 1).docsToken).toBe('new-token'));
   expect('linearApiKey' in bodyOf(f, 'POST', '/api/settings', 1)).toBe(false);
+  expect('githubToken' in bodyOf(f, 'POST', '/api/settings', 1)).toBe(false);
 });
 
 test('Jitera: Test checks the URL and token typed in the form, without saving, and shows Jitera\'s reason', async () => {
@@ -168,6 +173,30 @@ test('Jitera: a passing Test says so', async () => {
   const jitera = await screen.findByRole('region', { name: 'Jitera' });
   await user.click(within(jitera).getByRole('button', { name: 'Test' }));
   expect(await within(jitera).findByText('jflow can read the Jitera documents.')).toBeTruthy();
+});
+
+test('GitHub: optional token, Test tries the typed token without saving, Save sends it only when typed', async () => {
+  const f = routeFetch({
+    ...base,
+    'POST /api/setup/github': [reply(200, { ok: false, message: 'GitHub did not accept the token.' }), reply(200, { ok: true })],
+    'POST /api/settings': reply(200, { ...view, settings: { ...view.settings, githubTokenSet: true } }),
+  });
+  const user = userEvent.setup();
+  render(<SettingsPage />);
+  const github = await screen.findByRole('region', { name: 'GitHub' });
+  expect(within(github).getByText(/Fine-grained, read-only Pull requests on the product repos/)).toBeTruthy();
+  const field = within(github).getByLabelText('GitHub token') as HTMLInputElement;
+  expect(field.placeholder).toBe('Not set');
+  await user.type(field, 'gh-typed');
+  await user.click(within(github).getByRole('button', { name: 'Test' }));
+  expect(await within(github).findByText('GitHub did not accept the token.')).toBeTruthy();
+  expect(bodyOf(f, 'POST', '/api/setup/github')).toEqual({ githubToken: 'gh-typed' });
+  await user.click(within(github).getByRole('button', { name: 'Test' }));
+  expect(await within(github).findByText('jflow can read GitHub with this token.')).toBeTruthy();
+  expect(callsTo(f, 'POST', '/api/settings')).toHaveLength(0);
+  await user.click(within(github).getByRole('button', { name: 'Save' }));
+  await vi.waitFor(() => expect(bodyOf(f, 'POST', '/api/settings').githubToken).toBe('gh-typed'));
+  expect(((await within(github).findByLabelText('GitHub token')) as HTMLInputElement).placeholder).toBe('Set, leave blank to keep');
 });
 
 test('People: engineers list, saved lower-cased one per line', async () => {

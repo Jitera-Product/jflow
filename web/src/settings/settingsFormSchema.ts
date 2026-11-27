@@ -6,6 +6,7 @@ export const settingsFormSchema = z.object({
   docsUrl: z.string().trim(),
   docsToken: z.string().trim(),
   linearApiKey: z.string().trim(),
+  githubToken: z.string().trim(),
   teams: z.array(z.string()),
   tdrFolder: z.string().trim(),
   flowAgentUrl: z.string().trim(),

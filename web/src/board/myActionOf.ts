@@ -1,4 +1,8 @@
 import type { BoardCard } from '@/api/types';
+import { plural } from '@/lib/plural';
+import { prsToReviewOf } from './prsToReviewOf';
+import { qaFailedOf } from './qaFailedOf';
+import { reviewWaits } from './reviewWaits';
 import { stageOfLabel } from './stageOfLabel';
 
 const GATE_NOUN: Record<string, string> = {
@@ -14,5 +18,8 @@ export function myActionOf(card: BoardCard): string {
     const from = stageOfLabel(card.openGate.from);
     return `approve ${GATE_NOUN[from] ?? from}`;
   }
+  const failed = qaFailedOf(card);
+  if (failed) return `${plural(failed, 'QA check')} failed`;
+  if (reviewWaits(card)) return `review ${plural(prsToReviewOf(card), 'PR')}`;
   return STAGE_WORK[card.stage] ?? 'take a look';
 }

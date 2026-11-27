@@ -6,16 +6,26 @@ import { getMe } from '@/api/getMe';
 import type { Me, StageBoard } from '@/api/types';
 import { Button } from '@/components/ui/Button';
 import { when } from '@/lib/when';
-import { PageShell } from '@/shell/PageShell';
+import { AppHeader } from '@/shell/AppHeader';
+import { savedTeam } from '@/shell/savedTeam';
+import { saveTeam } from '@/shell/saveTeam';
 import { StatePanel } from '@/shell/StatePanel';
-import { BoardFilters } from './BoardFilters';
-import { StageColumn } from './StageColumn';
+import { BoardLegend } from './BoardLegend';
+import { boardSummary } from './boardSummary';
+import { BoardToolbar } from './BoardToolbar';
+import { filterCards } from './filterCards';
+import { ownersOf } from './ownersOf';
+import { phaseColumnsOf } from './phaseColumnsOf';
+import { PhaseColumn } from './PhaseColumn';
 
 export function BoardPage() {
   const [me, setMe] = useState<Me | null>(null);
-  const [team, setTeam] = useState('');
+  const [team, setTeam] = useState(savedTeam);
   const [mine, setMine] = useState(false);
   const [older, setOlder] = useState(false);
+  const [query, setQuery] = useState('');
+  const [owner, setOwner] = useState('');
+  const [stuck, setStuck] = useState(false);
   const [board, setBoard] = useState<StageBoard | null>(null);
   const [failed, setFailed] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
@@ -45,21 +55,31 @@ export function BoardPage() {
     getMe().then(setMe, () => setMe(null));
   }, []);
 
+  const all = board?.columns.flatMap((c) => c.cards) ?? [];
+  const shown = (cards: typeof all) => filterCards(cards, { query, owner, stuck });
   return (
-    <PageShell header me={me} onIdeaCreated={() => void load(true)} className="max-w-none py-6">
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-baseline gap-3">
-            <h1 className="text-lg leading-none font-semibold">Stages</h1>
-            {board && board.stuck > 0 && <span className="text-error-text">{`${board.stuck} stuck`}</span>}
-            {board && <span className="text-muted-foreground text-xs">{`Data as of ${when.format(new Date(board.at))}`}</span>}
-          </div>
-          <BoardFilters teams={me?.teams ?? []} team={team} mine={mine} loading={loading} onTeam={setTeam} onMine={setMine} onRefresh={() => void load(true)} />
+    <div className="bg-muted min-h-dvh">
+      <AppHeader
+        me={me}
+        waiting={board ? all.filter((c) => c.waitingForMe).length : null}
+        team={team}
+        onTeam={(t) => {
+          saveTeam(t);
+          setTeam(t);
+        }}
+        search={query}
+        onSearch={setQuery}
+        onIdeaCreated={() => void load(true)}
+      />
+      <main className="mx-auto flex w-full max-w-[1440px] flex-col gap-5 px-8 pt-6 pb-10 text-sm">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-[22px] leading-none font-semibold tracking-[-0.01em]">Features</h1>
+          {board && <span className="text-muted-foreground">{boardSummary(all)}</span>}
+          <span className="flex-[1_1_40px]" />
+          <BoardToolbar owners={ownersOf(all)} owner={owner} stuck={stuck} mine={mine} onOwner={setOwner} onStuck={setStuck} onMine={setMine} />
         </div>
-        {board?.notice && <p className="rounded-md bg-secondary px-3 py-2">{board.notice}</p>}
-        {board && board.columns.every((c) => !c.cards.length) && (
-          <p className="text-muted-foreground">{mine ? 'Nothing waits for you.' : 'No features yet.'}</p>
-        )}
+        {board?.notice && <p className="bg-secondary rounded-md px-3 py-2">{board.notice}</p>}
+        {board && !all.length && <p className="text-muted-foreground">{mine ? 'Nothing waits for you.' : 'No features yet.'}</p>}
         {failed && board ? (
           <p role="alert" className="rounded-md border border-error-border bg-error-bg px-3 py-2 text-error-text">
             {(failed instanceof ApiError && failed.message) || 'Could not load the board. Try again.'}
@@ -72,20 +92,29 @@ export function BoardPage() {
         ) : !board ? (
           <p className="text-muted-foreground">Loading...</p>
         ) : (
-          <div className="-mx-4 flex items-start gap-3 overflow-x-auto px-4 pb-4">
-            {board.columns.map((c) => (
-              <StageColumn key={c.stage} stage={c.stage} cards={c.cards}>
-                {c.stage === 'Done' && (
-                  <Button variant="ghost" size="xs" className="self-start" onClick={() => setOlder(!older)}>
-                    {older ? 'Hide older' : 'Show older'}
-                  </Button>
-                )}
-              </StageColumn>
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(300px,100%),1fr))] items-start gap-4">
+              {phaseColumnsOf(board.columns).map((p) => (
+                <PhaseColumn key={p.name} name={p.name} hint={p.hint} cards={shown(p.cards)} at={board.at}>
+                  {p.name === 'Ship' && (
+                    <Button variant="ghost" size="xs" className="text-muted-foreground self-start" onClick={() => setOlder(!older)}>
+                      {older ? 'Hide older' : 'Show older'}
+                    </Button>
+                  )}
+                </PhaseColumn>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <BoardLegend />
+              <span className="text-muted-foreground flex items-center gap-2 text-xs">
+                {`Data as of ${when.format(new Date(board.at))}`}
+                <Button variant="ghost" size="xs" loading={loading} onClick={() => void load(true)}>Refresh</Button>
+              </span>
+            </div>
+          </>
         )}
-      </div>
+      </main>
       <Outlet />
-    </PageShell>
+    </div>
   );
 }

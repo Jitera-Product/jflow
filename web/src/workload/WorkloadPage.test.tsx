@@ -8,7 +8,7 @@ import { WorkloadPage } from './WorkloadPage';
 
 beforeEach(() => {
   localStorage.clear();
-  history.replaceState(null, '', '/workload');
+  history.replaceState(null, '', '/people');
 });
 
 afterEach(() => {
@@ -56,7 +56,7 @@ test('renders the workload from /api/workload and the filters from /api/workload
 });
 
 test('filters come from the link and go back into it', async () => {
-  history.replaceState(null, '', '/workload?window=-P14D&team=t1');
+  history.replaceState(null, '', '/people?window=-P14D&team=t1');
   const f = routeFetch({
     'GET /api/me': reply(200, me()),
     'GET /api/workload/options': reply(200, options),

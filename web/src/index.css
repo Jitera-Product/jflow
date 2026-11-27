@@ -37,6 +37,10 @@
   --color-error-bg: var(--error-bg);
   --color-error-border: var(--error-border);
   --color-error-text: var(--error-text);
+
+  --color-waits-bg: var(--waits-bg);
+  --color-waits-text: var(--waits-text);
+  --color-waits-dot: var(--waits-dot);
 }
 
 :root {
@@ -67,6 +71,10 @@
   --error-bg: #fef2f2;
   --error-border: #fecaca;
   --error-text: #dc2626;
+
+  --waits-bg: #fefce8;
+  --waits-text: #97540a;
+  --waits-dot: #ca8a04;
 
   --brand-gradient-from: #0181f8;
   --brand-gradient-to: #4cc3ff;
@@ -103,6 +111,10 @@
   --error-bg: #fef2f2;
   --error-border: #fecaca;
   --error-text: #dc2626;
+
+  --waits-bg: rgba(202, 138, 4, 0.16);
+  --waits-text: #fcd34d;
+  --waits-dot: #eab308;
 
   --btn-gradient: linear-gradient(var(--brand-gradient-from), var(--brand-gradient-to));
   --btn-gradient-disabled: linear-gradient(#003463, #1e4e66);

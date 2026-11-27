@@ -66,12 +66,13 @@ export type BoardCard = {
   owner: { name: string; email: string } | null;
   stage: string;
   days: number;
+  since: string; // the day it entered its stage
   waitsFor: Waiting[];
   stuck: boolean;
   waitingForMe: boolean;
   notStarted: boolean;
   behind: boolean;
-  openGate: { id: string; to: string; opened: string; missing: Role[] } | null;
+  openGate: { id: string; from: string; to: string; opened: string; missing: Role[] } | null; // from, to: Linear labels
 };
 
 export type StageBoard = {
@@ -83,7 +84,7 @@ export type StageBoard = {
 
 export type FeaturePanelView = {
   card: BoardCard;
-  stages: Array<{ stage: string; status: string; date: string }>;
+  stages: Array<{ stage: string; status: string; date: string; file: string; by: string }>;
   log: Array<{ date: string; stage: string; who: string; text: string }>;
   gate: { url: string; from: string; to: string; missing: Role[] } | null;
   files: string[];
@@ -96,6 +97,6 @@ export type FeaturePanelView = {
 
 export type IdeaOwners = { owners: Array<{ id: string; name: string; email: string }>; defaultOwnerId: string | null };
 
-export type IdeaInput = { title: string; problem: string; audience: string; team: string; ownerId: string };
+export type IdeaInput = { title: string; problem: string; audience: string; team: string; ownerId: string }; // ownerId '' = pick later
 
-export type CreatedIdea = { uuid: string; slugId: string; url: string };
+export type CreatedIdea = { uuid: string; slugId: string; url: string; chatUrl: string | null };

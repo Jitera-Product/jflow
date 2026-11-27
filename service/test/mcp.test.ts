@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { memoryChatTokenStore } from '../src/chats/memoryChatTokenStore.js';
 import { openChatTokens } from '../src/chats/openChatTokens.js';
 import type { Config } from '../src/config/types.js';
+import { memoryFeatureActivityStore } from '../src/activity/memoryFeatureActivityStore.js';
 import { memoryFeatureChatStore } from '../src/featureChats/memoryFeatureChatStore.js';
 import { memoryDocuments } from '../src/documents/memoryDocuments.js';
 import type { Documents } from '../src/documents/types.js';
@@ -52,14 +53,16 @@ const statusMd = readFileSync(`${TEMPLATES}/0-status.md`, 'utf8')
 
 let docs: Documents;
 let featureChats: ReturnType<typeof memoryFeatureChatStore>;
+let activity: ReturnType<typeof memoryFeatureActivityStore>;
 let tracker: ReturnType<typeof fakeTracker>;
 let client: Client;
 
 async function setup(project: TrackerProject = PROJECT) {
   docs = memoryDocuments({ [STATUS]: statusMd, [`${FOLDER}/2-spec.md`]: SPEC_DONE });
   featureChats = memoryFeatureChatStore();
+  activity = memoryFeatureActivityStore();
   tracker = fakeTracker(project);
-  await connect({ config, settings, chats, featureChats, docs, tracker, now: NOW });
+  await connect({ config, settings, chats, featureChats, activity, docs, tracker, now: NOW });
 }
 async function connect(deps: Deps, origin: string | null = 'https://flow.example.com') {
   const [a, b] = InMemoryTransport.createLinkedPair();
@@ -193,7 +196,7 @@ describe('mcp tools', () => {
   it('read_settings returns the four team settings, with no Linear key set', async () => {
     const s = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, NOW);
     await s.save({ docsUrl: '', tdrFolder: 'TDRs', teams: [], engineers: ENGINEERS }, 'mika@jitera.com');
-    await connect({ config, settings: s, chats, featureChats, docs, tracker, now: NOW });
+    await connect({ config, settings: s, chats, featureChats, activity, docs, tracker, now: NOW });
     const r = await call('read_settings', {});
     expect(r.isError).toBeUndefined();
     expect(json(r)).toEqual({ tdrFolder: 'TDRs' });
@@ -201,14 +204,14 @@ describe('mcp tools', () => {
   it('a tool returns not_configured when settings are empty', async () => {
     const blank = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, NOW);
     await connect({
-      config, settings: blank, chats, featureChats, docs: liveDocuments(blank, config.documents), tracker: liveTracker(blank), now: NOW,
+      config, settings: blank, chats, featureChats, activity, docs: liveDocuments(blank, config.documents), tracker: liveTracker(blank), now: NOW,
     });
     const r = await call('read_feature', {});
     expect(r.isError).toBe(true);
     expect(r.content[0]!.text).toMatch(/^not_configured: /);
   });
   it('open_gate returns not_configured when the request origin is unknown', async () => {
-    await connect({ config, settings, chats, featureChats, docs, tracker, now: NOW }, null);
+    await connect({ config, settings, chats, featureChats, activity, docs, tracker, now: NOW }, null);
     const r = await call('open_gate', { to: 'flow:plan' });
     expect(r.isError).toBe(true);
     expect(r.content[0]!.text).toMatch(/^not_configured: .*Host/);
@@ -226,7 +229,7 @@ describe('feature chats', () => {
   const withAgent = async (flowAgentUrl: string) => {
     const s = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, NOW);
     await s.save({ docsUrl: '', tdrFolder: '', teams: ['ENG'], engineers: ENGINEERS, flowAgentUrl }, 'mika@jitera.com');
-    await connect({ config, settings: s, chats, featureChats, docs, tracker, now: NOW });
+    await connect({ config, settings: s, chats, featureChats, activity, docs, tracker, now: NOW });
   };
 
   it.each([
@@ -267,6 +270,23 @@ describe('feature chats', () => {
     await withAgent(agent);
     await featureChats.remember('P-ENG-12', OTHER, NOW);
     expect((await inChat('read_feature', {})).content).toEqual([{ type: 'text', text: 'This feature already has a chat in Jitera. Ask its owner for access.' }]);
+  });
+  it('each feature tool call marks the agent active on the feature, with or without a chat; another chat does not', async () => {
+    const since = new Date(0);
+    await call('read_feature', { project: 'p-eng-12' });
+    expect(await activity.since(since)).toEqual(['P-ENG-12']);
+    activity = memoryFeatureActivityStore();
+    await withAgent('');
+    await featureChats.remember('P-ENG-12', OTHER, NOW);
+    await inChat('read_feature', {});
+    expect(await activity.since(since)).toEqual([]);
+  });
+  it('a failing activity store never fails the tool', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    activity.touch = async () => { throw new Error('db off'); };
+    expect((await inChat('read_feature', {})).isError).toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/activity.*P-ENG-12.*db off/));
+    warn.mockRestore();
   });
   it('a failing store never fails the tool; it warns', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});

@@ -1,0 +1,117 @@
+import { describe, expect, it } from 'vitest';
+import { readChecks } from '../src/qa/readChecks.js';
+import { checksOf } from '../src/work/checksOf.js';
+import { pilotOf } from '../src/work/pilotOf.js';
+import { pilotOfLabels } from '../src/work/pilotOfLabels.js';
+import { prLinkOf } from '../src/work/prLinkOf.js';
+import { readBuildTable } from '../src/work/readBuildTable.js';
+import { reviewOf } from '../src/work/reviewOf.js';
+import type { BuildRow, GithubPr } from '../src/work/types.js';
+
+describe('prLinkOf', () => {
+  it('a URL cell gives repo, number and link', () => {
+    expect(prLinkOf('https://github.com/acme/automation/pull/4812', 'automation'))
+      .toEqual({ repo: 'automation', pr: 4812, url: 'https://github.com/acme/automation/pull/4812' });
+    expect(prLinkOf('[#12](https://github.com/acme/x/pull/12/files)', '')).toEqual({ repo: 'x', pr: 12, url: 'https://github.com/acme/x/pull/12' });
+  });
+  it('#123 or 123 links only with an org/repo repo cell', () => {
+    expect(prLinkOf('#123', 'acme/boost')).toEqual({ repo: 'boost', pr: 123, url: 'https://github.com/acme/boost/pull/123' });
+    expect(prLinkOf('123', 'boost')).toEqual({ repo: 'boost', pr: 123, url: null });
+    expect(prLinkOf('# 7', 'boost')).toEqual({ repo: 'boost', pr: 7, url: null });
+  });
+  it.each(['', '-', 'soon', 'https://gitlab.com/a/b/pull/1'])('no PR for %j', (cell) => {
+    expect(prLinkOf(cell, 'boost')).toEqual({ repo: 'boost', pr: null, url: null });
+  });
+});
+
+describe('readBuildTable', () => {
+  const md = `# Status
+
+| # | Stage | Status | File | Updated | By |
+| --- | --- | --- | --- | --- | --- |
+| 7 | Build | in progress | Linear issues | | |
+
+## Build
+
+|Issue|Repo|Branch|Base|PR|Status|
+|---|---|---|---|---|---|
+|  ENG-1  |  acme/automation | b1 | main |  #4812 |  In Review  |
+| ENG-2 | boost | b2 | main | | waiting  for answer
+| | | | | | |
+
+## Gates
+
+| Gate | From | To | Roles | Opened | Status | Approved by | Decided by | Sig |
+| g1 | a | b | owner | x | open | | | s |
+`;
+  it('reads rows with extra spaces, a missing end pipe and mixed case, and stops at the next section', () => {
+    expect(readBuildTable(md.split('\n'))).toEqual([
+      { issue: 'ENG-1', repo: 'automation', pr: 4812, url: 'https://github.com/acme/automation/pull/4812', status: 'in review', github: null },
+      { issue: 'ENG-2', repo: 'boost', pr: null, url: null, status: 'waiting for answer', github: null },
+    ]);
+  });
+  it('is empty without the table', () => {
+    expect(readBuildTable(['# Status', '## Gates'])).toEqual([]);
+  });
+});
+
+describe('readChecks', () => {
+  it('reads pass and fail in any case and spelling, and skips other results', () => {
+    const md = `| Requirement | Check | Command or source | Result | Evidence |
+| --- | --- | --- | --- | --- |
+| R1 | Opens | e2e | Pass | https://ci/1 |
+| R2 | Saves | e2e | **passed** | ok |
+| R3 | Lists | grep | OK | |
+| R4 | Empty text | look | FAIL | differs |
+| R5 | Later | - | pending | |
+| R6 | | e2e | failed | |`;
+    expect(readChecks(md)).toEqual([
+      { check: 'Opens', passed: true, evidence: 'https://ci/1' },
+      { check: 'Saves', passed: true, evidence: 'ok' },
+      { check: 'Lists', passed: true, evidence: '' },
+      { check: 'Empty text', passed: false, evidence: 'differs' },
+      { check: 'R6', passed: false, evidence: '' },
+    ]);
+    expect(readChecks('# Verification\n')).toEqual([]);
+  });
+});
+
+describe('GitHub summaries', () => {
+  it('review: the latest approve or request-changes per reviewer; dismissed drops it', () => {
+    const r = (login: string, state: string) => ({ user: { login }, state });
+    expect(reviewOf([])).toBeNull();
+    expect(reviewOf([r('a', 'CHANGES_REQUESTED'), r('a', 'APPROVED')])).toBe('approved');
+    expect(reviewOf([r('a', 'APPROVED'), r('b', 'CHANGES_REQUESTED'), r('b', 'COMMENTED')])).toBe('changes requested');
+    expect(reviewOf([r('b', 'CHANGES_REQUESTED'), r('b', 'DISMISSED'), r('a', 'COMMENTED')])).toBeNull();
+  });
+  it('checks: failing beats running beats passing; none is null', () => {
+    const run = (status: string, conclusion: string | null) => ({ status, conclusion });
+    expect(checksOf([])).toBeNull();
+    expect(checksOf([run('completed', 'success'), run('completed', 'skipped')])).toBe('passing');
+    expect(checksOf([run('completed', 'success'), run('in_progress', null)])).toBe('running');
+    expect(checksOf([run('in_progress', null), run('completed', 'timed_out')])).toBe('failing');
+  });
+  it('pilot label pilot-NN is PN without leading zeros', () => {
+    expect(pilotOfLabels([{ name: 'bug' }, { name: 'pilot-05' }])).toBe('P5');
+    expect(pilotOfLabels([{ name: 'Pilot-12' }])).toBe('P12');
+    expect(pilotOfLabels([{ name: 'pilot' }, { name: 'pilot-x' }])).toBeNull();
+  });
+});
+
+describe('pilotOf: one feature, one pilot', () => {
+  const row = (state: GithubPr['state'] | null, pilot: string | null = null): BuildRow => ({
+    issue: 'I', repo: 'r', pr: 1, url: 'u', status: 'in review',
+    github: state ? { state, review: null, checks: null, pilot } : null,
+  });
+  it('all open PRs on the same pilot', () => {
+    expect(pilotOf([row('open', 'P5'), row('draft', 'P5'), row('merged', 'P7')])).toEqual({ pilot: 'P5', mismatch: false });
+  });
+  it('no pilot on any open PR is nothing; PRs without GitHub data do not count', () => {
+    expect(pilotOf([row('open'), row(null), row('closed', 'P3')])).toEqual({ pilot: null, mismatch: false });
+    expect(pilotOf([])).toEqual({ pilot: null, mismatch: false });
+  });
+  it('different pilots, or one on a pilot and one on none, is a mismatch', () => {
+    expect(pilotOf([row('open', 'P5'), row('open', 'P7')])).toEqual({ pilot: null, mismatch: true });
+    expect(pilotOf([row('open', 'P5'), row('open')])).toEqual({ pilot: null, mismatch: true });
+  });
+});

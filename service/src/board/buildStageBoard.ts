@@ -1,4 +1,5 @@
 import type { FlowProject } from '../linear/types.js';
+import type { QaCheck } from '../qa/types.js';
 import { STAGES } from '../status/stages.js';
 import { cardOf } from './cardOf.js';
 import { stageOfLabel } from './stageOfLabel.js';
@@ -7,9 +8,11 @@ import type { Card, StageBoard, StatusFile } from './types.js';
 const DONE_KEEP_DAYS = 14;
 const NOTICE = 'jflow could not read the status files in Jitera. Stages come from Linear only.';
 
+// active: feature IDs, upper case, with a recent jflow tool call
 export function buildStageBoard(
   input: {
     projects: FlowProject[]; files: Map<string, StatusFile | null>; ids: Map<string, string>;
+    checks?: Map<string, QaCheck[]>; active?: Set<string>;
     engineers: string[]; viewer: string; mine: boolean; older: boolean; filesFailed: boolean;
   },
   now: Date,
@@ -19,7 +22,11 @@ export function buildStageBoard(
     const stage = stageOfLabel(p.flowLabel);
     if (!stage) continue;
     const file = input.filesFailed ? null : input.files.get(p.slugId) ?? null;
-    const c = cardOf(p, stage, file, input.ids.get(p.slugId) ?? null, input.engineers, input.viewer, now);
+    const id = input.ids.get(p.slugId) ?? null;
+    const c = cardOf(p, stage, file, id, input.engineers, input.viewer, now, {
+      checks: input.checks?.get(p.slugId) ?? [],
+      active: !!id && !!input.active?.has(id.toUpperCase()),
+    });
     if (stage === 'Done' && c.days > DONE_KEEP_DAYS && !input.older) continue;
     if (input.mine && !c.waitingForMe) continue;
     cards.push(c);

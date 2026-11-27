@@ -17,6 +17,7 @@ import { apiLinear } from './apiLinear.js';
 import { apiMe } from './apiMe.js';
 import { apiSettings } from './apiSettings.js';
 import { apiSetup } from './apiSetup.js';
+import { apiTestGithub } from './apiTestGithub.js';
 import { apiTestJitera } from './apiTestJitera.js';
 import { apiWorkload } from './apiWorkload.js';
 import { mcp } from './mcp.js';
@@ -60,14 +61,14 @@ export async function handle(ctx: HttpContext, req: IncomingMessage, res: Server
     return apiIdeas(ctx, req, res, email);
   }
 
-  const api = /^\/api\/(?:(settings|setup|setup\/jitera|agent-prompt|chats|linear\/(?:teams|labels))|chats\/([^/]+)|gate\/([^/]+)\/([^/]+))$/.exec(path);
+  const api = /^\/api\/(?:(settings|setup|setup\/jitera|setup\/github|agent-prompt|chats|linear\/(?:teams|labels))|chats\/([^/]+)|gate\/([^/]+)\/([^/]+))$/.exec(path);
   if (api && ['GET', 'POST', 'DELETE'].includes(req.method ?? '')) {
     const [, fixed, chatId, project, gate] = api;
     const m = req.method;
     const allowed = project ? m === 'GET' || m === 'POST'
       : chatId ? m === 'DELETE'
       : fixed === 'chats' ? m !== 'DELETE'
-      : fixed === 'setup/jitera' ? m === 'POST'
+      : fixed === 'setup/jitera' || fixed === 'setup/github' ? m === 'POST'
       : m === 'GET' || (m === 'POST' && fixed === 'settings');
     if (allowed) {
       if (m !== 'GET' && !sameOrigin(req)) return json(res, 403, { error: 'refused' });
@@ -78,6 +79,7 @@ export async function handle(ctx: HttpContext, req: IncomingMessage, res: Server
       if (fixed === 'settings') return apiSettings(ctx, req, res, email);
       if (fixed === 'setup') return apiSetup(ctx, res);
       if (fixed === 'setup/jitera') return apiTestJitera(ctx, req, res);
+      if (fixed === 'setup/github') return apiTestGithub(ctx, req, res);
       if (fixed === 'agent-prompt') return apiAgentPrompt(ctx, res);
       if (fixed?.startsWith('linear/')) return apiLinear(ctx, res, fixed.slice(7));
       return apiChats(ctx, req, res, email, chatId);

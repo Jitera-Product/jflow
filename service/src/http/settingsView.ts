@@ -6,6 +6,7 @@ export const settingsView = (email: string, s: Settings) => ({
     docsUrl: s.docsUrl,
     docsTokenSet: s.docsToken !== '',
     linearApiKeySet: s.linearApiKey !== '',
+    githubTokenSet: s.githubToken !== '',
     teams: s.teams,
     tdrFolder: s.tdrFolder,
     flowAgentUrl: s.flowAgentUrl,

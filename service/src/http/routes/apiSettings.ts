@@ -16,6 +16,7 @@ const settingsBody = z.object({
   engineers: list((s) => s.toLowerCase()),
   docsToken: secret,
   linearApiKey: secret,
+  githubToken: secret,
   tdrFolder: z.string().trim().optional(), // missing = keep the stored value
   flowAgentUrl: z.string().trim().optional(), // missing = keep the stored value
 });

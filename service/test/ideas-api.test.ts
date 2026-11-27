@@ -15,6 +15,7 @@ import { openSettings } from '../src/settings/openSettings.js';
 const TEAM = 'team.cloudflareaccess.com';
 const AUD = 'aud-1';
 const ORIGIN = 'https://flow.example.com';
+const FWD = { 'x-forwarded-proto': 'https', 'x-forwarded-host': 'flow.example.com' }; // as behind the proxy at ORIGIN
 const MIKA = 'mika@jitera.com';
 const EVE = 'eve@jitera.com';
 const WEB = fileURLToPath(new URL('./fixtures/web', import.meta.url));
@@ -58,8 +59,8 @@ beforeAll(async () => {
 
 let server: Server;
 let base: string;
-async function start(publicUrl: string) {
-  const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: [MIKA], publicUrl }, () => NOW);
+async function start() {
+  const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: [MIKA] }, () => NOW);
   await settings.save({ docsUrl: 'https://d.example.com', docsToken: 'DOCS-TOKEN-AAA', linearApiKey: 'LIN-KEY-BBB', teams: ['ENG', 'CORE'], engineers: [MIKA] }, MIKA);
   const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [], () => NOW);
   const deps = { config, settings, chats, featureChats: memoryFeatureChatStore(), docs: memoryDocuments({}), tracker: {} as never, now: () => NOW };
@@ -72,17 +73,17 @@ beforeEach(async () => {
   linearFails = false;
   userLookupFails = false;
   createFails = false;
-  await start(ORIGIN);
+  await start();
 });
 afterEach(() => new Promise<void>((r) => server.close(() => r())));
 
 const get = async (path: string, email: string | null = MIKA) =>
   fetch(base + path, { headers: email ? { 'cf-access-jwt-assertion': await sign(email) } : {} });
-const post = async (body: unknown, o: { email?: string | null; origin?: string } = {}) => {
+const post = async (body: unknown, o: { email?: string | null; origin?: string; direct?: boolean } = {}) => {
   const email = o.email === undefined ? EVE : o.email;
   return fetch(base + '/api/ideas', {
     method: 'POST',
-    headers: { 'content-type': 'application/json', origin: o.origin ?? ORIGIN, ...(email ? { 'cf-access-jwt-assertion': await sign(email) } : {}) },
+    headers: { ...(o.direct ? {} : FWD), 'content-type': 'application/json', origin: o.origin ?? ORIGIN, ...(email ? { 'cf-access-jwt-assertion': await sign(email) } : {}) },
     body: JSON.stringify(body),
   });
 };
@@ -180,12 +181,9 @@ describe('POST /api/ideas', () => {
     expect(r.status).toBe(502);
     expect(await r.json()).toEqual({ error: 'linear', message: 'Linear refused the project. Try again or check the title and owner.' });
   });
-  it('409 no_public_url while the jflow address is not set, and Linear is not called', async () => {
-    await new Promise<void>((r) => server.close(() => r()));
-    await start('');
-    const r = await post(idea);
-    expect(r.status).toBe(409);
-    expect((await r.json()).error).toBe('no_public_url');
+  it('checks the Origin against the host the request came to, with no stored address', async () => {
+    expect((await post(idea, { direct: true })).status).toBe(403);
     expect(bodies).toEqual([]);
+    expect((await post(idea, { direct: true, origin: base })).status).toBe(200);
   });
 });

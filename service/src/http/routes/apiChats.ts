@@ -18,7 +18,6 @@ export async function apiChats(ctx: HttpContext, req: IncomingMessage, res: Serv
     return send(res, 204, '');
   }
   if (id) return json(res, 404, { error: 'not_found' });
-  if (!ctx.origin()) return json(res, 409, { error: 'no_public_url', message: 'Set the public URL first.' });
   const read = await readJson(req, res);
   if (!read) return;
   const parsed = body.safeParse(read.body);

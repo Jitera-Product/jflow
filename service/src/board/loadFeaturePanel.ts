@@ -43,7 +43,7 @@ export async function loadFeaturePanel(deps: Deps, fetchFn: typeof fetch, key: s
     stages: found ? readStageRows(lines(found.md)) : [],
     log: file?.log ?? [],
     gate: card.openGate && row ? {
-      url: `${s.publicUrl}/gate/${id}/${card.openGate.id}`,
+      url: `/gate/${id}/${card.openGate.id}`,
       from: stageOfLabel(row.from) ?? row.from, to: stageOfLabel(row.to) ?? row.to, missing: card.openGate.missing,
     } : null,
     files: found?.files ?? [],

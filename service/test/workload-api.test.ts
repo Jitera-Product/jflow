@@ -65,7 +65,7 @@ let server: Server;
 let base: string;
 let now: Date;
 async function start(input: Partial<SettingsInput> = {}) {
-  const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: [MIKA], publicUrl: ORIGIN }, () => NOW);
+  const settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: [MIKA] }, () => NOW);
   await settings.save({ ...GOOD, ...input }, MIKA);
   const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [], () => NOW);
   const deps: Deps = { config, settings, chats, featureChats: memoryFeatureChatStore(), docs: memoryDocuments({}), tracker: {} as never, now: () => now };

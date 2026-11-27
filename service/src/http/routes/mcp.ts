@@ -5,6 +5,7 @@ import { buildMcpServer } from '../../mcp/buildMcpServer.js';
 import { header } from '../header.js';
 import { json } from '../json.js';
 import { readBody } from '../readBody.js';
+import { requestOrigin } from '../requestOrigin.js';
 import { send } from '../send.js';
 import { tooLarge } from '../tooLarge.js';
 
@@ -21,7 +22,7 @@ export async function mcp(deps: Deps, req: IncomingMessage, res: ServerResponse)
   } catch {
     return json(res, 400, { jsonrpc: '2.0', error: { code: -32700, message: 'Parse error' }, id: null });
   }
-  const server = buildMcpServer(deps, chat.name);
+  const server = buildMcpServer(deps, chat.name, requestOrigin(req));
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   res.on('close', () => {
     void transport.close();

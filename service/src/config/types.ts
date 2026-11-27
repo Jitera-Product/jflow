@@ -7,7 +7,6 @@ export type DocumentsConnection = {
   verbs: { read: McpVerb; list: McpVerb; create: McpVerb; update: McpVerb };
 };
 export type LegacyFile = {
-  publicUrl?: string;
   engineers?: string[];
   mcpClients?: Array<{ name: string; tokenEnv: string }>;
   access?: { teamDomain?: string; aud?: string };

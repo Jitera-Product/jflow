@@ -16,4 +16,4 @@ export const board = (cards: BoardCard[], o: Partial<StageBoard> = {}): StageBoa
   ...o,
 });
 
-export const me = (o: { engineer?: boolean; email?: string } = {}) => ({ email: 'mika@example.com', engineer: false, teams: ['ENG', 'CORE'], ...o });
+export const me = (o: { engineer?: boolean; email?: string; github?: { login: string } | null } = {}) => ({ email: 'mika@example.com', engineer: false, teams: ['ENG', 'CORE'], github: null, ...o });

@@ -1,26 +1,24 @@
-import type { BoardCard, Me } from '@/api/types';
-import { plural } from '@/lib/plural';
-import { gateDaysOf } from './gateDaysOf';
-import { myActionOf } from './myActionOf';
-import { qaFailedOf } from './qaFailedOf';
-import { stageOfLabel } from './stageOfLabel';
+import type { BoardCard, Me, Reviews } from '@/api/types';
+import { cardWaitingRow } from './cardWaitingRow';
+import { prWaitingRow } from './prWaitingRow';
+import { tdrWaitingRow } from './tdrWaitingRow';
+import { WAITING_GROUPS } from './WAITING_GROUPS';
 
-export type WaitingRow = { group: 'Approve' | 'Decide'; card: BoardCard; what: string; days: number; href: string };
+export type WaitingRow = {
+  group: (typeof WAITING_GROUPS)[number];
+  key: string; id: string; name: string; what: string; ref: string | null;
+  days: number | null;
+  link: { href: string; text: string; label: string; primary: boolean } | null;
+};
 
-const upper = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const order = (r: WaitingRow) => WAITING_GROUPS.indexOf(r.group);
 
 // at: when the board was read, so the days match the board
-export function waitingRowsOf(cards: BoardCard[], me: Me, at: string): WaitingRow[] {
-  const rows = cards.filter((c) => c.waitingForMe).map((c): WaitingRow => {
-    const g = c.openGate;
-    const failed = qaFailedOf(c);
-    const what = failed ? `QA: ${plural(failed, 'check')} failed. Fix it or accept it.` : upper(myActionOf(c));
-    if (!g || !c.id) return { group: 'Decide', card: c, what, days: c.days, href: `/f/${c.key}` };
-    const mine = g.missing.filter((r) => (r === 'owner' ? c.owner?.email.toLowerCase() === me.email.toLowerCase() : me.engineer));
-    return {
-      group: 'Approve', card: c, days: gateDaysOf(g, at), href: `/gate/${c.id}/${g.id}`,
-      what: `${what}: ${stageOfLabel(g.from)} -> ${stageOfLabel(g.to)}, as ${(mine.length ? mine : g.missing).join(' and ')}`,
-    };
-  });
-  return rows.sort((a, b) => (a.group === b.group ? b.days - a.days : a.group === 'Approve' ? -1 : 1));
+export function waitingRowsOf(cards: BoardCard[], me: Me, at: string, reviews: Reviews | null = null): WaitingRow[] {
+  const rows = [
+    ...cards.filter((c) => c.waitingForMe).map((c) => cardWaitingRow(c, me, at)),
+    ...(reviews?.prs ?? []).map((pr) => prWaitingRow(pr, at)),
+    ...(reviews?.tdrs ?? []).map(tdrWaitingRow),
+  ];
+  return rows.sort((a, b) => order(a) - order(b) || (b.days ?? -1) - (a.days ?? -1));
 }

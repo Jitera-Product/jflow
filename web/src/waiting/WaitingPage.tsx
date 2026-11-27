@@ -1,26 +1,30 @@
 import { useEffect, useState } from 'react';
 import { getBoard } from '@/api/getBoard';
 import { getMe } from '@/api/getMe';
-import type { Me, StageBoard } from '@/api/types';
+import { getReviews } from '@/api/getReviews';
+import type { Me, Reviews, StageBoard } from '@/api/types';
+import { WAITING_GROUPS } from '@/board/WAITING_GROUPS';
 import { waitingRowsOf } from '@/board/waitingRowsOf';
 import { firstNameOf } from '@/lib/firstNameOf';
 import { AppHeader } from '@/shell/AppHeader';
 import { savedTeam } from '@/shell/savedTeam';
 import { saveTeam } from '@/shell/saveTeam';
 import { StatePanel } from '@/shell/StatePanel';
+import { ReviewsGithubNote } from './ReviewsGithubNote';
 import { WaitingRowItem } from './WaitingRowItem';
 import { waitingSummary } from './waitingSummary';
-
-const GROUPS = ['Approve', 'Decide'] as const;
 
 export function WaitingPage() {
   const [me, setMe] = useState<Me | null>(null);
   const [team, setTeam] = useState(savedTeam);
   const [board, setBoard] = useState<StageBoard | null>(null);
   const [failed, setFailed] = useState<unknown>(null);
+  const [reviews, setReviews] = useState<Reviews | null>(null);
+  const loadReviews = () => getReviews().then(setReviews, () => setReviews(null));
 
   useEffect(() => {
     getMe().then(setMe, () => setMe(null));
+    void loadReviews();
   }, []);
 
   useEffect(() => {
@@ -34,7 +38,7 @@ export function WaitingPage() {
     };
   }, [team]);
 
-  const rows = board && me ? waitingRowsOf(board.columns.flatMap((c) => c.cards), me, board.at) : null;
+  const rows = board && me ? waitingRowsOf(board.columns.flatMap((c) => c.cards), me, board.at, reviews) : null;
   return (
     <div className="bg-muted min-h-dvh">
       <AppHeader
@@ -58,16 +62,17 @@ export function WaitingPage() {
         ) : !rows.length ? (
           <p className="text-muted-foreground rounded-xl border border-dashed p-4">Nothing waits for you.</p>
         ) : (
-          GROUPS.map((g) => {
+          WAITING_GROUPS.map((g) => {
             const mine = rows.filter((r) => r.group === g);
             return mine.length ? (
               <section key={g} aria-label={g} className="flex flex-col gap-2.5">
                 <h2 className="text-sm font-semibold">{g}</h2>
-                <ul className="flex flex-col gap-2.5">{mine.map((r) => <WaitingRowItem key={r.card.key} row={r} />)}</ul>
+                <ul className="flex flex-col gap-2.5">{mine.map((r) => <WaitingRowItem key={r.key} row={r} />)}</ul>
               </section>
             ) : null;
           })
         )}
+        {reviews && <ReviewsGithubNote github={reviews.github} onConnected={() => void loadReviews()} />}
       </main>
     </div>
   );

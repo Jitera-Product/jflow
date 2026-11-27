@@ -52,7 +52,14 @@ export type GateView = {
 
 export type Decision = { decision: 'approve' | 'changes'; to: string };
 
-export type Me = { email: string; engineer: boolean; teams: string[] };
+export type Me = { email: string; engineer: boolean; teams: string[]; github: { login: string } | null };
+
+export type ReviewPr = {
+  repo: string; number: number; title: string; url: string; author: string; updatedAt: string;
+  feature: { key: string; name: string } | null;
+};
+export type ReviewTdr = { title: string; path: string; url: string | null };
+export type Reviews = { github: 'none' | 'ok' | 'failed'; prs: ReviewPr[]; tdrs: ReviewTdr[] };
 
 export type Waiting = { kind: 'owner' | 'engineer' | 'agent'; names: string[] };
 

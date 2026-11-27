@@ -60,13 +60,31 @@ test('waiting rows: open gates to approve with the confirm link, other owner wor
     card({ key: 'P-ENG-5', id: 'P-ENG-5', waitingForMe: false }),
   ];
   const rows = waitingRowsOf(cards, me(), AT);
-  expect(rows.map((r) => [r.group, r.card.key, r.what, r.days, r.href])).toEqual([
+  expect(rows.map((r) => [r.group, r.key, r.what, r.days, r.link?.href])).toEqual([
     ['Approve', 'P-ENG-19', 'Approve the spec: Spec review -> TDR, as owner', 4, '/gate/P-ENG-19/g1'],
     ['Decide', 'P-ENG-30', 'Write the intent', 3, '/f/P-ENG-30'],
     ['Decide', 'P-ENG-21', 'Draw and approve UI', 1, '/f/P-ENG-21'],
   ]);
   const eng = waitingRowsOf([cards[1]!], me({ engineer: true }), AT);
   expect(eng[0]!.what).toBe('Approve the spec: Spec review -> TDR, as owner and engineer');
+});
+
+test('waiting rows: PRs to review after the features, with or without a flow feature, then TDRs', () => {
+  const pr = { repo: 'acme/frontend-core', title: 'Alert settings page', author: 'bo', updatedAt: '2026-11-24T09:00:00.000Z' };
+  const rows = waitingRowsOf([card({ key: 'P-ENG-21', id: 'P-ENG-21', name: 'Folder templates', days: 1, waitingForMe: true })], me(), AT, {
+    github: 'ok',
+    prs: [
+      { ...pr, number: 7, url: 'https://github.com/acme/boost/pull/7', repo: 'acme/boost', title: 'Fix routing', updatedAt: '2026-11-26T09:00:00.000Z', feature: null },
+      { ...pr, number: 2301, url: 'https://github.com/acme/frontend-core/pull/2301', feature: { key: 'P-ENG-18', name: 'Usage alerts in Slack' } },
+    ],
+    tdrs: [{ title: 'Customer keys', path: 'documents/TDR/TDR Customer keys.md', url: null }],
+  });
+  expect(rows.map((r) => [r.group, r.id, r.name, r.what, r.ref, r.days, r.link?.text, r.link?.href])).toEqual([
+    ['Decide', 'P-ENG-21', 'Folder templates', 'Review the spec', null, 1, 'Open', '/f/P-ENG-21'],
+    ['Review code', 'P-ENG-18', 'Usage alerts in Slack', 'Alert settings page', 'frontend-core #2301', 2, 'Open PR', 'https://github.com/acme/frontend-core/pull/2301'],
+    ['Review code', 'boost', 'Fix routing', 'by @bo', '#7', 0, 'Open PR', 'https://github.com/acme/boost/pull/7'],
+    ['Review TDR', 'TDR', 'Customer keys', 'Read it, then tick your name under Reviewers.', null, null, undefined, undefined],
+  ]);
 });
 
 test('filters: search by ID or name, owner, only stuck', () => {

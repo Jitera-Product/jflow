@@ -184,7 +184,7 @@ test('GitHub: optional token, Test tries the typed token without saving, Save se
   const user = userEvent.setup();
   render(<SettingsPage />);
   const github = await screen.findByRole('region', { name: 'GitHub' });
-  expect(within(github).getByText(/Fine-grained, read-only Pull requests on the product repos/)).toBeTruthy();
+  expect(within(github).getByText(/Fine-grained, read-only Pull requests and Checks on the product repos/)).toBeTruthy();
   const field = within(github).getByLabelText('GitHub token') as HTMLInputElement;
   expect(field.placeholder).toBe('Not set');
   await user.type(field, 'gh-typed');

@@ -55,6 +55,40 @@ describe('readBuildTable', () => {
   });
 });
 
+describe('real 0-status.md files', () => {
+  it('reads a Build table without a Branch column, with <url> PR cells and escaped repo names', () => {
+    const md = `## Build
+
+| Issue                 | Repo                        | Base                | PR                                                               | Status    |
+| --------------------- | --------------------------- | ------------------- | ---------------------------------------------------------------- | --------- |
+| CORE-3708 (CI-1)      | jitera\\_automation          | master              | <https://github.com/Jitera-Product/jitera_automation/pull/14308> | in review |
+`;
+    expect(readBuildTable(md.split('\n'))).toEqual([
+      { issue: 'CORE-3708 (CI-1)', repo: 'jitera_automation', pr: 14308, url: 'https://github.com/Jitera-Product/jitera_automation/pull/14308', status: 'in review', github: null },
+    ]);
+  });
+  it('reads backticked cells, notes after the PR and the status, repo#123 and None', () => {
+    const md = `## Build
+
+| Issue | Repo | Branch | Base | PR | Status |
+| --- | --- | --- | --- | --- | --- |
+| CORE-1 | \`jitera_automation\` | \`b\` | \`main\` | #298 (draft) | in review (do not merge until the release set is known) |
+| CORE-2 | \`jitera-boost\` | b | main | jitera-boost#1134 | merged into #14229 |
+| CORE-3 | jitera-boost | b | main | None | Implemented locally; commit af8054bd |
+| CORE-4 | - | - | - | - | waiting (rollout, Omat) |
+`;
+    expect(readBuildTable(md.split('\n')).map(({ repo, pr, status }) => ({ repo, pr, status }))).toEqual([
+      { repo: 'jitera_automation', pr: 298, status: 'in review' },
+      { repo: 'jitera-boost', pr: 1134, status: 'merged' },
+      { repo: 'jitera-boost', pr: null, status: 'implemented locally; commit af8054bd' },
+      { repo: '-', pr: null, status: 'waiting' },
+    ]);
+  });
+  it('org/repo#123 links without an org in the repo cell', () => {
+    expect(prLinkOf('Jitera-Product/jitera-boost#1134', 'jitera-boost')).toEqual({ repo: 'jitera-boost', pr: 1134, url: 'https://github.com/Jitera-Product/jitera-boost/pull/1134' });
+  });
+});
+
 describe('readChecks', () => {
   it('reads pass and fail in any case and spelling, and skips other results', () => {
     const md = `| Requirement | Check | Command or source | Result | Evidence |

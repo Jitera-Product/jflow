@@ -5,8 +5,8 @@ import type { ProjectAbout, ProjectPost } from './types.js';
 const QUERY = `query ProjectAbout($id: String!) {
   project(id: $id) {
     description content
-    projectUpdates(first: 5) { nodes { body createdAt health user { name displayName } } }
-    comments(first: 5) { nodes { body createdAt user { name displayName } } }
+    projectUpdates(first: 20) { nodes { body createdAt health user { name displayName } } }
+    comments(first: 20) { nodes { body createdAt user { name displayName } } }
   }
 }`;
 
@@ -18,7 +18,8 @@ type Data = {
 
 const postsOf = (nodes: Post[]): ProjectPost[] => nodes
   .map((n) => ({ author: n.user ? personName(n.user) : 'Someone', createdAt: n.createdAt, body: n.body, health: n.health ?? null }))
-  .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  .slice(0, 5); // Linear does not document the default order, so take 20 and keep the newest 5
 
 export async function readProjectAbout(fetchFn: typeof fetch, apiKey: string, projectId: string): Promise<ProjectAbout> {
   const { project: p } = await gql<Data>(fetchFn, apiKey, QUERY, { id: projectId });

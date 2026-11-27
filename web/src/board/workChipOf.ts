@@ -9,7 +9,6 @@ const BY_STATUS: Record<string, [PillTone, string]> = {
   waiting: ['quiet', 'Waiting'],
 };
 
-// What GitHub says about the PR when jflow can read it, else the Build table status.
 export function workChipOf(row: BuildRow): { tone: PillTone; text: string } | null {
   const g = row.github;
   if (g) {

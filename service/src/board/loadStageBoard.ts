@@ -49,6 +49,6 @@ export async function loadStageBoard(deps: Deps, fetchFn: typeof fetch, teams: s
   });
   return {
     projects: projects.map((p) => ({ ...p, identifier: ids.get(p.slugId) ?? null })),
-    files, ids, checks, filesFailed: entries === null, at,
+    files, ids, checksBySlug: checks, filesFailed: entries === null, at,
   };
 }

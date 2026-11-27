@@ -4,7 +4,6 @@ const PASS = ['pass', 'passed', 'ok'];
 const FAIL = ['fail', 'failed'];
 
 // Rows of the 4-verification.md table: | Requirement | Check | Command or source | Result | Evidence |.
-// A row whose result is not pass or fail (pending, skipped) is not counted.
 export function readChecks(md: string): QaCheck[] {
   return md.split('\n').map((l) => l.trim()).filter((l) => l.startsWith('|')).flatMap((l) => {
     const c = l.replace(/^\||\|$/g, '').split('|').map((s) => s.trim());

@@ -16,14 +16,12 @@ export type Card = {
   stage: StageName; days: number; since: string; waitsFor: Waiting[];
   stuck: boolean; waitingForMe: boolean; notStarted: boolean; behind: boolean;
   openGate: OpenGate | null;
-  build: BuildRow[]; // the Build table; GitHub data only on Build and Verify
-  pilot: string | null; // the one pilot all open PRs are on
-  pilotMismatch: boolean; // open PRs on different pilots, or some on none
-
-  qa: { passed: number; failed: number } | null; // null until 4-verification.md has checks
-  agentActive: boolean; // a jflow tool call in the last 10 minutes
+  build: BuildRow[];
+  pilot: string | null;
+  pilotMismatch: boolean;
+  qa: { passed: number; failed: number } | null;
+  agentActive: boolean;
 };
-// what the card needs beyond the status file
 export type CardData = { checks: QaCheck[]; active: boolean };
 export type StageBoard = {
   columns: Array<{ stage: StageName; cards: Card[] }>;
@@ -31,7 +29,7 @@ export type StageBoard = {
 };
 export type BoardData = {
   projects: FlowProject[]; files: Map<string, StatusFile | null>; ids: Map<string, string>;
-  checks: Map<string, QaCheck[]>; // 4-verification.md by slugId, Verify only
+  checksBySlug: Map<string, QaCheck[]>;
   filesFailed: boolean; at: string;
 };
 export type StageRow = { stage: StageName; status: string; date: string; file: string; by: string };
@@ -41,5 +39,5 @@ export type FeaturePanel = {
   files: string[]; linearUrl: string; behind: boolean;
   folder: string | null; chatUrl: string | null; notice: string | null;
   checks: QaCheck[];
-  about: ProjectAbout | null; // null when Linear did not answer
+  about: ProjectAbout | null;
 };

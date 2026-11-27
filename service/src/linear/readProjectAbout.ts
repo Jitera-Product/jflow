@@ -11,7 +11,7 @@ const QUERY = `query ProjectAbout($id: String!) {
 }`;
 
 type User = { name: string; displayName: string } | null;
-type Post = { body: string; createdAt: string; health?: string | null; user: User };
+type Post = { body: string; createdAt: string; health?: ProjectPost['health']; user: User };
 type Data = {
   project: { description: string | null; content: string | null; projectUpdates: { nodes: Post[] }; comments: { nodes: Post[] } } | null;
 };

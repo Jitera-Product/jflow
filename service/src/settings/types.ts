@@ -2,7 +2,7 @@ export type Settings = {
   docsUrl: string;
   docsToken: string;
   linearApiKey: string;
-  githubToken: string; // optional, read-only: PR state, reviews, checks and pilot labels; '' = no GitHub
+  githubToken: string;
   teams: string[];
   engineers: string[];
   tdrFolder: string;

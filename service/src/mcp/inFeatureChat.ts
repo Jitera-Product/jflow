@@ -9,8 +9,7 @@ const warn = (what: string, feature: string, e: unknown) =>
   console.warn(`jflow: ${what}: ${feature}: ${e instanceof Error ? e.message : String(e)}`);
 
 // A feature belongs to the first chat the agent worked on it in. Another chat gets only a pointer to it,
-// never the feature's data. Each call in the feature's chat marks the agent active on it.
-// A failing store never fails the tool.
+// never the feature's data.
 export async function inFeatureChat<R extends Result>(
   deps: Deps, project: string, meta: Record<string, unknown> | undefined, body: () => Promise<R>,
 ): Promise<R | Result> {

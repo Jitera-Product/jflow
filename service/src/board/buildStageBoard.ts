@@ -8,11 +8,10 @@ import type { Card, StageBoard, StatusFile } from './types.js';
 const DONE_KEEP_DAYS = 14;
 const NOTICE = 'jflow could not read the status files in Jitera. Stages come from Linear only.';
 
-// active: feature IDs, upper case, with a recent jflow tool call
 export function buildStageBoard(
   input: {
     projects: FlowProject[]; files: Map<string, StatusFile | null>; ids: Map<string, string>;
-    checks?: Map<string, QaCheck[]>; active?: Set<string>;
+    checksBySlug?: Map<string, QaCheck[]>; active?: Set<string>;
     engineers: string[]; viewer: string; mine: boolean; older: boolean; filesFailed: boolean;
   },
   now: Date,
@@ -24,7 +23,7 @@ export function buildStageBoard(
     const file = input.filesFailed ? null : input.files.get(p.slugId) ?? null;
     const id = input.ids.get(p.slugId) ?? null;
     const c = cardOf(p, stage, file, id, input.engineers, input.viewer, now, {
-      checks: input.checks?.get(p.slugId) ?? [],
+      checks: input.checksBySlug?.get(p.slugId) ?? [],
       active: !!id && !!input.active?.has(id.toUpperCase()),
     });
     if (stage === 'Done' && c.days > DONE_KEEP_DAYS && !input.older) continue;

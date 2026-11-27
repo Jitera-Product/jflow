@@ -23,6 +23,5 @@ export type FlowProject = {
   flowLabel: string; state: string; updatedAt: string;
 };
 
-// health is onTrack, atRisk or offTrack on project updates; null on comments
-export type ProjectPost = { author: string; createdAt: string; body: string; health: string | null };
+export type ProjectPost = { author: string; createdAt: string; body: string; health: 'onTrack' | 'atRisk' | 'offTrack' | null };
 export type ProjectAbout = { summary: string; content: string; updates: ProjectPost[]; comments: ProjectPost[] };

@@ -8,8 +8,6 @@ const BY_STAGE: Record<StageName, Waiting['kind'] | null> = {
   Plan: 'owner', Build: 'agent', Verify: 'owner', Done: null,
 };
 
-// Build waits for an engineer when every PR not merged yet is in review.
-// Verify waits for the agent until it has recorded checks.
 function kindOf(stage: StageName, build: BuildRow[], checked: boolean): Waiting['kind'] | null {
   const open = build.filter((r) => r.status !== 'merged');
   if (stage === 'Build' && open.length && open.every((r) => r.status === 'in review')) return 'engineer';

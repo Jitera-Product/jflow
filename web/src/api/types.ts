@@ -63,7 +63,6 @@ export type GithubPr = {
   pilot: string | null;
 };
 
-// a row of the Build table in 0-status.md; url only when the org is known; github only with a token
 export type BuildRow = { issue: string; repo: string; pr: number | null; url: string | null; status: string; github: GithubPr | null };
 
 export type QaCheck = { check: string; passed: boolean; evidence: string };
@@ -86,10 +85,10 @@ export type BoardCard = {
   behind: boolean;
   openGate: { id: string; from: string; to: string; opened: string; missing: Role[] } | null; // from, to: Linear labels
   build: BuildRow[];
-  pilot: string | null; // the one pilot all open PRs are on
-  pilotMismatch: boolean; // open PRs on different pilots, or some on none; counts as stuck
-  qa: { passed: number; failed: number } | null; // Verify only, once 4-verification.md has checks
-  agentActive: boolean; // a jflow tool call in the last 10 minutes
+  pilot: string | null;
+  pilotMismatch: boolean;
+  qa: { passed: number; failed: number } | null;
+  agentActive: boolean;
 };
 
 export type StageBoard = {
@@ -113,8 +112,7 @@ export type FeaturePanelView = {
   checks: QaCheck[];
   about: ProjectAbout | null;
 };
-// health is onTrack, atRisk or offTrack on updates; null on comments
-export type ProjectPost = { author: string; createdAt: string; body: string; health: string | null };
+export type ProjectPost = { author: string; createdAt: string; body: string; health: 'onTrack' | 'atRisk' | 'offTrack' | null };
 export type ProjectAbout = { summary: string; content: string; updates: ProjectPost[]; comments: ProjectPost[] };
 
 export type IdeaOwners = { owners: Array<{ id: string; name: string; email: string }>; defaultOwnerId: string | null };

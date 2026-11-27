@@ -6,7 +6,6 @@ import type { HttpContext } from '../types.js';
 
 export async function apiFeaturePanel(ctx: HttpContext, res: ServerResponse, email: string, key: string) {
   const fetchFn = ctx.opts.fetch ?? fetch;
-  // cached like the board, so opening a panel again does not read GitHub again
   const github = (id: string, rows: Parameters<typeof withGithub>[2]) =>
     ctx.board(`github:${id}`, false, () => withGithub(fetchFn, ctx.deps.settings.get().githubToken, rows));
   let panel;

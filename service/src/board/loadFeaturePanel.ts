@@ -21,7 +21,6 @@ const VERIFICATION = '4-verification.md';
 
 type Github = (id: string, rows: BuildRow[]) => Promise<BuildRow[]>;
 
-// null when no flow project matches the key; github reads the PRs of the Build table, cached by the caller
 export async function loadFeaturePanel(
   deps: Deps, fetchFn: typeof fetch, key: string, viewer: string,
   github: Github = (_id, rows) => withGithub(fetchFn, deps.settings.get().githubToken, rows),

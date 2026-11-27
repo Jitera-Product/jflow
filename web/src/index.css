@@ -154,7 +154,6 @@
   }
 }
 
-/* Markdown from Linear: small headings, the panel's 13px text */
 @layer components {
   .markdown {
     @apply text-[13px] leading-relaxed wrap-anywhere;

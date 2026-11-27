@@ -108,7 +108,7 @@ describe('buildStageBoard', () => {
     expect(b.columns.find((c) => c.stage === 'Verify')!.cards.map((c) => c.slugId)).toEqual(['s1']);
     expect(cards(b)[0]!).toMatchObject({ waitsFor: [{ kind: 'agent', names: ['the agent'] }], qa: null });
     const checks = new Map([['s1', [{ check: 'a', passed: true, evidence: '' }, { check: 'b', passed: false, evidence: '' }]]]);
-    expect(cards(run([proj({ flowLabel: 'flow:verify' })], [], { checks }))[0]!).toMatchObject({
+    expect(cards(run([proj({ flowLabel: 'flow:verify' })], [], { checksBySlug: checks }))[0]!).toMatchObject({
       waitsFor: [{ kind: 'owner', names: ['Mika'] }], qa: { passed: 1, failed: 1 },
     });
   });

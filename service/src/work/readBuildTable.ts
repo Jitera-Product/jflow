@@ -1,7 +1,7 @@
 import { prLinkOf } from './prLinkOf.js';
 import type { BuildRow } from './types.js';
 
-// The "## Build" table of 0-status.md: | Issue | Repo | Branch | Base | PR | Status |. Empty when there is none.
+// The "## Build" table of 0-status.md: | Issue | Repo | Branch | Base | PR | Status |.
 export function readBuildTable(ls: string[]): BuildRow[] {
   const head = ls.findIndex((l) => l.trim() === '## Build');
   if (head < 0) return [];

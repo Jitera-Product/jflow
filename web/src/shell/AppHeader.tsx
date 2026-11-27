@@ -2,6 +2,7 @@ import { Plus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { getBoard } from '@/api/getBoard';
 import { getMe } from '@/api/getMe';
+import { getReviews } from '@/api/getReviews';
 import type { Me } from '@/api/types';
 import { NewIdeaDialog } from '@/board/NewIdeaDialog';
 import { Avatar } from '@/components/ui/Avatar';
@@ -45,8 +46,8 @@ export function AppHeader({ me: givenMe, waiting: givenWaiting, team = savedTeam
 
   useEffect(() => {
     if (!asksWaiting) return;
-    getBoard({ team: savedTeam(), mine: true, older: false, refresh: false }).then(
-      (b) => setFetchedWaiting(b.columns.flatMap((c) => c.cards).length),
+    Promise.all([getBoard({ team: savedTeam(), mine: true, older: false, refresh: false }), getReviews().catch(() => null)]).then(
+      ([b, r]) => setFetchedWaiting(b.columns.flatMap((c) => c.cards).length + (r ? r.prs.length + r.tdrs.length : 0)),
       () => setFetchedWaiting(null),
     );
   }, [asksWaiting]);
@@ -106,7 +107,11 @@ export function AppHeader({ me: givenMe, waiting: givenWaiting, team = savedTeam
             New idea
           </Button>
           <ThemeToggle />
-          {me && <span role="img" aria-label={me.email} title={me.email}><Avatar name={me.email} className="size-8 text-xs" /></span>}
+          {me && (
+            <a href="/me" title={me.email} aria-current={path === '/me' ? 'page' : undefined} className="rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
+              <span role="img" aria-label={me.email}><Avatar name={me.email} className="size-8 text-xs" /></span>
+            </a>
+          )}
         </div>
       </header>
       {adding && me && (

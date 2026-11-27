@@ -14,6 +14,7 @@ export function AppMenu({ engineer }: Props) {
         <li><a className={ITEM} href="/">Board</a></li>
         <li><a className={ITEM} href="/waiting">Waiting for me</a></li>
         <li><a className={ITEM} href="/people">People</a></li>
+        <li><a className={ITEM} href="/me">Me</a></li>
         {engineer && <li><a className={ITEM} href="/settings">Settings</a></li>}
       </ul>
     </details>

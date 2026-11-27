@@ -15,10 +15,12 @@ import { apiGate } from './apiGate.js';
 import { apiIdeas } from './apiIdeas.js';
 import { apiLinear } from './apiLinear.js';
 import { apiMe } from './apiMe.js';
+import { apiMeGithub } from './apiMeGithub.js';
 import { apiSettings } from './apiSettings.js';
 import { apiSetup } from './apiSetup.js';
 import { apiTestGithub } from './apiTestGithub.js';
 import { apiTestJitera } from './apiTestJitera.js';
+import { apiWaitingReviews } from './apiWaitingReviews.js';
 import { apiWorkload } from './apiWorkload.js';
 import { mcp } from './mcp.js';
 import { staticFiles } from './staticFiles.js';
@@ -41,6 +43,18 @@ export async function handle(ctx: HttpContext, req: IncomingMessage, res: Server
       return json(res, 409, { error: 'not_configured', message: 'An engineer has to finish setup on /settings first.' });
     }
     return board[2] ? apiFeaturePanel(ctx, res, email, board[2]) : apiBoard(ctx, req, res, email);
+  }
+
+  const personal = path === '/api/me/github' ? ['POST', 'DELETE'] : path === '/api/waiting/reviews' ? ['GET'] : [];
+  if (personal.includes(req.method ?? '')) {
+    if (req.method !== 'GET' && !sameOrigin(req)) return json(res, 403, { error: 'refused' });
+    const email = await verifyAccess(header(req, 'cf-access-jwt-assertion'), { ...ctx.deps.config.access, jwks: ctx.opts.jwks });
+    if (!email) return json(res, 401, { error: 'sign_in' });
+    if (path === '/api/me/github') return apiMeGithub(ctx, req, res, email);
+    if (!isConfigured(ctx.deps.settings.get())) {
+      return json(res, 409, { error: 'not_configured', message: 'An engineer has to finish setup on /settings first.' });
+    }
+    return apiWaitingReviews(ctx, res, email);
   }
 
   const workload = /^\/api\/workload(\/options)?$/.exec(path);
@@ -87,7 +101,7 @@ export async function handle(ctx: HttpContext, req: IncomingMessage, res: Server
   }
   if (path.startsWith('/api/')) return json(res, 404, { error: 'not_found', message: 'No such API.' });
 
-  if (req.method === 'GET' && (['/', '/settings', '/waiting', '/people'].includes(path) || /^\/f\/[^/]+$/.test(path) || /^\/gate\/[^/]+\/[^/]+$/.test(path) || path.startsWith('/assets/'))) {
+  if (req.method === 'GET' && (['/', '/settings', '/waiting', '/people', '/me'].includes(path) || /^\/f\/[^/]+$/.test(path) || /^\/gate\/[^/]+\/[^/]+$/.test(path) || path.startsWith('/assets/'))) {
     return staticFiles(ctx.deps.config.webDir, res, path);
   }
   send(res, 404, 'not found');

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError } from '@/api/ApiError';
 import { getBoard } from '@/api/getBoard';
 import { getMe } from '@/api/getMe';
+import { getReviews } from '@/api/getReviews';
 import type { Me, StageBoard } from '@/api/types';
 import { Button } from '@/components/ui/Button';
 import { when } from '@/lib/when';
@@ -29,6 +30,7 @@ export function BoardPage() {
   const [board, setBoard] = useState<StageBoard | null>(null);
   const [failed, setFailed] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
+  const [reviews, setReviews] = useState(0);
   // Only the last request may set the board, so a slow answer for old filters cannot win.
   const last = useRef(0);
 
@@ -53,6 +55,7 @@ export function BoardPage() {
 
   useEffect(() => {
     getMe().then(setMe, () => setMe(null));
+    getReviews().then((r) => setReviews(r.prs.length + r.tdrs.length), () => setReviews(0));
   }, []);
 
   const all = board?.columns.flatMap((c) => c.cards) ?? [];
@@ -61,7 +64,7 @@ export function BoardPage() {
     <div className="bg-muted min-h-dvh">
       <AppHeader
         me={me}
-        waiting={board ? all.filter((c) => c.waitingForMe).length : null}
+        waiting={board ? all.filter((c) => c.waitingForMe).length + reviews : null}
         team={team}
         onTeam={(t) => {
           saveTeam(t);

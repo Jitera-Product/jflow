@@ -57,7 +57,7 @@ test('Verify with failed checks: the owner sees You, others the owner and the co
 
 test('waiting: failed checks are a Decide row for the owner, linking to the panel', () => {
   const rows = waitingRowsOf([card({ key: 'P-ENG-12', stage: 'Verify', waitingForMe: true, qa: { passed: 2, failed: 1 }, days: 0 })], me(), AT);
-  expect(rows.map((r) => [r.group, r.what, r.href])).toEqual([['Decide', 'QA: 1 check failed. Fix it or accept it.', '/f/P-ENG-12']]);
+  expect(rows.map((r) => [r.group, r.what, r.link?.href])).toEqual([['Decide', 'QA: 1 check failed. Fix it or accept it.', '/f/P-ENG-12']]);
   expect(waitingRowsOf([card({ stage: 'Verify', waitingForMe: true, qa: { passed: 0, failed: 3 } })], me(), AT)[0]!.what).toBe('QA: 3 checks failed. Fix it or accept it.');
 });
 

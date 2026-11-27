@@ -7,6 +7,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { memoryChatTokenStore } from '../src/chats/memoryChatTokenStore.js';
 import { openChatTokens } from '../src/chats/openChatTokens.js';
 import { memoryFeatureActivityStore } from '../src/activity/memoryFeatureActivityStore.js';
+import { memoryPersonalSettingsStore } from '../src/personal/memoryPersonalSettingsStore.js';
 import { memoryFeatureChatStore } from '../src/featureChats/memoryFeatureChatStore.js';
 import type { Config } from '../src/config/types.js';
 import { memoryDocuments } from '../src/documents/memoryDocuments.js';
@@ -79,7 +80,7 @@ async function start(linearApiKey = 'LIN-KEY-BBB', docs?: Documents) {
   settings = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: [MIKA] }, () => new Date());
   await settings.save({ docsUrl: 'https://d.example.com', docsToken: 'DOCS-STORED', teams: ['ENG'], engineers: [MIKA], linearApiKey }, MIKA);
   const chats = await openChatTokens(memoryChatTokenStore(), 'k'.repeat(32), [], () => new Date());
-  deps = { config, settings, chats, featureChats: memoryFeatureChatStore(), activity: memoryFeatureActivityStore(), docs: docs ?? memoryDocuments({}), tracker: {} as never, now: () => new Date() };
+  deps = { config, settings, chats, featureChats: memoryFeatureChatStore(), activity: memoryFeatureActivityStore(), personal: memoryPersonalSettingsStore(), docs: docs ?? memoryDocuments({}), tracker: {} as never, now: () => new Date() };
   server = createHttpServer(deps, { jwks, fetch: fakeLinear, makeDocs });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;

@@ -3,6 +3,7 @@ import { ApiError } from './api/ApiError';
 import { BoardPage } from './board/BoardPage';
 import { FeaturePanel } from './board/FeaturePanel';
 import { GatePage } from './gate/GatePage';
+import { MePage } from './me/MePage';
 import { SettingsPage } from './settings/SettingsPage';
 import { PageShell } from './shell/PageShell';
 import { StatePanel } from './shell/StatePanel';
@@ -41,6 +42,8 @@ const people = createRoute({
   component: lazyRouteComponent(() => import('./workload/WorkloadPage'), 'WorkloadPage'),
 });
 
+const mePage = createRoute({ getParentRoute: () => root, path: '/me', component: MePage });
+
 const settings = createRoute({ getParentRoute: () => root, path: '/settings', component: SettingsPage });
 
 const gate = createRoute({
@@ -52,7 +55,7 @@ const gate = createRoute({
   },
 });
 
-export const routeTree = root.addChildren([board.addChildren([stages, feature]), waiting, people, settings, gate]);
+export const routeTree = root.addChildren([board.addChildren([stages, feature]), waiting, people, mePage, settings, gate]);
 
 export const router = createRouter({ routeTree });
 

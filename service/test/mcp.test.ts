@@ -7,6 +7,7 @@ import { memoryChatTokenStore } from '../src/chats/memoryChatTokenStore.js';
 import { openChatTokens } from '../src/chats/openChatTokens.js';
 import type { Config } from '../src/config/types.js';
 import { memoryFeatureActivityStore } from '../src/activity/memoryFeatureActivityStore.js';
+import { memoryPersonalSettingsStore } from '../src/personal/memoryPersonalSettingsStore.js';
 import { memoryFeatureChatStore } from '../src/featureChats/memoryFeatureChatStore.js';
 import { memoryDocuments } from '../src/documents/memoryDocuments.js';
 import type { Documents } from '../src/documents/types.js';
@@ -62,7 +63,7 @@ async function setup(project: TrackerProject = PROJECT) {
   featureChats = memoryFeatureChatStore();
   activity = memoryFeatureActivityStore();
   tracker = fakeTracker(project);
-  await connect({ config, settings, chats, featureChats, activity, docs, tracker, now: NOW });
+  await connect({ config, settings, chats, featureChats, activity, personal: memoryPersonalSettingsStore(), docs, tracker, now: NOW });
 }
 async function connect(deps: Deps, origin: string | null = 'https://flow.example.com') {
   const [a, b] = InMemoryTransport.createLinkedPair();
@@ -196,7 +197,7 @@ describe('mcp tools', () => {
   it('read_settings returns the four team settings, with no Linear key set', async () => {
     const s = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, NOW);
     await s.save({ docsUrl: '', tdrFolder: 'TDRs', teams: [], engineers: ENGINEERS }, 'mika@jitera.com');
-    await connect({ config, settings: s, chats, featureChats, activity, docs, tracker, now: NOW });
+    await connect({ config, settings: s, chats, featureChats, activity, personal: memoryPersonalSettingsStore(), docs, tracker, now: NOW });
     const r = await call('read_settings', {});
     expect(r.isError).toBeUndefined();
     expect(json(r)).toEqual({ tdrFolder: 'TDRs' });
@@ -204,14 +205,14 @@ describe('mcp tools', () => {
   it('a tool returns not_configured when settings are empty', async () => {
     const blank = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, NOW);
     await connect({
-      config, settings: blank, chats, featureChats, activity, docs: liveDocuments(blank, config.documents), tracker: liveTracker(blank), now: NOW,
+      config, settings: blank, chats, featureChats, activity, personal: memoryPersonalSettingsStore(), docs: liveDocuments(blank, config.documents), tracker: liveTracker(blank), now: NOW,
     });
     const r = await call('read_feature', {});
     expect(r.isError).toBe(true);
     expect(r.content[0]!.text).toMatch(/^not_configured: /);
   });
   it('open_gate returns not_configured when the request origin is unknown', async () => {
-    await connect({ config, settings, chats, featureChats, activity, docs, tracker, now: NOW }, null);
+    await connect({ config, settings, chats, featureChats, activity, personal: memoryPersonalSettingsStore(), docs, tracker, now: NOW }, null);
     const r = await call('open_gate', { to: 'flow:plan' });
     expect(r.isError).toBe(true);
     expect(r.content[0]!.text).toMatch(/^not_configured: .*Host/);
@@ -229,7 +230,7 @@ describe('feature chats', () => {
   const withAgent = async (flowAgentUrl: string) => {
     const s = await openSettings(memorySettingsStore(), 'k'.repeat(32), { engineers: ENGINEERS }, NOW);
     await s.save({ docsUrl: '', tdrFolder: '', teams: ['ENG'], engineers: ENGINEERS, flowAgentUrl }, 'mika@jitera.com');
-    await connect({ config, settings: s, chats, featureChats, activity, docs, tracker, now: NOW });
+    await connect({ config, settings: s, chats, featureChats, activity, personal: memoryPersonalSettingsStore(), docs, tracker, now: NOW });
   };
 
   it.each([

@@ -29,7 +29,7 @@ The service listens on `PORT` (default `8080`).
 | Env var | Notes |
 | --- | --- |
 | `DATABASE_URL` | Postgres 14 or newer, for example `postgres://jflow:pass@db.example.com:5432/jflow`. jflow runs its migrations at start. |
-| `JFLOW_SETTINGS_KEY` | At least 32 characters. Encrypts every secret in the database: the docs token, the Linear key, the GitHub token, the gate secret and the chat tokens. Keep it. If you lose or change it, jflow refuses to start, because it cannot open the stored gate secret. |
+| `JFLOW_SETTINGS_KEY` | At least 32 characters. Encrypts every secret in the database: the docs token, the Linear key, the GitHub token, the personal GitHub tokens, the gate secret and the chat tokens. Keep it. If you lose or change it, jflow refuses to start, because it cannot open the stored gate secret. |
 | `JFLOW_ACCESS_TEAM_DOMAIN` | The team domain of your Cloudflare Access, for example `yourteam.cloudflareaccess.com`. |
 | `JFLOW_ACCESS_AUD` | The audience (AUD) tag of the Access application that protects the site. |
 | `PORT` | Optional. Default `8080`. |
@@ -83,12 +83,23 @@ connector only works for its creator.
 
 The Chats item is done when any token was used once.
 
+### Personal GitHub tokens
+
+"Waiting for me" (`/waiting`) also lists the pull requests that ask for your review and the TDRs In Review
+where your name is an unchecked line under Reviewers. For the pull requests, jflow needs to know who you are on
+GitHub, so each person adds their own token on `/me` (or on `/waiting`, which asks for one when none is set).
+Use a fine-grained token: resource owner your GitHub organization, read-only "Pull requests" on its
+repositories. jflow checks it with `GET https://api.github.com/user`, stores it encrypted with
+`JFLOW_SETTINGS_KEY`, and uses it only for the search `review-requested:@me`. "Remove" on `/me` deletes it.
+jflow never returns the token to the web app. The TDRs need no personal token: jflow reads the TDR folder with
+the Jitera token and finds your name in Linear by your Access email.
+
 ## Network
 
 - Put TLS in front with any reverse proxy. The proxy must pass the public host, in `Host` or `X-Forwarded-Host`,
   and the public scheme in `X-Forwarded-Proto` (`https`). If the last proxy says `http` for a page served over
   `https`, writes from the web app are refused with 403 `refused`.
-- `/`, `/f/*`, `/waiting`, `/people`, `/workload`, `/gate/*`, `/settings` and `/api/*` must sit behind Cloudflare Access. The pages are a static app that
+- `/`, `/f/*`, `/waiting`, `/people`, `/me`, `/workload`, `/gate/*`, `/settings` and `/api/*` must sit behind Cloudflare Access. The pages are a static app that
   jflow serves itself, and the app calls `/api/*`. Access sends the `Cf-Access-Jwt-Assertion` header, and
   jflow verifies that JWT itself against `JFLOW_ACCESS_TEAM_DOMAIN` and `JFLOW_ACCESS_AUD` on every `/api` call. Cloudflare
   Access is the only SSO supported today. Do not route those paths to jflow without it. The boards need nothing extra: they use the Linear key and teams from `/settings`. Anyone Access lets in can open them, and only `/settings` is limited to engineers.
